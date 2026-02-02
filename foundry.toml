@@ -1,0 +1,84 @@
+# Default profile: optimized for fast compilation (Local Development)
+[profile.default]
+bytecode_hash = "none"
+evm_version = "cancun"
+ffi = true
+fs_permissions = [{access = "read-write", path = ".forge-snapshots/"}, {access = "read", path = "out/"}, {access = "read", path = "script/config/"}]
+libs = ["lib"]
+out = "out"
+solc_version = "0.8.26"
+src = "src"
+optimizer = true
+optimizer_runs = 200       # Low runs = faster compile
+via_ir = false              # Optimization enabled by SwapLogic refactor
+# Use local fork for maximum speed (start with: anvil --fork-url https://mainnet.base.org)
+# For fork tests, use --fork-url http://localhost:8545 flag
+# eth_rpc_url = "${RPC_URL}"
+
+# CI/Production profile: optimized for gas efficiency (Deployment)
+# Use with: FOUNDRY_PROFILE=ci forge build
+[profile.ci]
+bytecode_hash = "none"
+evm_version = "cancun"
+ffi = true
+fs_permissions = [{access = "read-write", path = ".forge-snapshots/"}, {access = "read", path = "out/"}, {access = "read", path = "script/config/"}]
+libs = ["lib"]
+out = "out"
+solc_version = "0.8.26"
+src = "src"
+optimizer = true
+optimizer_runs = 10_000    # High runs = slower compile, cheaper gas
+via_ir = true              # Slow compile, better optimization for deployment
+eth_rpc_url = "https://rpc.buildbear.io/respectable-loki-bc440256"
+
+# RPC endpoints for forking
+[rpc_endpoints]
+base = "${BASE_RPC_URL}"
+baseSepolia = "${BASE_SEPOLIA_RPC_URL}"
+sandbox = "${RPC_URL}"
+arbitrum = "${ARBITRUM_RPC_URL}"
+
+# Arbitrum fork profile
+[profile.fork-arbitrum]
+eth_rpc_url = "${ARBITRUM_RPC_URL}"
+optimizer = true
+optimizer_runs = 200
+via_ir = false
+
+# Fork testing configuration
+# Local fork profile for fast testing (recommended)
+# Use with: FOUNDRY_PROFILE=local-fork ./scripts/test-fork-fast.sh
+[profile.local-fork]
+eth_rpc_url = "${RPC_URL}"  # Defaults to http://localhost:8545 (Anvil)
+fork_block_number = 40334340  # Base mainnet block - update as needed
+# Cache fork state for faster subsequent runs
+no_storage_caching = false
+optimizer = true
+optimizer_runs = 200
+via_ir = false
+
+[profile.local-fork.fuzz]
+runs = 100
+
+# Remote fork profile (BuildBear sandbox)
+# Use with: FOUNDRY_PROFILE=fork forge test
+[profile.fork]
+eth_rpc_url = "${RPC_URL}"
+# Note: BuildBear sandbox is already a fork, no block_number needed
+
+[profile.coverage]
+via_ir = true
+optimizer = true
+optimizer_runs = 1000
+bytecode_hash = "none"
+evm_version = "cancun"
+src = "src"
+test = "test"
+# Use BuildBear sandbox for fork tests in coverage
+eth_rpc_url = "${RPC_URL}"
+# Exclude script directory from coverage - it contains deployment code with complex JSON parsing
+# that causes "stack too deep" and "array copy not supported" errors without IR
+no_match_coverage = "(script/.*)"
+
+[lint]
+exclude = ["screaming-snake-case-immutable", "screaming-snake-case-const"]

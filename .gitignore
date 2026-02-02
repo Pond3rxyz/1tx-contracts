@@ -1,0 +1,58 @@
+# Compiler files
+cache/
+out/
+
+# Ignores development broadcast logs
+!/broadcast
+/broadcast/*/31337/
+/broadcast/**/dry-run/
+
+# Docs
+docs/
+
+# Dotenv file
+.env
+
+# Node modules
+node_modules/
+
+# Coverage
+coverage/
+coverage.json
+lcov.info
+
+# TypeScript
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Foundry
+lib/
+
+# Gas reports
+gas-report.txt
+.gas-snapshot
+
+# Certora
+.certora*/
+.last_confs/
+certora_*
+
+# Python
+*.py[cod]
+__pycache__/
+*.so
+.Python
+venv/
+ENV/
+
+# Misc
+*.log
+.cache/
+.claude

@@ -1,0 +1,328 @@
+{
+    "networks": {
+        "baseMainnet": {
+            "chainId": 8453,
+            "explorer": "https://basescan.org",
+            "uniswapV4": {
+                "poolManager": "0x498581ff718922c3f8e6a244956af099b2652b2b",
+                "positionManager": "0x7c5f5a4bbd8fd63184577525326123b519429bdc",
+                "swapRouter": "0x6ff5693b99212da76ad316178a184ab56d299b43",
+                "create2Deployer": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+                "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            },
+            "tokens": {
+                "USDC": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                "USDT": "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
+                "DAI": "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb",
+                "EURC": "0x60a3e35cc302bfa44cb288bc5a4f316fdb1adb42",
+                "USDbC": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+                "GHO": "0x6bb7a212910682dcfdbd5bcbb3e28fb4e8da10ee",
+                "USDS": "0xA88594D404727625A9437C3f886C7643872296AE",
+                "eUSD": "0xCfA3Ef56d303AE4fAabA0592388F19d7C3399FB4",
+                "WETH": "0x4200000000000000000000000000000000000006",
+                "cbBTC": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf"
+            },
+            "protocols": {
+                "aave": {
+                    "pool": "0xA238Dd80C259a72e81d7e4664a9801593F98d1c5"
+                },
+                "morpho": {
+                    "vaults": {
+                        "steakhouseUSDC": "0xbeeF010f9cb27031ad51e3333f9aF9C6B1228183",
+                        "sparkUSDC": "0x7BfA7C4f149E7415b73bdeDfe609237e29CBF34A",
+                        "gauntletUSDCPrime": "0xeE8F4eC5672F09119b96Ab6fB59C27E1b7e44b61",
+                        "steakhousePrimeUSDC": "0xBEEFE94c8aD530842bfE7d8B397938fFc1cb83b2",
+                        "re7EUSD": "0xbb819D845b573B5D7C538F5b85057160cfb5f313",
+                        "moonwellFrontierCbBTC": "0x543257eF2161176D7C8cD90BA65C2d4CaEF5a796",
+                        "clearstarUSDC": "0x1D3b1Cd0a0f242d598834b3F2d126dC6bd774657",
+                        "mevFrontierUSDC": "0x8773447e6369472D9B72f064Ea62e405216E9084"
+                    }
+                },
+                "compound": {
+                    "configurator": "0x45939657d1CA34A8FA39A924B71D28Fe8431e581",
+                    "rewards": "0x123964802e6ABabBE1Bc9547D72Ef1B69B00A6b1",
+                    "bulker": "0x78D0677032A35c63D142a48A2037048871212a8C",
+                    "usdcComet": "0xb125E6687d4313864e53df431d5425969c15Eb2F",
+                    "usdbcComet": "0x9c4ec768c28520B50860ea7a15bd7213a9fF58bf"
+                },
+                "moonwell": {
+                    "comptroller": "0xfBb21d0380beE3312B33c4353c8936a0F13EF26C",
+                    "markets": {
+                        "usdcMarket": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",
+                        "daiMarket": "0x73b06D8d18De422E269645eaCe15400DE7462417",
+                        "usdsMarket": "0xdC7810B47eAAb250De623F0eE07764afa5F71ED1"
+                    }
+                },
+                "fluid": {
+                    "liquidity": "0x52Aa899454998Be5b000Ad077a46Bbe360F4e497",
+                    "factory": "0x54B91A0D94cb471F37f949c60F7Fa7935b551D03",
+                    "fTokens": {
+                        "fUSDC": "0xf42f5795D9ac7e9D757dB633D693cD548Cfd9169",
+                        "fEURC": "0x1943FA26360f038230442525Cf1B9125b5DCB401",
+                        "fGHO": "0x8DdbfFA3CFda2355a23d6B11105AC624BDbE3631"
+                    }
+                }
+            },
+            "swapPools": [
+                {
+                    "tokenIn": "USDC",
+                    "tokenOut": "USDT",
+                    "fee": 7,
+                    "tickSpacing": 1,
+                    "hooks": "0x0000000000000000000000000000000000000000"
+                },
+                {
+                    "tokenIn": "USDC",
+                    "tokenOut": "EURC",
+                    "fee": 500,
+                    "tickSpacing": 10,
+                    "hooks": "0x0000000000000000000000000000000000000000"
+                },
+                {
+                    "tokenIn": "USDC",
+                    "tokenOut": "USDbC",
+                    "fee": 100,
+                    "tickSpacing": 1,
+                    "hooks": "0x0000000000000000000000000000000000000000"
+                },
+                {
+                    "tokenIn": "USDC",
+                    "tokenOut": "GHO",
+                    "fee": 100,
+                    "tickSpacing": 1,
+                    "hooks": "0x0000000000000000000000000000000000000000"
+                },
+                {
+                    "tokenIn": "USDC",
+                    "tokenOut": "USDS",
+                    "fee": 100,
+                    "tickSpacing": 1,
+                    "hooks": "0x0000000000000000000000000000000000000000"
+                },
+                {
+                    "tokenIn": "USDC",
+                    "tokenOut": "cbBTC",
+                    "fee": 500,
+                    "tickSpacing": 10,
+                    "hooks": "0x0000000000000000000000000000000000000000"
+                }
+            ],
+            "deployed": {
+                "instrumentRegistry": "0xFcB232D8E47556aeA7eEd9c1F3081A8Dc9ECbd33",
+                "swapPoolRegistry": "0x336E67c1B2BCBFadB0aa5a0C5969c8034B7c0Bb2",
+                "swapDepositorHook": "0x49424aD02722A38F74E5F1a84c91e7072122cA88",
+                "swapDepositorRouter": "0x0a5f1906f77b39A9eDFB4d3AA7542C31A257dbd7",
+                "instrumentToken": "0x1b5E87CC35B06804B0c68f73F4D9edced83f93b4",
+                "adapters": {
+                    "aave": "0x6c6c74Fb37f6cCF8BFa210FA5B03c21B5EC1C292",
+                    "compound": "0xD7928616b541003f7f5c07CC21e8b38d106C9E3A",
+                    "morpho": "0x9ec026F444D0D54CACe77B706fddf2c4Dd454adb",
+                    "moonwell": "0x1c40e2f740b4F2b45FbC3a07de3C325333bB24a8",
+                    "fluid": "0x113c0e55Fa376D29a412eDC5C7641EAdcE7bA059"
+                }
+            },
+            "cctp": {
+                "tokenMessenger": "0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d",
+                "domain": 6,
+                "destinations": {
+                    "arbitrum": {
+                        "chainId": 42161,
+                        "domain": 3,
+                        "receiver": "0x785063c43Fa8989fa25eE59f3e5F50ce7b6Bf94c"
+                    }
+                }
+            }
+        },
+        "arbitrumMainnet": {
+            "chainId": 42161,
+            "explorer": "https://arbiscan.io",
+            "uniswapV4": {
+                "poolManager": "0x360e68faccca8ca495c1b759fd9eee466db9fb32",
+                "positionManager": "0xd88f38f930b7952f2db2432cb002e7abbf3dd869",
+                "swapRouter": "0xa51afafe0263b40edaef0df8781ea9aa03e381a3",
+                "create2Deployer": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+                "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            },
+            "tokens": {
+                "USDC": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+                "USDT": "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
+                "DAI": "0xda10009cbd5d07dd0cecc66161fc93d7c9000da1",
+                "WETH": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                "GHO": "0x7dff72693f6a4149b17e7c6314655f6a9f7c8b33"
+            },
+            "protocols": {
+                "aave": {
+                    "pool": "0x794a61358D6845594F94dc1DB02A252b5b4814aD"
+                },
+                "morpho": {
+                    "vaults": {
+                        "clearstarHighYieldUSDC": "0x64CA76e2525fc6Ab2179300c15e343d73e42f958",
+                        "kpkUSDCYield": "0x2C609d9CfC9dda2dB5C128B2a665D921ec53579d",
+                        "yearnDegenUSDC": "0x36b69949d60d06ECcC14DE0Ae63f4E00cc2cd8B9",
+                        "hyperithmUSDC": "0x4B6F1C9E5d470b97181786b26da0d0945A7cf027",
+                        "clearstarUSDCReactor": "0xa53Cf822FE93002aEaE16d395CD823Ece161a6AC",
+                        "gauntletUSDCCore": "0x7e97fa6893871A2751B5fE961978DCCb2c201E65",
+                        "steakhousePrimeUSDC": "0x250CF7c82bAc7cB6cf899b6052979d4B5BA1f9ca",
+                        "steakhouseHighYieldUSDC": "0x5c0C306Aaa9F877de636f4d5822cA9F2E81563BA"
+                    }
+                }
+            },
+            "swapPools": [
+                {
+                    "tokenIn": "USDC",
+                    "tokenOut": "USDT",
+                    "fee": 100,
+                    "tickSpacing": 1,
+                    "hooks": "0x0000000000000000000000000000000000000000"
+                },
+                {
+                    "tokenIn": "USDC",
+                    "tokenOut": "DAI",
+                    "fee": 100,
+                    "tickSpacing": 1,
+                    "hooks": "0x0000000000000000000000000000000000000000"
+                },
+                {
+                    "tokenIn": "USDC",
+                    "tokenOut": "GHO",
+                    "fee": 100,
+                    "tickSpacing": 1,
+                    "hooks": "0x0000000000000000000000000000000000000000"
+                }
+            ],
+            "cctp": {
+                "tokenMessenger": "0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d",
+                "domain": 3,
+                "destinations": {
+                    "base": {
+                        "chainId": 8453,
+                        "domain": 6,
+                        "receiver": "0x7EDcB3cC46140927D0441F0c4e48580AfB98fe75"
+                    }
+                }
+            }
+        },
+        "sandbox": {
+            "chainId": 31337,
+            "explorer": "https://basescan.org",
+            "uniswapV4": {
+                "poolManager": "0x498581ff718922c3f8e6a244956af099b2652b2b",
+                "positionManager": "0x7c5f5a4bbd8fd63184577525326123b519429bdc",
+                "swapRouter": "0x6ff5693b99212da76ad316178a184ab56d299b43",
+                "create2Deployer": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+                "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            },
+            "tokens": {
+                "USDC": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                "USDT": "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
+                "DAI": "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb",
+                "EURC": "0x60a3e35cc302bfa44cb288bc5a4f316fdb1adb42",
+                "USDbC": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+                "GHO": "0x6bb7a212910682dcfdbd5bcbb3e28fb4e8da10ee",
+                "USDS": "0xA88594D404727625A9437C3f886C7643872296AE",
+                "eUSD": "0xCfA3Ef56d303AE4fAabA0592388F19d7C3399FB4",
+                "WETH": "0x4200000000000000000000000000000000000006",
+                "cbBTC": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf"
+            },
+            "protocols": {
+                "aave": {
+                    "pool": "0xA238Dd80C259a72e81d7e4664a9801593F98d1c5"
+                },
+                "morpho": {
+                    "vaults": {
+                        "steakhouseUSDC": "0xbeeF010f9cb27031ad51e3333f9aF9C6B1228183",
+                        "sparkUSDC": "0x7BfA7C4f149E7415b73bdeDfe609237e29CBF34A",
+                        "gauntletUSDCPrime": "0xeE8F4eC5672F09119b96Ab6fB59C27E1b7e44b61",
+                        "steakhousePrimeUSDC": "0xBEEFE94c8aD530842bfE7d8B397938fFc1cb83b2",
+                        "re7EUSD": "0xbb819D845b573B5D7C538F5b85057160cfb5f313",
+                        "moonwellFrontierCbBTC": "0x543257eF2161176D7C8cD90BA65C2d4CaEF5a796",
+                        "clearstarUSDC": "0x1D3b1Cd0a0f242d598834b3F2d126dC6bd774657",
+                        "mevFrontierUSDC": "0x8773447e6369472D9B72f064Ea62e405216E9084"
+                    }
+                },
+                "compound": {
+                    "configurator": "0x45939657d1CA34A8FA39A924B71D28Fe8431e581",
+                    "rewards": "0x123964802e6ABabBE1Bc9547D72Ef1B69B00A6b1",
+                    "bulker": "0x78D0677032A35c63D142a48A2037048871212a8C",
+                    "usdcComet": "0xb125E6687d4313864e53df431d5425969c15Eb2F",
+                    "usdbcComet": "0x9c4ec768c28520B50860ea7a15bd7213a9fF58bf"
+                },
+                "moonwell": {
+                    "comptroller": "0xfBb21d0380beE3312B33c4353c8936a0F13EF26C",
+                    "markets": {
+                        "usdcMarket": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",
+                        "daiMarket": "0x73b06D8d18De422E269645eaCe15400DE7462417",
+                        "usdsMarket": "0xdC7810B47eAAb250De623F0eE07764afa5F71ED1"
+                    }
+                },
+                "fluid": {
+                    "liquidity": "0x52Aa899454998Be5b000Ad077a46Bbe360F4e497",
+                    "factory": "0x54B91A0D94cb471F37f949c60F7Fa7935b551D03",
+                    "fTokens": {
+                        "fUSDC": "0xf42f5795D9ac7e9D757dB633D693cD548Cfd9169",
+                        "fEURC": "0x1943FA26360f038230442525Cf1B9125b5DCB401",
+                        "fGHO": "0x8DdbfFA3CFda2355a23d6B11105AC624BDbE3631"
+                    }
+                }
+            },
+            "swapPools": [
+                {
+                    "tokenIn": "USDC",
+                    "tokenOut": "USDT",
+                    "fee": 7,
+                    "tickSpacing": 1,
+                    "hooks": "0x0000000000000000000000000000000000000000"
+                },
+                {
+                    "tokenIn": "USDC",
+                    "tokenOut": "EURC",
+                    "fee": 500,
+                    "tickSpacing": 10,
+                    "hooks": "0x0000000000000000000000000000000000000000"
+                },
+                {
+                    "tokenIn": "USDC",
+                    "tokenOut": "USDbC",
+                    "fee": 100,
+                    "tickSpacing": 1,
+                    "hooks": "0x0000000000000000000000000000000000000000"
+                },
+                {
+                    "tokenIn": "USDC",
+                    "tokenOut": "GHO",
+                    "fee": 100,
+                    "tickSpacing": 1,
+                    "hooks": "0x0000000000000000000000000000000000000000"
+                },
+                {
+                    "tokenIn": "USDC",
+                    "tokenOut": "USDS",
+                    "fee": 100,
+                    "tickSpacing": 1,
+                    "hooks": "0x0000000000000000000000000000000000000000"
+                },
+                {
+                    "tokenIn": "USDC",
+                    "tokenOut": "cbBTC",
+                    "fee": 500,
+                    "tickSpacing": 10,
+                    "hooks": "0x0000000000000000000000000000000000000000"
+                }
+            ],
+            "deployed": {
+                "instrumentRegistry": "0x8E1c6C285713474a0eBB130F17dB018daa0e31b0",
+                "swapPoolRegistry": "0x68a21C03C212648309E946f0D69A9BDf3e192a5C",
+                "swapDepositorHook": "0x173bC6913ec5a1Bc9065E01f90A6f66f0d4b8A88",
+                "swapDepositorRouter": "0x45daF42a07aeC13bc0207EFf01CF381514C17Af6",
+                "instrumentToken": "0x0D9af4262CFf66D0E62b6b341fA3431284603dF0",
+                "adapters": {
+                    "aave": "0x68D38f18Fe196cFa6D743881c8cd36aec33b434F",
+                    "compound": "0xD3851fa620f361adb0E66e0e4a4E534Ee4eF6C4F",
+                    "morpho": "0xA4B84aa31a27e513040e7954b4E8DE39ba88Efd1",
+                    "moonwell": "0x5d357f7F9463E51CFc277997aE6C36dd4Dbf1E5D",
+                    "fluid": "0x0000000000000000000000000000000000000000"
+                }
+            }
+        }
+    }
+}
