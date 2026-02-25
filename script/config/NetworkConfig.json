@@ -37,6 +37,11 @@
                         "mevFrontierUSDC": "0x8773447e6369472D9B72f064Ea62e405216E9084"
                     }
                 },
+                "eulerEarn": {
+                    "vaults": {
+                        "eeUSDC": "0x67f062a12f82c3b42d4ca7a35fb26cbaac28008b"
+                    }
+                },
                 "compound": {
                     "configurator": "0x45939657d1CA34A8FA39A924B71D28Fe8431e581",
                     "rewards": "0x123964802e6ABabBE1Bc9547D72Ef1B69B00A6b1",
@@ -155,6 +160,11 @@
                         "steakhousePrimeUSDC": "0x250CF7c82bAc7cB6cf899b6052979d4B5BA1f9ca",
                         "steakhouseHighYieldUSDC": "0x5c0C306Aaa9F877de636f4d5822cA9F2E81563BA"
                     }
+                },
+                "eulerEarn": {
+                    "vaults": {
+                        "eeUSDC": "0xe4783824593a50bfe9dc873204cec171ebc62de0"
+                    }
                 }
             },
             "swapPools": [
@@ -227,6 +237,11 @@
                         "re7EUSD": "0xbb819D845b573B5D7C538F5b85057160cfb5f313",
                         "clearstarUSDC": "0x1D3b1Cd0a0f242d598834b3F2d126dC6bd774657",
                         "mevFrontierUSDC": "0x8773447e6369472D9B72f064Ea62e405216E9084"
+                    }
+                },
+                "eulerEarn": {
+                    "vaults": {
+                        "eeUSDC": "0x67f062a12f82c3b42d4ca7a35fb26cbaac28008b"
                     }
                 },
                 "compound": {
