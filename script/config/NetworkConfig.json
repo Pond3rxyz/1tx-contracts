@@ -33,7 +33,6 @@
                         "gauntletUSDCPrime": "0xeE8F4eC5672F09119b96Ab6fB59C27E1b7e44b61",
                         "steakhousePrimeUSDC": "0xBEEFE94c8aD530842bfE7d8B397938fFc1cb83b2",
                         "re7EUSD": "0xbb819D845b573B5D7C538F5b85057160cfb5f313",
-                        "moonwellFrontierCbBTC": "0x543257eF2161176D7C8cD90BA65C2d4CaEF5a796",
                         "clearstarUSDC": "0x1D3b1Cd0a0f242d598834b3F2d126dC6bd774657",
                         "mevFrontierUSDC": "0x8773447e6369472D9B72f064Ea62e405216E9084"
                     }
@@ -44,14 +43,6 @@
                     "bulker": "0x78D0677032A35c63D142a48A2037048871212a8C",
                     "usdcComet": "0xb125E6687d4313864e53df431d5425969c15Eb2F",
                     "usdbcComet": "0x9c4ec768c28520B50860ea7a15bd7213a9fF58bf"
-                },
-                "moonwell": {
-                    "comptroller": "0xfBb21d0380beE3312B33c4353c8936a0F13EF26C",
-                    "markets": {
-                        "usdcMarket": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",
-                        "daiMarket": "0x73b06D8d18De422E269645eaCe15400DE7462417",
-                        "usdsMarket": "0xdC7810B47eAAb250De623F0eE07764afa5F71ED1"
-                    }
                 },
                 "fluid": {
                     "liquidity": "0x52Aa899454998Be5b000Ad077a46Bbe360F4e497",
@@ -117,7 +108,6 @@
                     "aave": "0x6c6c74Fb37f6cCF8BFa210FA5B03c21B5EC1C292",
                     "compound": "0xD7928616b541003f7f5c07CC21e8b38d106C9E3A",
                     "morpho": "0x9ec026F444D0D54CACe77B706fddf2c4Dd454adb",
-                    "moonwell": "0x1c40e2f740b4F2b45FbC3a07de3C325333bB24a8",
                     "fluid": "0x113c0e55Fa376D29a412eDC5C7641EAdcE7bA059"
                 }
             },
@@ -235,7 +225,6 @@
                         "gauntletUSDCPrime": "0xeE8F4eC5672F09119b96Ab6fB59C27E1b7e44b61",
                         "steakhousePrimeUSDC": "0xBEEFE94c8aD530842bfE7d8B397938fFc1cb83b2",
                         "re7EUSD": "0xbb819D845b573B5D7C538F5b85057160cfb5f313",
-                        "moonwellFrontierCbBTC": "0x543257eF2161176D7C8cD90BA65C2d4CaEF5a796",
                         "clearstarUSDC": "0x1D3b1Cd0a0f242d598834b3F2d126dC6bd774657",
                         "mevFrontierUSDC": "0x8773447e6369472D9B72f064Ea62e405216E9084"
                     }
@@ -246,14 +235,6 @@
                     "bulker": "0x78D0677032A35c63D142a48A2037048871212a8C",
                     "usdcComet": "0xb125E6687d4313864e53df431d5425969c15Eb2F",
                     "usdbcComet": "0x9c4ec768c28520B50860ea7a15bd7213a9fF58bf"
-                },
-                "moonwell": {
-                    "comptroller": "0xfBb21d0380beE3312B33c4353c8936a0F13EF26C",
-                    "markets": {
-                        "usdcMarket": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",
-                        "daiMarket": "0x73b06D8d18De422E269645eaCe15400DE7462417",
-                        "usdsMarket": "0xdC7810B47eAAb250De623F0eE07764afa5F71ED1"
-                    }
                 },
                 "fluid": {
                     "liquidity": "0x52Aa899454998Be5b000Ad077a46Bbe360F4e497",
@@ -319,7 +300,6 @@
                     "aave": "0x68D38f18Fe196cFa6D743881c8cd36aec33b434F",
                     "compound": "0xD3851fa620f361adb0E66e0e4a4E534Ee4eF6C4F",
                     "morpho": "0xA4B84aa31a27e513040e7954b4E8DE39ba88Efd1",
-                    "moonwell": "0x5d357f7F9463E51CFc277997aE6C36dd4Dbf1E5D",
                     "fluid": "0x0000000000000000000000000000000000000000"
                 }
             }

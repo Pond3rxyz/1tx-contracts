@@ -2,11 +2,13 @@
 pragma solidity ^0.8.26;
 
 import {Test} from "forge-std/Test.sol";
-import {Currency, CurrencyLibrary} from "@uniswap/v4-core/src/types/Currency.sol";
+import {
+    Currency,
+    CurrencyLibrary
+} from "@uniswap/v4-core/src/types/Currency.sol";
 
 import {AaveAdapter} from "../../../src/adapters/AaveAdapter.sol";
 import {CompoundAdapter} from "../../../src/adapters/CompoundAdapter.sol";
-import {MoonwellAdapter} from "../../../src/adapters/MoonwellAdapter.sol";
 import {MorphoAdapter} from "../../../src/adapters/MorphoAdapter.sol";
 import {FluidAdapter} from "../../../src/adapters/FluidAdapter.sol";
 import {AdapterBase} from "../../../src/adapters/base/AdapterBase.sol";
@@ -14,8 +16,6 @@ import {AdapterBase} from "../../../src/adapters/base/AdapterBase.sol";
 import {MockERC20} from "../../mocks/MockERC20.sol";
 import {MockAavePool} from "../../mocks/MockAavePool.sol";
 import {MockCompoundComet} from "../../mocks/MockCompoundComet.sol";
-import {MockMToken} from "../../mocks/MockMToken.sol";
-import {MockMoonwellComptroller} from "../../mocks/MockMoonwellComptroller.sol";
 import {MockERC4626Vault} from "../../mocks/MockERC4626Vault.sol";
 
 /// @title AdapterFuzzTest
@@ -38,11 +38,6 @@ contract AdapterFuzzTest is Test {
     // Compound
     CompoundAdapter public compoundAdapter;
     MockCompoundComet public mockComet;
-
-    // Moonwell
-    MoonwellAdapter public moonwellAdapter;
-    MockMoonwellComptroller public mockComptroller;
-    MockMToken public mockMToken;
 
     // Morpho
     MorphoAdapter public morphoAdapter;
@@ -90,21 +85,12 @@ contract AdapterFuzzTest is Test {
         compoundAdapter.addAuthorizedCaller(authorizedCaller);
         vm.stopPrank();
 
-        // Setup Moonwell
-        mockMToken = new MockMToken(address(usdc), "Moonwell USDC", "mUSDC");
-        mockComptroller = new MockMoonwellComptroller();
-        mockComptroller.addMarket(address(mockMToken));
-        usdc.mint(address(mockMToken), INITIAL_BALANCE);
-
-        vm.prank(owner);
-        moonwellAdapter = new MoonwellAdapter(address(mockComptroller), owner);
-        vm.startPrank(owner);
-        moonwellAdapter.registerMarket(usdcCurrency, address(mockMToken));
-        moonwellAdapter.addAuthorizedCaller(authorizedCaller);
-        vm.stopPrank();
-
         // Setup Morpho
-        mockMorphoVault = new MockERC4626Vault(address(usdc), "Morpho USDC", "mvUSDC");
+        mockMorphoVault = new MockERC4626Vault(
+            address(usdc),
+            "Morpho USDC",
+            "mvUSDC"
+        );
         morphoMarketId = bytes32(uint256(uint160(address(mockMorphoVault))));
 
         vm.prank(owner);
@@ -156,22 +142,6 @@ contract AdapterFuzzTest is Test {
         compoundAdapter.deposit(usdcMarketId, amount, user);
 
         assertEq(mockComet.balanceOf(user), amount);
-    }
-
-    function testFuzz_moonwellDeposit_amountBounds(uint256 amount) public {
-        amount = bound(amount, 1, MAX_DEPOSIT);
-
-        address user = makeAddr("user");
-        usdc.mint(user, amount);
-
-        vm.prank(user);
-        usdc.approve(address(moonwellAdapter), amount);
-
-        vm.prank(user);
-        moonwellAdapter.deposit(usdcMarketId, amount, user);
-
-        // 1:1 exchange rate in mock
-        assertEq(mockMToken.balanceOf(user), amount);
     }
 
     function testFuzz_morphoDeposit_amountBounds(uint256 amount) public {
@@ -256,7 +226,9 @@ contract AdapterFuzzTest is Test {
 
     // ============ Invalid Market ID Fuzzing Tests ============
 
-    function testFuzz_aave_invalidMarketId_reverts(bytes32 randomMarketId) public {
+    function testFuzz_aave_invalidMarketId_reverts(
+        bytes32 randomMarketId
+    ) public {
         vm.assume(randomMarketId != usdcMarketId);
 
         address user = makeAddr("user");
@@ -270,7 +242,9 @@ contract AdapterFuzzTest is Test {
         aaveAdapter.deposit(randomMarketId, 1000e6, user);
     }
 
-    function testFuzz_compound_invalidMarketId_reverts(bytes32 randomMarketId) public {
+    function testFuzz_compound_invalidMarketId_reverts(
+        bytes32 randomMarketId
+    ) public {
         vm.assume(randomMarketId != usdcMarketId);
 
         address user = makeAddr("user");
@@ -284,7 +258,9 @@ contract AdapterFuzzTest is Test {
         compoundAdapter.deposit(randomMarketId, 1000e6, user);
     }
 
-    function testFuzz_morpho_invalidMarketId_reverts(bytes32 randomMarketId) public {
+    function testFuzz_morpho_invalidMarketId_reverts(
+        bytes32 randomMarketId
+    ) public {
         vm.assume(randomMarketId != morphoMarketId);
 
         address user = makeAddr("user");
@@ -298,7 +274,9 @@ contract AdapterFuzzTest is Test {
         morphoAdapter.deposit(randomMarketId, 1000e6, user);
     }
 
-    function testFuzz_fluid_invalidMarketId_reverts(bytes32 randomMarketId) public {
+    function testFuzz_fluid_invalidMarketId_reverts(
+        bytes32 randomMarketId
+    ) public {
         vm.assume(randomMarketId != fluidMarketId);
 
         address user = makeAddr("user");
@@ -321,7 +299,11 @@ contract AdapterFuzzTest is Test {
         uint256 totalDeposited = 0;
 
         for (uint256 i = 0; i < numOps; i++) {
-            uint256 amount = bound(uint256(keccak256(abi.encode(seed, i))), 1e6, 10_000e6);
+            uint256 amount = bound(
+                uint256(keccak256(abi.encode(seed, i))),
+                1e6,
+                10_000e6
+            );
 
             usdc.mint(user, amount);
 
@@ -341,7 +323,11 @@ contract AdapterFuzzTest is Test {
         aUsdc.transfer(address(aaveAdapter), totalDeposited);
 
         vm.prank(authorizedCaller);
-        uint256 withdrawn = aaveAdapter.withdraw(usdcMarketId, totalDeposited, user);
+        uint256 withdrawn = aaveAdapter.withdraw(
+            usdcMarketId,
+            totalDeposited,
+            user
+        );
 
         assertEq(withdrawn, totalDeposited);
         assertEq(usdc.balanceOf(user), totalDeposited);
@@ -354,7 +340,11 @@ contract AdapterFuzzTest is Test {
         uint256 totalShares = 0;
 
         for (uint256 i = 0; i < numOps; i++) {
-            uint256 amount = bound(uint256(keccak256(abi.encode(seed, i))), 1e6, 10_000e6);
+            uint256 amount = bound(
+                uint256(keccak256(abi.encode(seed, i))),
+                1e6,
+                10_000e6
+            );
 
             usdc.mint(user, amount);
 
@@ -384,7 +374,11 @@ contract AdapterFuzzTest is Test {
         mockMorphoVault.transfer(address(morphoAdapter), totalShares);
 
         vm.prank(authorizedCaller);
-        uint256 withdrawn = morphoAdapter.withdraw(morphoMarketId, totalShares, user);
+        uint256 withdrawn = morphoAdapter.withdraw(
+            morphoMarketId,
+            totalShares,
+            user
+        );
 
         // Should receive more than shares due to accumulated yield
         assertTrue(withdrawn >= totalShares);
@@ -413,7 +407,9 @@ contract AdapterFuzzTest is Test {
         aaveAdapter.withdraw(usdcMarketId, 1000e6, user);
     }
 
-    function testFuzz_compound_unauthorizedWithdraw_reverts(address caller) public {
+    function testFuzz_compound_unauthorizedWithdraw_reverts(
+        address caller
+    ) public {
         vm.assume(caller != authorizedCaller);
         vm.assume(caller != address(0));
 
@@ -449,10 +445,6 @@ contract AdapterFuzzTest is Test {
 
         vm.prank(user);
         vm.expectRevert(AdapterBase.AmountMustBeGreaterThanZero.selector);
-        moonwellAdapter.deposit(usdcMarketId, 0, user);
-
-        vm.prank(user);
-        vm.expectRevert(AdapterBase.AmountMustBeGreaterThanZero.selector);
         morphoAdapter.deposit(morphoMarketId, 0, user);
 
         vm.prank(user);
@@ -471,7 +463,6 @@ contract AdapterFuzzTest is Test {
         vm.startPrank(user);
         usdc.approve(address(aaveAdapter), amount);
         usdc.approve(address(compoundAdapter), amount);
-        usdc.approve(address(moonwellAdapter), amount);
         usdc.approve(address(morphoAdapter), amount);
         usdc.approve(address(fluidAdapter), amount);
         vm.stopPrank();
@@ -483,10 +474,6 @@ contract AdapterFuzzTest is Test {
         vm.prank(user);
         vm.expectRevert(AdapterBase.InvalidRecipient.selector);
         compoundAdapter.deposit(usdcMarketId, amount, address(0));
-
-        vm.prank(user);
-        vm.expectRevert(AdapterBase.InvalidRecipient.selector);
-        moonwellAdapter.deposit(usdcMarketId, amount, address(0));
 
         vm.prank(user);
         vm.expectRevert(AdapterBase.InvalidRecipient.selector);

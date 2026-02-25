@@ -46,7 +46,6 @@ struct ProtocolConfig {
     AaveConfig aave;
     MorphoConfig morpho;
     CompoundConfig compound;
-    MoonwellConfig moonwell;
     FluidConfig fluid;
 }
 
@@ -65,7 +64,6 @@ struct MorphoVaults {
     address gauntletUSDCPrime;
     address steakhousePrimeUSDC;
     address re7EUSD;
-    address moonwellFrontierCbBTC;
     address clearstarUSDC;
     address mevFrontierUSDC;
     // Arbitrum vaults
@@ -85,18 +83,6 @@ struct CompoundConfig {
     address usdcComet;
     address usdbcComet;
     address usdsComet;
-}
-
-struct MoonwellConfig {
-    address comptroller;
-    MoonwellMarkets markets;
-}
-
-struct MoonwellMarkets {
-    address usdcMarket; // mUSDC
-    address daiMarket; // mDAI
-    address usdbcMarket; // mUSDbC
-    address usdsMarket; // mUSDS
 }
 
 struct FluidConfig {
@@ -124,7 +110,6 @@ struct DeployedAdapters {
     address aave;
     address compound;
     address morpho;
-    address moonwell;
     address fluid;
 }
 
@@ -166,7 +151,6 @@ abstract contract ConfigReader is Script {
         deployed.adapters.aave = json.readAddress(string.concat(deployedPath, ".adapters.aave"));
         deployed.adapters.compound = json.readAddress(string.concat(deployedPath, ".adapters.compound"));
         deployed.adapters.morpho = json.readAddress(string.concat(deployedPath, ".adapters.morpho"));
-        deployed.adapters.moonwell = json.readAddress(string.concat(deployedPath, ".adapters.moonwell"));
         deployed.adapters.fluid = json.readAddress(string.concat(deployedPath, ".adapters.fluid"));
     }
 
@@ -246,9 +230,6 @@ abstract contract ConfigReader is Script {
         // Optional Compound config
         protocols.compound = _readCompoundConfig(json, networkPath);
 
-        // Optional Moonwell config
-        protocols.moonwell = _readMoonwellConfig(json, networkPath);
-
         // Optional Fluid config
         protocols.fluid = _readFluidConfig(json, networkPath);
     }
@@ -269,7 +250,6 @@ abstract contract ConfigReader is Script {
         morpho.vaults.gauntletUSDCPrime = _readVaultAddress(json, vaultsPath, ".gauntletUSDCPrime");
         morpho.vaults.steakhousePrimeUSDC = _readVaultAddress(json, vaultsPath, ".steakhousePrimeUSDC");
         morpho.vaults.re7EUSD = _readVaultAddress(json, vaultsPath, ".re7EUSD");
-        morpho.vaults.moonwellFrontierCbBTC = _readVaultAddress(json, vaultsPath, ".moonwellFrontierCbBTC");
         morpho.vaults.clearstarUSDC = _readVaultAddress(json, vaultsPath, ".clearstarUSDC");
         morpho.vaults.mevFrontierUSDC = _readVaultAddress(json, vaultsPath, ".mevFrontierUSDC");
 
@@ -339,47 +319,6 @@ abstract contract ConfigReader is Script {
         string memory usdsMarketPath = string.concat(networkPath, ".protocols.compound.usdsComet");
         if (vm.keyExistsJson(json, usdsMarketPath)) {
             compound.usdsComet = json.readAddress(usdsMarketPath);
-        }
-    }
-
-    function _readMoonwellConfig(string memory json, string memory networkPath)
-        private
-        view
-        returns (MoonwellConfig memory moonwell)
-    {
-        string memory comptrollerPath = string.concat(networkPath, ".protocols.moonwell.comptroller");
-        if (!vm.keyExistsJson(json, comptrollerPath)) {
-            return moonwell;
-        }
-
-        moonwell.comptroller = json.readAddress(comptrollerPath);
-
-        // Parse markets
-        _readMoonwellMarkets(json, networkPath, moonwell);
-    }
-
-    function _readMoonwellMarkets(string memory json, string memory networkPath, MoonwellConfig memory moonwell)
-        private
-        view
-    {
-        string memory usdcMarketPath = string.concat(networkPath, ".protocols.moonwell.markets.usdcMarket");
-        if (vm.keyExistsJson(json, usdcMarketPath)) {
-            moonwell.markets.usdcMarket = json.readAddress(usdcMarketPath);
-        }
-
-        string memory daiMarketPath = string.concat(networkPath, ".protocols.moonwell.markets.daiMarket");
-        if (vm.keyExistsJson(json, daiMarketPath)) {
-            moonwell.markets.daiMarket = json.readAddress(daiMarketPath);
-        }
-
-        string memory usdbcMarketPath = string.concat(networkPath, ".protocols.moonwell.markets.usdbcMarket");
-        if (vm.keyExistsJson(json, usdbcMarketPath)) {
-            moonwell.markets.usdbcMarket = json.readAddress(usdbcMarketPath);
-        }
-
-        string memory usdsMarketPath = string.concat(networkPath, ".protocols.moonwell.markets.usdsMarket");
-        if (vm.keyExistsJson(json, usdsMarketPath)) {
-            moonwell.markets.usdsMarket = json.readAddress(usdsMarketPath);
         }
     }
 
