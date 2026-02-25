@@ -91,6 +91,17 @@ abstract contract AdapterForkTestBase is Test {
         return json.readAddress(path);
     }
 
+    /// @notice Get Euler Earn vault address by name
+    function getEulerVault(string memory name) internal view returns (address) {
+        string memory path = string.concat(
+            networkPath,
+            ".protocols.eulerEarn.vaults.",
+            name
+        );
+        if (!vm.keyExistsJson(json, path)) return address(0);
+        return json.readAddress(path);
+    }
+
     /// @notice Get Fluid fToken address by name (fUSDC, fEURC, fGHO)
     function getFluidFToken(
         string memory name
