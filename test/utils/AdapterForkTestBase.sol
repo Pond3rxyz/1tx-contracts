@@ -3,7 +3,10 @@ pragma solidity ^0.8.26;
 
 import {Test} from "forge-std/Test.sol";
 import {stdJson} from "forge-std/StdJson.sol";
-import {Currency, CurrencyLibrary} from "@uniswap/v4-core/src/types/Currency.sol";
+import {
+    Currency,
+    CurrencyLibrary
+} from "@uniswap/v4-core/src/types/Currency.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /// @title AdapterForkTestBase
@@ -56,47 +59,60 @@ abstract contract AdapterForkTestBase is Test {
 
     /// @notice Get Aave pool address
     function getAavePool() internal view returns (address) {
-        return json.readAddress(string.concat(networkPath, ".protocols.aave.pool"));
+        return
+            json.readAddress(
+                string.concat(networkPath, ".protocols.aave.pool")
+            );
     }
 
     /// @notice Get Compound comet address by name (usdcComet, usdbcComet, usdsComet)
-    function getCompoundComet(string memory name) internal view returns (address) {
-        string memory path = string.concat(networkPath, ".protocols.compound.", name);
-        if (!vm.keyExistsJson(json, path)) return address(0);
-        return json.readAddress(path);
-    }
-
-    /// @notice Get Moonwell comptroller address
-    function getMoonwellComptroller() internal view returns (address) {
-        string memory path = string.concat(networkPath, ".protocols.moonwell.comptroller");
-        if (!vm.keyExistsJson(json, path)) return address(0);
-        return json.readAddress(path);
-    }
-
-    /// @notice Get Moonwell market address by name (usdcMarket, daiMarket, etc.)
-    function getMoonwellMarket(string memory name) internal view returns (address) {
-        string memory path = string.concat(networkPath, ".protocols.moonwell.markets.", name);
+    function getCompoundComet(
+        string memory name
+    ) internal view returns (address) {
+        string memory path = string.concat(
+            networkPath,
+            ".protocols.compound.",
+            name
+        );
         if (!vm.keyExistsJson(json, path)) return address(0);
         return json.readAddress(path);
     }
 
     /// @notice Get Morpho vault address by name
-    function getMorphoVault(string memory name) internal view returns (address) {
-        string memory path = string.concat(networkPath, ".protocols.morpho.vaults.", name);
+    function getMorphoVault(
+        string memory name
+    ) internal view returns (address) {
+        string memory path = string.concat(
+            networkPath,
+            ".protocols.morpho.vaults.",
+            name
+        );
         if (!vm.keyExistsJson(json, path)) return address(0);
         return json.readAddress(path);
     }
 
     /// @notice Get Fluid fToken address by name (fUSDC, fEURC, fGHO)
-    function getFluidFToken(string memory name) internal view returns (address) {
-        string memory path = string.concat(networkPath, ".protocols.fluid.fTokens.", name);
+    function getFluidFToken(
+        string memory name
+    ) internal view returns (address) {
+        string memory path = string.concat(
+            networkPath,
+            ".protocols.fluid.fTokens.",
+            name
+        );
         if (!vm.keyExistsJson(json, path)) return address(0);
         return json.readAddress(path);
     }
 
-    /// @notice Get deployed adapter address by name (aave, compound, morpho, moonwell, fluid)
-    function getDeployedAdapter(string memory name) internal view returns (address) {
-        string memory path = string.concat(networkPath, ".deployed.adapters.", name);
+    /// @notice Get deployed adapter address by name (aave, compound, morpho, fluid)
+    function getDeployedAdapter(
+        string memory name
+    ) internal view returns (address) {
+        string memory path = string.concat(
+            networkPath,
+            ".deployed.adapters.",
+            name
+        );
         if (!vm.keyExistsJson(json, path)) return address(0);
         return json.readAddress(path);
     }
@@ -107,7 +123,10 @@ abstract contract AdapterForkTestBase is Test {
         string memory rpcEnvVar;
         bytes32 networkHash = keccak256(bytes(network));
 
-        if (networkHash == keccak256("baseMainnet") || networkHash == keccak256("sandbox")) {
+        if (
+            networkHash == keccak256("baseMainnet") ||
+            networkHash == keccak256("sandbox")
+        ) {
             rpcEnvVar = "BASE_RPC_URL";
         } else if (networkHash == keccak256("arbitrumMainnet")) {
             rpcEnvVar = "ARBITRUM_RPC_URL";
@@ -125,16 +144,26 @@ abstract contract AdapterForkTestBase is Test {
         deal(token, to, amount);
     }
 
-    function _approveTokens(address token, address from, address spender, uint256 amount) internal {
+    function _approveTokens(
+        address token,
+        address from,
+        address spender,
+        uint256 amount
+    ) internal {
         vm.prank(from);
         IERC20(token).approve(spender, amount);
     }
 
-    function _getBalance(address token, address account) internal view returns (uint256) {
+    function _getBalance(
+        address token,
+        address account
+    ) internal view returns (uint256) {
         return IERC20(token).balanceOf(account);
     }
 
-    function _computeMarketId(Currency currency) internal pure returns (bytes32) {
+    function _computeMarketId(
+        Currency currency
+    ) internal pure returns (bytes32) {
         return keccak256(abi.encode(currency));
     }
 
@@ -142,7 +171,9 @@ abstract contract AdapterForkTestBase is Test {
         return keccak256(abi.encode(Currency.wrap(token)));
     }
 
-    function _computeVaultMarketId(address vault) internal pure returns (bytes32) {
+    function _computeVaultMarketId(
+        address vault
+    ) internal pure returns (bytes32) {
         return bytes32(uint256(uint160(vault)));
     }
 
