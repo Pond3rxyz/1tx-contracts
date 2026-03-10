@@ -9,13 +9,12 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {Currency, CurrencyLibrary} from "@uniswap/v4-core/src/types/Currency.sol";
-import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
-import {SwapParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
-import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
 
 import {InstrumentRegistry} from "./registries/InstrumentRegistry.sol";
 import {SwapPoolRegistry} from "./registries/SwapPoolRegistry.sol";
 import {ILendingAdapter} from "./interfaces/ILendingAdapter.sol";
+import {SwapExecutor} from "./libraries/SwapExecutor.sol";
+import {LendingExecutor} from "./libraries/LendingExecutor.sol";
 
 /// @title SwapDepositRouter
 /// @notice Router for buying/selling lending protocol instruments with automatic token swapping
@@ -36,7 +35,6 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
 
     error CallerNotPoolManager();
     error InvalidAmount();
-    error InvalidSwapDelta();
 
     // ============ Events ============
 
@@ -97,8 +95,7 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
         }
 
         // Deposit to lending protocol — yield tokens go to msg.sender
-        IERC20(Currency.unwrap(marketCurrency)).forceApprove(adapter, depositedAmount);
-        ILendingAdapter(adapter).deposit(marketId, depositedAmount, msg.sender);
+        LendingExecutor.deposit(adapter, marketId, marketCurrency, depositedAmount, msg.sender);
 
         emit Buy(instrumentId, msg.sender, amount, depositedAmount);
     }
@@ -114,11 +111,8 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
         Currency marketCurrency = ILendingAdapter(adapter).getMarketCurrency(marketId);
         address yieldToken = ILendingAdapter(adapter).getYieldToken(marketId);
 
-        // Transfer yield tokens from user directly to adapter
-        IERC20(yieldToken).safeTransferFrom(msg.sender, adapter, yieldTokenAmount);
-
-        // Withdraw underlying from lending protocol
-        uint256 withdrawnAmount = ILendingAdapter(adapter).withdraw(marketId, yieldTokenAmount, address(this));
+        // Withdraw from lending protocol — yield tokens transferred from user to adapter
+        uint256 withdrawnAmount = LendingExecutor.withdraw(adapter, marketId, yieldToken, yieldTokenAmount, msg.sender, address(this));
 
         // Swap if market currency differs from stable
         if (Currency.unwrap(marketCurrency) != Currency.unwrap(stable)) {
@@ -141,35 +135,9 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
         if (msg.sender != address(poolManager)) revert CallerNotPoolManager();
 
         SwapCallbackData memory data = abi.decode(rawData, (SwapCallbackData));
-
-        bool zeroForOne = Currency.unwrap(data.swapPool.currency0) == Currency.unwrap(data.inputCurrency);
-        uint160 priceLimit = zeroForOne ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1;
-
-        BalanceDelta delta = poolManager.swap(
-            data.swapPool,
-            SwapParams({
-                zeroForOne: zeroForOne,
-                amountSpecified: -int256(data.inputAmount),
-                sqrtPriceLimitX96: priceLimit
-            }),
-            ""
+        uint256 outputAmount = SwapExecutor.executeSwap(
+            poolManager, data.swapPool, data.inputCurrency, data.outputCurrency, data.inputAmount
         );
-
-        int128 inputDelta = zeroForOne ? delta.amount0() : delta.amount1();
-        int128 outputDelta = zeroForOne ? delta.amount1() : delta.amount0();
-
-        if (inputDelta >= 0 || outputDelta <= 0) revert InvalidSwapDelta();
-
-        uint256 settleAmount = uint256(-int256(inputDelta));
-        uint256 outputAmount = uint256(int256(outputDelta));
-
-        // Settle input tokens (router owes PM)
-        poolManager.sync(data.inputCurrency);
-        IERC20(Currency.unwrap(data.inputCurrency)).transfer(address(poolManager), settleAmount);
-        poolManager.settle();
-
-        // Take output tokens (PM owes router)
-        poolManager.take(data.outputCurrency, address(this), outputAmount);
 
         return abi.encode(outputAmount);
     }
