@@ -22,9 +22,9 @@ import {LendingExecutor} from "../libraries/LendingExecutor.sol";
 /// @title PortfolioVault
 /// @notice ERC-4626-like vault that holds diversified lending positions
 /// @dev Upgradeable strategy layer. Only the authorized hook can trigger capital deployment,
-///      withdrawal, and share minting. Uses flash liquidity pattern — the hook provides
-///      phantom liquidity at NAV price via V4's deferred settlement, and calls these
-///      functions to settle the net delta after each swap.
+///      withdrawal, and share minting. The hook settles swaps at NAV price via V4's
+///      beforeSwapReturnDelta custom curve pattern and calls these functions to deploy
+///      or withdraw capital during each swap.
 contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, UUPSUpgradeable, IUnlockCallback {
     using SafeERC20 for IERC20;
     using CurrencyLibrary for Currency;
@@ -131,11 +131,11 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
     }
 
     function convertToShares(uint256 assets) public view returns (uint256) {
-        return assets.mulDiv(totalSupply() + VIRTUAL_SHARES, totalAssets() + VIRTUAL_ASSETS, Math.Rounding.Floor);
+        return assets.mulDiv(_effectiveTotalSupply() + VIRTUAL_SHARES, totalAssets() + VIRTUAL_ASSETS, Math.Rounding.Floor);
     }
 
     function convertToAssets(uint256 shares) public view returns (uint256) {
-        return shares.mulDiv(totalAssets() + VIRTUAL_ASSETS, totalSupply() + VIRTUAL_SHARES, Math.Rounding.Floor);
+        return shares.mulDiv(totalAssets() + VIRTUAL_ASSETS, _effectiveTotalSupply() + VIRTUAL_SHARES, Math.Rounding.Floor);
     }
 
     function previewDeposit(uint256 assets) public view returns (uint256) {
@@ -146,10 +146,22 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
         return convertToAssets(shares);
     }
 
+    function previewMint(uint256 shares) public view returns (uint256) {
+        uint256 assetsNum = shares * (totalAssets() + VIRTUAL_ASSETS);
+        uint256 assetsDen = _effectiveTotalSupply() + VIRTUAL_SHARES;
+        return assetsNum == 0 ? 0 : (assetsNum - 1) / assetsDen + 1;
+    }
+
+    function previewWithdraw(uint256 assets) public view returns (uint256) {
+        uint256 sharesNum = assets * (_effectiveTotalSupply() + VIRTUAL_SHARES);
+        uint256 sharesDen = totalAssets() + VIRTUAL_ASSETS;
+        return sharesNum == 0 ? 0 : (sharesNum - 1) / sharesDen + 1;
+    }
+
     // ============ Hook-Only Functions ============
 
     /// @notice Deploy stable tokens to lending positions according to allocation weights
-    /// @dev Called by hook in afterSwap to deploy USDC received from a buy swap.
+    /// @dev Called by hook in beforeSwap NAV settlement to deploy USDC received from a buy swap.
     ///      Vault must already hold the stableAmount (hook takes from PM to vault).
     /// @param stableAmount Amount of stable to deploy across lending positions
     function deployCapital(uint256 stableAmount) external onlyHook {
@@ -176,7 +188,7 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
     }
 
     /// @notice Withdraw stable tokens from lending positions proportionally
-    /// @dev Called by hook in afterSwap to cover USDC owed from a sell swap.
+    /// @dev Called by hook in beforeSwap NAV settlement to cover USDC owed from a sell swap.
     ///      Sends withdrawn stable to the hook for PM settlement.
     /// @param stableNeeded Approximate amount of stable needed
     /// @return stableOut Actual amount of stable sent to hook
@@ -214,8 +226,7 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
     }
 
     /// @notice Mint shares to an address (for hook delta settlement)
-    /// @dev Only callable by hook. Used in afterSwap to mint shares that settle the hook's
-    ///      negative share delta from flash liquidity removal.
+    /// @dev Only callable by hook. Used in beforeSwap NAV settlement.
     function mintShares(address to, uint256 amount) external onlyHook {
         _mint(to, amount);
     }
@@ -331,6 +342,16 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
         }
 
         emit AllocationsUpdated(newAllocations.length);
+    }
+
+    /// @notice Effective total supply excluding shares held in transit by PoolManager.
+    /// @dev During sells, the swap router settles the user's shares to PM after the hook
+    ///      runs. These shares are "dead" (pending burn in afterSwap) and must be excluded
+    ///      from NAV calculations to prevent dilution.
+    function _effectiveTotalSupply() internal view returns (uint256) {
+        uint256 supply = totalSupply();
+        uint256 pmBalance = balanceOf(address(poolManager));
+        return pmBalance >= supply ? 0 : supply - pmBalance;
     }
 
     /// @notice Get the value of a single allocation in stable terms
