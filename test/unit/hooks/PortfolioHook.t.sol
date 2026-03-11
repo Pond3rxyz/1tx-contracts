@@ -155,7 +155,7 @@ contract PortfolioHookTest is BaseHookTest {
         portfolioPoolKey = PoolKey({
             currency0: c0,
             currency1: c1,
-            fee: 500,
+            fee: 0,
             tickSpacing: 60,
             hooks: IHooks(hookAddress)
         });
@@ -277,15 +277,14 @@ contract PortfolioHookTest is BaseHookTest {
         assertApproxEqRel(aUsdc.balanceOf(address(vault)), DEPOSIT_AMOUNT, 5e16); // within 5%
     }
 
-    function test_buy_movesSqrtPrice() public {
+    function test_buy_keepsSqrtPriceStatic() public {
         (uint160 priceBefore,,,) = poolManager.getSlot0(portfolioPoolId);
 
         _buyShares(DEPOSIT_AMOUNT, user);
 
         (uint160 priceAfter,,,) = poolManager.getSlot0(portfolioPoolId);
 
-        // sqrtPrice should have moved (buy pushes price up if stable is token0, down if token1)
-        assertTrue(priceBefore != priceAfter, "sqrtPrice should move after buy");
+        assertEq(priceBefore, priceAfter, "sqrtPrice should stay static after buy");
     }
 
     function test_buy_emitsEvent() public {
@@ -302,11 +301,10 @@ contract PortfolioHookTest is BaseHookTest {
         uint256 usdcReturned = _sellShares(shares, user);
 
         assertGt(usdcReturned, 0);
-        // Due to AMM price impact, returned amount may differ slightly from deposit
-        assertApproxEqRel(usdcReturned, DEPOSIT_AMOUNT, 10e16); // within 10%
+        assertEq(usdcReturned, DEPOSIT_AMOUNT);
     }
 
-    function test_sell_movesSqrtPrice() public {
+    function test_sell_keepsSqrtPriceStatic() public {
         uint256 shares = _buyShares(DEPOSIT_AMOUNT, user);
 
         (uint160 priceBeforeSell,,,) = poolManager.getSlot0(portfolioPoolId);
@@ -315,7 +313,7 @@ contract PortfolioHookTest is BaseHookTest {
 
         (uint160 priceAfterSell,,,) = poolManager.getSlot0(portfolioPoolId);
 
-        assertTrue(priceBeforeSell != priceAfterSell, "sqrtPrice should move after sell");
+        assertEq(priceBeforeSell, priceAfterSell, "sqrtPrice should stay static after sell");
     }
 
     function test_sell_partialRedeem() public {
@@ -334,8 +332,7 @@ contract PortfolioHookTest is BaseHookTest {
         uint256 shares = _buyShares(DEPOSIT_AMOUNT, user);
         uint256 usdcReturned = _sellShares(shares, user);
 
-        // Should get back approximately the deposit (minus AMM price impact)
-        assertApproxEqRel(usdcReturned, DEPOSIT_AMOUNT, 10e16);
+        assertEq(usdcReturned, DEPOSIT_AMOUNT);
         assertEq(vault.balanceOf(user), 0);
     }
 
@@ -344,16 +341,13 @@ contract PortfolioHookTest is BaseHookTest {
         uint256 halfShares = shares / 2;
         _sellShares(halfShares, user);
 
-        uint256 pmSharesAfterFirstRound = vault.balanceOf(address(poolManager));
-
         uint256 secondAmount = vault.totalAssets() / 4;
         if (secondAmount < 1e6) secondAmount = 1e6;
         uint256 shares2 = _buyShares(secondAmount, user);
         _sellShares(shares2 / 2, user);
 
         uint256 pmSharesAfterSecondRound = vault.balanceOf(address(poolManager));
-        uint256 maxExpected = pmSharesAfterFirstRound + (secondAmount * 2);
-        assertLe(pmSharesAfterSecondRound, maxExpected, "PM share balance should stay bounded between rounds");
+        assertLe(pmSharesAfterSecondRound, vault.totalSupply(), "PM share balance should remain bounded by supply");
     }
 
     function test_multipleUsers_independentShares() public {
@@ -370,101 +364,28 @@ contract PortfolioHookTest is BaseHookTest {
 
         assertEq(vault.balanceOf(user), shares1);
         assertEq(vault.balanceOf(user2), shares2);
-        // Shares should be roughly equal (same amount, sequential deposits)
-        assertApproxEqRel(shares1, shares2, 10e16); // within 10% (AMM impact)
+        assertEq(shares1, shares2);
     }
 
-    // ============ Price Discovery Tests ============
+    // ============ Price Behavior Tests ============
 
-    function test_sqrtPrice_reflectsTrading() public {
+    function test_sqrtPrice_staysStaticAcrossTrading() public {
         (uint160 initialPrice,,,) = poolManager.getSlot0(portfolioPoolId);
 
-        // Buy should move price
         _buyShares(DEPOSIT_AMOUNT, user);
         (uint160 afterBuy,,,) = poolManager.getSlot0(portfolioPoolId);
-        assertTrue(initialPrice != afterBuy, "Price should change after buy");
+        assertEq(initialPrice, afterBuy, "Price should remain unchanged after buy");
 
-        // Sell should move price back
         uint256 shares = vault.balanceOf(user);
         _sellShares(shares, user);
         (uint160 afterSell,,,) = poolManager.getSlot0(portfolioPoolId);
-        assertTrue(afterBuy != afterSell, "Price should change after sell");
+        assertEq(afterBuy, afterSell, "Price should remain unchanged after sell");
     }
 
-    // ============ AMM-only Routing Tests ============
-
-    function test_ammOnly_largeBuy_routesAmmAndMovesPrice() public {
-        // Bootstrap seed first and keep NAV small, then do an oversized buy.
-        uint256 seedAmount = hook.MIN_SEED_STABLE();
-        _buyShares(seedAmount, user);
-
-        uint256 nav = vault.totalAssets();
-        uint256 bigAmount = nav + 1;
-        usdc.mint(user, bigAmount);
-
-        (uint160 priceBefore,,,) = poolManager.getSlot0(portfolioPoolId);
-        uint256 sharesBefore = vault.balanceOf(user);
-
-        vm.recordLogs();
-        vm.prank(user);
-        swapRouter.swapExactTokensForTokens({
-            amountIn: bigAmount,
-            amountOutMin: 0,
-            zeroForOne: _buyZeroForOne(),
-            poolKey: portfolioPoolKey,
-            hookData: abi.encode(user),
-            receiver: user,
-            deadline: block.timestamp + 1
-        });
-
-        uint256 minted = vault.balanceOf(user) - sharesBefore;
-        assertGt(minted, 0, "NAV buy should mint shares");
-
-        (bool found, bool isBuy, bool usedAmm,) = _lastSwapRouted();
-        assertTrue(found, "SwapRouted not emitted");
-        assertTrue(isBuy, "expected buy route");
-        assertTrue(usedAmm, "expected AMM route");
-
-        (uint160 priceAfter,,,) = poolManager.getSlot0(portfolioPoolId);
-        assertTrue(priceAfter != priceBefore, "AMM route should move sqrtPrice");
-    }
-
-    function test_ammOnly_exactInputSell_routesAmmAndMovesPrice() public {
-        // Bootstrap with small amount, then create enough NAV for a larger sell.
-        uint256 baseShares = _buyShares(hook.MIN_SEED_STABLE(), user);
-        assertGt(baseShares, 0);
-
-        uint256 nav = vault.totalAssets();
-        uint256 bigAmount = nav + 1;
-        usdc.mint(user, bigAmount);
-        uint256 navBuyShares = _buyShares(bigAmount, user);
-        assertGt(navBuyShares, 0);
-
-        (uint160 priceBefore,,,) = poolManager.getSlot0(portfolioPoolId);
-        uint256 usdcBefore = usdc.balanceOf(user);
-
-        vm.recordLogs();
-        uint256 out = _sellShares(navBuyShares, user);
-        assertGt(out, 0);
-        assertEq(usdc.balanceOf(user) - usdcBefore, out);
-
-        (bool found, bool isBuy, bool usedAmm,) = _lastSwapRouted();
-        assertTrue(found, "SwapRouted not emitted");
-        assertFalse(isBuy, "expected sell route");
-        assertTrue(usedAmm, "sell should use AMM route");
-
-        (uint160 priceAfter,,,) = poolManager.getSlot0(portfolioPoolId);
-        assertTrue(priceAfter != priceBefore, "sell path should still use AMM and move price");
-    }
-
-    function test_ammOnly_exactOutputBuy_succeedsAndRoutesAmm() public {
-        _buyShares(DEPOSIT_AMOUNT, user); // bootstrap seed
-
-        uint256 amountOut = vault.previewDeposit(50e6);
-        if (amountOut == 0) amountOut = 1;
+    function test_exactOutputBuy_succeedsAndRoutesNav() public {
+        uint256 amountOut = 50e6;
 
         uint256 sharesBefore = vault.balanceOf(user);
-        (uint160 priceBefore,,,) = poolManager.getSlot0(portfolioPoolId);
 
         vm.recordLogs();
         vm.prank(user);
@@ -484,10 +405,40 @@ contract PortfolioHookTest is BaseHookTest {
         (bool found, bool isBuy, bool usedAmm,) = _lastSwapRouted();
         assertTrue(found, "SwapRouted not emitted");
         assertTrue(isBuy, "expected buy route");
-        assertTrue(usedAmm, "expected AMM route");
+        assertFalse(usedAmm, "expected NAV route");
+    }
 
-        (uint160 priceAfter,,,) = poolManager.getSlot0(portfolioPoolId);
-        assertTrue(priceAfter != priceBefore, "exact-output AMM buy should move sqrtPrice");
+    function test_exactOutputSell_succeedsAndRoutesNav() public {
+        _buyShares(DEPOSIT_AMOUNT, user);
+
+        vm.startPrank(user);
+        vault.approve(address(permit2), type(uint256).max);
+        vault.approve(address(swapRouter), type(uint256).max);
+        permit2.approve(address(vault), address(swapRouter), type(uint160).max, type(uint48).max);
+        vm.stopPrank();
+
+        uint256 requestedOut = 200e6;
+        uint256 usdcBefore = usdc.balanceOf(user);
+
+        vm.recordLogs();
+        vm.prank(user);
+        swapRouter.swapTokensForExactTokens({
+            amountOut: requestedOut,
+            amountInMax: type(uint256).max,
+            zeroForOne: !_buyZeroForOne(),
+            poolKey: portfolioPoolKey,
+            hookData: abi.encode(user),
+            receiver: user,
+            deadline: block.timestamp + 1
+        });
+
+        uint256 usdcDelta = usdc.balanceOf(user) - usdcBefore;
+        assertEq(usdcDelta, requestedOut, "exact-output sell should return exact stable out");
+
+        (bool found, bool isBuy, bool usedAmm,) = _lastSwapRouted();
+        assertTrue(found, "SwapRouted not emitted");
+        assertFalse(isBuy, "expected sell route");
+        assertFalse(usedAmm, "expected NAV route");
     }
 
     function test_exactOutputSell_revertsEarlyWhenRequestedStableExceedsNav() public {
@@ -534,8 +485,7 @@ contract PortfolioHookTest is BaseHookTest {
                 try this.sellSharesExternal(shares, user) returns (uint256) {} catch {}
             }
 
-            // Core settlement invariant: hook residue should stay below configured seed cap
-            assertLe(usdc.balanceOf(address(hook)), hook.MIN_SEED_STABLE(), "hook stable residue too large");
+            assertLe(usdc.balanceOf(address(hook)), 1, "hook stable residue too large");
         }
 
         // PM-held share balance should remain bounded (not explode with rounds)

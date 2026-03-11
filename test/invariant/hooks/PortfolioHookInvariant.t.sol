@@ -177,6 +177,7 @@ contract PortfolioHookInvariantTest is StdInvariant, BaseHookTest {
     PoolId public portfolioPoolId;
 
     PortfolioHookHandler public handler;
+    uint160 public initialSqrtPrice;
 
     uint256 public constant INITIAL_BALANCE = 1_000_000e6;
 
@@ -254,13 +255,14 @@ contract PortfolioHookInvariantTest is StdInvariant, BaseHookTest {
         portfolioPoolKey = PoolKey({
             currency0: c0,
             currency1: c1,
-            fee: 500,
+            fee: 0,
             tickSpacing: 60,
             hooks: IHooks(hookAddress)
         });
         portfolioPoolId = portfolioPoolKey.toId();
 
         poolManager.initialize(portfolioPoolKey, Constants.SQRT_PRICE_1_1);
+        (initialSqrtPrice,,,) = poolManager.getSlot0(portfolioPoolId);
 
         usdc.mint(address(poolManager), INITIAL_BALANCE * 10);
         usdc.mint(user, INITIAL_BALANCE * 10);
@@ -295,9 +297,8 @@ contract PortfolioHookInvariantTest is StdInvariant, BaseHookTest {
         assertGe(vault.totalSupply(), userBal + pmBal);
     }
 
-    function invariant_hookStableBalanceBoundedBySeed() public view {
-        // Allow operational buffer from repeated withdraw-side over-withdraw and rounding.
-        assertLe(usdc.balanceOf(address(hook)), hook.MIN_SEED_STABLE() + 10e6);
+    function invariant_hookStableBalanceIsZero() public view {
+        assertLe(usdc.balanceOf(address(hook)), 1);
     }
 
     function invariant_hookDoesNotHoldShares() public view {
@@ -310,8 +311,9 @@ contract PortfolioHookInvariantTest is StdInvariant, BaseHookTest {
         assertEq(handler.routeEvents(), handler.buyCalls() + handler.sellCalls());
     }
 
-    function invariant_sellRouteStaysAmmOnly() public view {
-        assertEq(handler.navSellRoutes(), 0);
+    function invariant_sqrtPriceStaysStatic() public view {
+        (uint160 currentSqrtPrice,,,) = poolManager.getSlot0(portfolioPoolId);
+        assertEq(currentSqrtPrice, initialSqrtPrice);
     }
 
     function _computeHookAddress() internal pure returns (address) {

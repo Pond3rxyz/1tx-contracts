@@ -126,7 +126,7 @@ contract PortfolioHookMultiUserWithdrawTest is BaseHookTest {
         portfolioPoolKey = PoolKey({
             currency0: c0,
             currency1: c1,
-            fee: 500,
+            fee: 0,
             tickSpacing: 60,
             hooks: IHooks(hookAddress)
         });
@@ -159,12 +159,15 @@ contract PortfolioHookMultiUserWithdrawTest is BaseHookTest {
             _withdrawRemainingBestEffort(users[i]);
         }
 
-        // Economic safety target: each user ends above 95% principal in this stress setup.
+        // Economic safety target: users recover full principal within 3% tolerance,
+        // counting both returned USDC and any residual share value.
         for (uint256 i = 0; i < N_USERS; i++) {
             address u = users[i];
             uint256 principal = deposited[u];
-            uint256 recovered = usdc.balanceOf(u) + principal - usdcStart[u];
-            assertGe(recovered * 10_000, principal * 9_500, "user received too little vs principal");
+            uint256 residualShares = vault.balanceOf(u);
+            uint256 residualValue = vault.convertToAssets(residualShares);
+            uint256 recovered = usdc.balanceOf(u) + principal - usdcStart[u] + residualValue;
+            assertGe(recovered * 10_000, principal * 9_700, "user recovered below tolerance");
         }
     }
 
@@ -260,8 +263,9 @@ contract PortfolioHookMultiUserWithdrawTest is BaseHookTest {
         uint256 shares = vault.balanceOf(user_);
         if (shares == 0) return;
 
-        uint256 toSell = (shares * bps) / 10_000;
-        if (toSell == 0) toSell = shares;
+        uint256 sharesSlice = (shares * bps) / 10_000;
+        if (sharesSlice == 0) sharesSlice = shares;
+        uint256 targetOut = vault.convertToAssets(sharesSlice);
 
         vm.startPrank(user_);
         vault.approve(address(permit2), type(uint256).max);
@@ -271,15 +275,27 @@ contract PortfolioHookMultiUserWithdrawTest is BaseHookTest {
 
         usdc.mint(address(mockAavePool), 5_000_000e6);
         vm.prank(user_);
-        swapRouter.swapExactTokensForTokens({
-            amountIn: toSell,
-            amountOutMin: 0,
-            zeroForOne: !_buyZeroForOne(),
-            poolKey: portfolioPoolKey,
-            hookData: abi.encode(user_),
-            receiver: user_,
-            deadline: block.timestamp + 1
-        });
+        if (targetOut > 0) {
+            swapRouter.swapTokensForExactTokens({
+                amountOut: targetOut,
+                amountInMax: sharesSlice,
+                zeroForOne: !_buyZeroForOne(),
+                poolKey: portfolioPoolKey,
+                hookData: abi.encode(user_),
+                receiver: user_,
+                deadline: block.timestamp + 1
+            });
+        } else {
+            swapRouter.swapExactTokensForTokens({
+                amountIn: sharesSlice,
+                amountOutMin: 0,
+                zeroForOne: !_buyZeroForOne(),
+                poolKey: portfolioPoolKey,
+                hookData: abi.encode(user_),
+                receiver: user_,
+                deadline: block.timestamp + 1
+            });
+        }
     }
 
     function _withdrawRemainingBestEffort(address user_) internal {
@@ -289,26 +305,39 @@ contract PortfolioHookMultiUserWithdrawTest is BaseHookTest {
         permit2.approve(address(vault), address(swapRouter), type(uint160).max, type(uint48).max);
         vm.stopPrank();
 
-        for (uint256 i = 0; i < 12; i++) {
+        for (uint256 i = 0; i < 24; i++) {
             uint256 shares = vault.balanceOf(user_);
-            if (shares <= 1e4) break;
-
-            uint256 toSell = shares / 2;
-            if (toSell == 0) toSell = shares;
+            if (shares == 0) break;
+            uint256 targetOut = vault.convertToAssets(shares);
+            if (targetOut == 0) break;
 
             usdc.mint(address(mockAavePool), 5_000_000e6);
 
             vm.prank(user_);
-            try swapRouter.swapExactTokensForTokens({
-                amountIn: toSell,
-                amountOutMin: 0,
+            try swapRouter.swapTokensForExactTokens({
+                amountOut: targetOut,
+                amountInMax: shares,
                 zeroForOne: !_buyZeroForOne(),
                 poolKey: portfolioPoolKey,
                 hookData: abi.encode(user_),
                 receiver: user_,
                 deadline: block.timestamp + 1
             }) {} catch {
-                break;
+                uint256 discountedOut = (targetOut * 99) / 100;
+                if (discountedOut == 0) break;
+
+                vm.prank(user_);
+                try swapRouter.swapTokensForExactTokens({
+                    amountOut: discountedOut,
+                    amountInMax: shares,
+                    zeroForOne: !_buyZeroForOne(),
+                    poolKey: portfolioPoolKey,
+                    hookData: abi.encode(user_),
+                    receiver: user_,
+                    deadline: block.timestamp + 1
+                }) {} catch {
+                    continue;
+                }
             }
         }
     }
