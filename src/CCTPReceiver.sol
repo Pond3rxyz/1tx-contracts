@@ -12,6 +12,9 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 contract CCTPReceiver is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     using SafeERC20 for IERC20;
 
+    uint256 constant CCTP_HEADER_SIZE = 148;
+    uint256 constant CCTP_BURN_MESSAGE_SIZE = 228;
+
     address public router;
     address public stableToken;
     address public messageTransmitter;
@@ -23,6 +26,7 @@ contract CCTPReceiver is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     error CCTPRedeemFailed();
     error InvalidMessageLength();
     error InvalidRecipient();
+    error InvalidHookData();
     error AmountMismatch();
 
     event RouterUpdated(address indexed oldRouter, address indexed newRouter);
@@ -71,7 +75,7 @@ contract CCTPReceiver is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     function redeem(bytes calldata message, bytes calldata attestation) external nonReentrant returns (bool) {
-        if (message.length < 148 + 228) revert InvalidMessageLength();
+        if (message.length < CCTP_HEADER_SIZE + CCTP_BURN_MESSAGE_SIZE) revert InvalidMessageLength();
 
         uint256 balanceBefore = IERC20(stableToken).balanceOf(address(this));
 
@@ -81,12 +85,13 @@ contract CCTPReceiver is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 balanceAfter = IERC20(stableToken).balanceOf(address(this));
         uint256 actualMinted = balanceAfter - balanceBefore;
 
-        bytes calldata messageBody = message[148:];
+        bytes calldata messageBody = message[CCTP_HEADER_SIZE:];
         uint256 messageAmount = _readUint256(messageBody, 68);
         bytes memory hookData = _sliceMessageBodyHookData(messageBody);
 
         if (actualMinted > messageAmount) revert AmountMismatch();
         if (hookData.length == 0) return true;
+        if (hookData.length != 64) revert InvalidHookData();
 
         (bytes32 instrumentId, address recipient) = abi.decode(hookData, (bytes32, address));
 
@@ -97,6 +102,7 @@ contract CCTPReceiver is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         try ISwapDepositRouter(router).buyFor(instrumentId, actualMinted, recipient) returns (uint256 depositedAmount) {
             emit CrossChainBuyExecuted(instrumentId, recipient, actualMinted, depositedAmount);
         } catch (bytes memory reason) {
+            IERC20(stableToken).forceApprove(router, 0);
             IERC20(stableToken).safeTransfer(recipient, actualMinted);
             emit CrossChainBuyFailed(instrumentId, recipient, actualMinted, reason);
         }
@@ -111,7 +117,7 @@ contract CCTPReceiver is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     function _sliceMessageBodyHookData(bytes calldata messageBody) internal pure returns (bytes memory hookData) {
-        if (messageBody.length <= 228) return "";
+        if (messageBody.length <= CCTP_BURN_MESSAGE_SIZE) return "";
         hookData = messageBody[228:];
     }
 
