@@ -43,6 +43,7 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
     error CrossChainBridgeNotConfigured();
     error CrossChainSellNotSupported();
     error UnauthorizedBuyForCaller();
+    error InsufficientOutput(uint256 actual, uint256 minimum);
 
     // ============ Events ============
 
@@ -110,9 +111,10 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
     /// @notice Buy an instrument, bridging cross-chain if needed
     /// @param instrumentId The globally unique instrument identifier
     /// @param amount The amount of stable currency to spend
+    /// @param minDepositedAmount Minimum amount deposited into lending (slippage protection, ignored for cross-chain)
     /// @param fastTransfer Whether to use fast CCTP transfer (cross-chain only)
     /// @param maxFee Maximum fee for fast transfer (cross-chain only)
-    function buy(bytes32 instrumentId, uint256 amount, bool fastTransfer, uint256 maxFee)
+    function buy(bytes32 instrumentId, uint256 amount, uint256 minDepositedAmount, bool fastTransfer, uint256 maxFee)
         external
         returns (uint256 depositedAmount)
     {
@@ -124,7 +126,8 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
             return 0;
         }
 
-        return _buyLocal(instrumentId, amount, msg.sender, msg.sender);
+        depositedAmount = _buyLocal(instrumentId, amount, msg.sender, msg.sender);
+        if (depositedAmount < minDepositedAmount) revert InsufficientOutput(depositedAmount, minDepositedAmount);
     }
 
     /// @notice Buy on behalf of a recipient — called by CCTPReceiver for cross-chain buys
@@ -167,8 +170,9 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
     /// @notice Sell an instrument: withdraw from lending and swap to USDC (if needed)
     /// @param instrumentId The globally unique instrument identifier
     /// @param yieldTokenAmount The amount of yield-bearing tokens to redeem
+    /// @param minOutputAmount Minimum stable currency to receive (slippage protection)
     /// @return outputAmount The actual amount of stable currency returned to the caller
-    function sell(bytes32 instrumentId, uint256 yieldTokenAmount) external returns (uint256 outputAmount) {
+    function sell(bytes32 instrumentId, uint256 yieldTokenAmount, uint256 minOutputAmount) external returns (uint256 outputAmount) {
         if (InstrumentIdLib.getInstrumentChainId(instrumentId) != uint32(block.chainid)) {
             revert CrossChainSellNotSupported();
         }
@@ -189,6 +193,8 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
         } else {
             outputAmount = withdrawnAmount;
         }
+
+        if (outputAmount < minOutputAmount) revert InsufficientOutput(outputAmount, minOutputAmount);
 
         // Send stable tokens to caller
         IERC20(Currency.unwrap(stable)).safeTransfer(msg.sender, outputAmount);
@@ -265,6 +271,9 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     // ============ Storage Gap ============
+    // Direct state variables: poolManager, instrumentRegistry, swapPoolRegistry, stable, cctpBridge, cctpReceiver = 6
+    // Gap: 50 - 6 = 44. Verify with: forge inspect SwapDepositRouter storage-layout
+    // If adding a new state variable, DECREMENT the gap size by the slots consumed.
 
-    uint256[43] private __gap;
+    uint256[44] private __gap;
 }
