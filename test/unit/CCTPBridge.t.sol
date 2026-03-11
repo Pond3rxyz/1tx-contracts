@@ -181,6 +181,166 @@ contract CCTPBridgeTest is Test {
         assertEq(messenger.lastHookData(), hookData);
     }
 
+    // ============ Bridge — MintRecipient Fallback ============
+
+    function test_bridge_usesCachedMintRecipient() public {
+        bytes32 cachedRecipient = bytes32(uint256(uint160(makeAddr("cachedRecipient"))));
+
+        vm.prank(owner);
+        bridge.setDestinationMintRecipient(8453, cachedRecipient);
+
+        uint256 amount = 100e6;
+        usdc.mint(address(bridge), amount);
+
+        vm.prank(router);
+        (, bytes32 resolvedRecipient,) =
+            bridge.bridge(address(usdc), user, amount, 8453, false, 0, bytes32(0), bytes32(0), "");
+
+        assertEq(resolvedRecipient, cachedRecipient);
+        assertEq(messenger.lastMintRecipient(), cachedRecipient);
+    }
+
+    function test_bridge_explicitMintRecipientOverridesCached() public {
+        bytes32 cachedRecipient = bytes32(uint256(uint160(makeAddr("cachedRecipient"))));
+        bytes32 explicitRecipient = bytes32(uint256(uint160(makeAddr("explicitRecipient"))));
+
+        vm.prank(owner);
+        bridge.setDestinationMintRecipient(8453, cachedRecipient);
+
+        uint256 amount = 100e6;
+        usdc.mint(address(bridge), amount);
+
+        vm.prank(router);
+        (, bytes32 resolvedRecipient,) =
+            bridge.bridge(address(usdc), user, amount, 8453, false, 0, bytes32(0), explicitRecipient, "");
+
+        assertEq(resolvedRecipient, explicitRecipient);
+        assertEq(messenger.lastMintRecipient(), explicitRecipient);
+    }
+
+    // ============ Bridge — DestinationCaller Fallback ============
+
+    function test_bridge_usesCachedDestinationCaller() public {
+        bytes32 cachedCaller = bytes32(uint256(uint160(makeAddr("cachedCaller"))));
+
+        vm.prank(owner);
+        bridge.setDestinationCaller(8453, cachedCaller);
+
+        uint256 amount = 100e6;
+        usdc.mint(address(bridge), amount);
+
+        vm.prank(router);
+        bridge.bridge(address(usdc), user, amount, 8453, false, 0, bytes32(0), bytes32(0), "");
+
+        assertEq(messenger.lastDestinationCaller(), cachedCaller);
+    }
+
+    function test_bridge_explicitDestinationCallerOverridesCached() public {
+        bytes32 cachedCaller = bytes32(uint256(uint160(makeAddr("cachedCaller"))));
+        bytes32 explicitCaller = bytes32(uint256(uint160(makeAddr("explicitCaller"))));
+
+        vm.prank(owner);
+        bridge.setDestinationCaller(8453, cachedCaller);
+
+        uint256 amount = 100e6;
+        usdc.mint(address(bridge), amount);
+
+        vm.prank(router);
+        bridge.bridge(address(usdc), user, amount, 8453, false, 0, explicitCaller, bytes32(0), "");
+
+        assertEq(messenger.lastDestinationCaller(), explicitCaller);
+    }
+
+    // ============ Admin — Access Control ============
+
+    function test_setTokenMessenger_revertsForNonOwner() public {
+        vm.prank(user);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, user));
+        bridge.setTokenMessenger(makeAddr("newMessenger"));
+    }
+
+    function test_setTokenMessenger_revertsOnZeroAddress() public {
+        vm.prank(owner);
+        vm.expectRevert(CCTPBridge.InvalidAddress.selector);
+        bridge.setTokenMessenger(address(0));
+    }
+
+    function test_setDestinationDomain_revertsForNonOwner() public {
+        vm.prank(user);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, user));
+        bridge.setDestinationDomain(1, 0);
+    }
+
+    function test_setAuthorizedCaller_revertsOnZeroAddress() public {
+        vm.prank(owner);
+        vm.expectRevert(CCTPBridge.InvalidAddress.selector);
+        bridge.setAuthorizedCaller(address(0), true);
+    }
+
+    function test_setAuthorizedCaller_revertsForNonOwner() public {
+        vm.prank(user);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, user));
+        bridge.setAuthorizedCaller(makeAddr("caller"), true);
+    }
+
+    // ============ Admin — Remove Domain ============
+
+    function test_removeDestinationDomain_success() public {
+        vm.prank(owner);
+        bridge.removeDestinationDomain(8453);
+
+        usdc.mint(address(bridge), 1e6);
+
+        vm.prank(router);
+        vm.expectRevert(abi.encodeWithSelector(CCTPBridge.DestinationDomainNotConfigured.selector, uint32(8453)));
+        bridge.bridge(address(usdc), user, 1e6, 8453, false, 0, bytes32(0), bytes32(0), "");
+    }
+
+    function test_removeDestinationDomain_revertsIfNotConfigured() public {
+        vm.prank(owner);
+        vm.expectRevert(abi.encodeWithSelector(CCTPBridge.DomainNotConfigured.selector, uint32(42161)));
+        bridge.removeDestinationDomain(42161);
+    }
+
+    function test_removeDestinationDomain_revertsForNonOwner() public {
+        vm.prank(user);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, user));
+        bridge.removeDestinationDomain(8453);
+    }
+
+    // ============ Admin — Rescue Tokens ============
+
+    function test_rescueTokens_success() public {
+        uint256 amount = 50e6;
+        usdc.mint(address(bridge), amount);
+
+        vm.prank(owner);
+        bridge.rescueTokens(address(usdc), owner, amount);
+
+        assertEq(usdc.balanceOf(owner), amount);
+        assertEq(usdc.balanceOf(address(bridge)), 0);
+    }
+
+    function test_rescueTokens_revertsForNonOwner() public {
+        usdc.mint(address(bridge), 1e6);
+
+        vm.prank(user);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, user));
+        bridge.rescueTokens(address(usdc), user, 1e6);
+    }
+
+    function test_rescueTokens_revertsOnZeroToken() public {
+        vm.prank(owner);
+        vm.expectRevert(CCTPBridge.InvalidAddress.selector);
+        bridge.rescueTokens(address(0), owner, 1e6);
+    }
+
+    function test_rescueTokens_revertsOnZeroTo() public {
+        vm.prank(owner);
+        vm.expectRevert(CCTPBridge.InvalidAddress.selector);
+        bridge.rescueTokens(address(usdc), address(0), 1e6);
+    }
+
     // ============ Bridge — Revert Cases ============
 
     function test_bridge_revertsWhenCallerNotAuthorized() public {

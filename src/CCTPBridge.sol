@@ -42,12 +42,15 @@ contract CCTPBridge is Initializable, UUPSUpgradeable, OwnableUpgradeable, ICCTP
     error TokenMessengerNotConfigured();
     error DestinationDomainNotConfigured(uint32 chainId);
     error FastTransferRequiresFee();
+    error DomainNotConfigured(uint32 chainId);
 
     event TokenMessengerUpdated(address indexed tokenMessenger);
     event DestinationDomainUpdated(uint32 indexed chainId, uint32 indexed cctpDomain);
     event DestinationMintRecipientUpdated(uint32 indexed chainId, bytes32 mintRecipient);
     event DestinationCallerUpdated(uint32 indexed chainId, bytes32 destinationCaller);
     event AuthorizedCallerUpdated(address indexed caller, bool allowed);
+    event DestinationDomainRemoved(uint32 indexed chainId);
+    event TokensRescued(address indexed token, address indexed to, uint256 amount);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -68,6 +71,13 @@ contract CCTPBridge is Initializable, UUPSUpgradeable, OwnableUpgradeable, ICCTP
         chainIdToCCTPDomain[chainId] = cctpDomain;
         configuredDomains[chainId] = true;
         emit DestinationDomainUpdated(chainId, cctpDomain);
+    }
+
+    function removeDestinationDomain(uint32 chainId) external onlyOwner {
+        if (!configuredDomains[chainId]) revert DomainNotConfigured(chainId);
+        delete chainIdToCCTPDomain[chainId];
+        configuredDomains[chainId] = false;
+        emit DestinationDomainRemoved(chainId);
     }
 
     function setDestinationMintRecipient(uint32 chainId, bytes32 mintRecipient) external onlyOwner {
@@ -152,7 +162,13 @@ contract CCTPBridge is Initializable, UUPSUpgradeable, OwnableUpgradeable, ICCTP
         );
     }
 
+    function rescueTokens(address token, address to, uint256 amount) external onlyOwner {
+        if (token == address(0) || to == address(0)) revert InvalidAddress();
+        IERC20(token).safeTransfer(to, amount);
+        emit TokensRescued(token, to, amount);
+    }
+
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    uint256[46] private __gap;
+    uint256[44] private __gap;
 }
