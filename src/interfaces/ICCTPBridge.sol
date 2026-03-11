@@ -6,7 +6,7 @@ pragma solidity ^0.8.26;
 interface ICCTPBridge {
     /// @notice Bridges `stableToken` already transferred to this contract
     /// @return destinationDomain The configured CCTP domain used
-    /// @return mintRecipient The resolved mint recipient
+    /// @return resolvedMintRecipient The resolved mint recipient
     /// @return minFinalityThreshold The finality threshold used for the burn
     function bridge(
         address stableToken,
@@ -18,5 +18,5 @@ interface ICCTPBridge {
         bytes32 destinationCaller,
         bytes32 mintRecipient,
         bytes calldata hookData
-    ) external returns (uint32 destinationDomain, bytes32, uint32 minFinalityThreshold);
+    ) external returns (uint32 destinationDomain, bytes32 resolvedMintRecipient, uint32 minFinalityThreshold);
 }
