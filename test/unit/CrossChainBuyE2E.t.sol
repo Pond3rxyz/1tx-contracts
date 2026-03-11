@@ -173,7 +173,7 @@ contract CrossChainBuyE2ETest is Test {
         );
 
         vm.prank(user);
-        uint256 sourceResult = sourceRouter.buy(sourceRemoteInstrumentId, AMOUNT, false, 0);
+        uint256 sourceResult = sourceRouter.buy(sourceRemoteInstrumentId, AMOUNT, 0, false, 0);
         assertEq(sourceResult, 0);
 
         assertEq(sourceMessenger.lastAmount(), AMOUNT);
