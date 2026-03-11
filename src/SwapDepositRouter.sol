@@ -13,6 +13,8 @@ import {Currency, CurrencyLibrary} from "@uniswap/v4-core/src/types/Currency.sol
 import {InstrumentRegistry} from "./registries/InstrumentRegistry.sol";
 import {SwapPoolRegistry} from "./registries/SwapPoolRegistry.sol";
 import {ILendingAdapter} from "./interfaces/ILendingAdapter.sol";
+import {ICCTPBridge} from "./interfaces/ICCTPBridge.sol";
+import {InstrumentIdLib} from "./libraries/InstrumentIdLib.sol";
 import {SwapExecutor} from "./libraries/SwapExecutor.sol";
 import {LendingExecutor} from "./libraries/LendingExecutor.sol";
 
@@ -30,16 +32,34 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
     InstrumentRegistry public instrumentRegistry;
     SwapPoolRegistry public swapPoolRegistry;
     Currency public stable;
+    address public cctpBridge;
+    address public cctpReceiver;
 
     // ============ Errors ============
 
     error CallerNotPoolManager();
     error InvalidAmount();
+    error InvalidAddress();
+    error CrossChainBridgeNotConfigured();
+    error CrossChainSellNotSupported();
+    error UnauthorizedBuyForCaller();
 
     // ============ Events ============
 
     event Buy(bytes32 indexed instrumentId, address indexed sender, uint256 inputAmount, uint256 depositedAmount);
     event Sell(bytes32 indexed instrumentId, address indexed sender, uint256 yieldTokenAmount, uint256 outputAmount);
+    event CCTPBridgeUpdated(address indexed cctpBridge);
+    event CCTPReceiverUpdated(address indexed cctpReceiver);
+    event CCTPBridgeInitiated(
+        address indexed sender,
+        bytes32 indexed instrumentId,
+        uint256 amount,
+        uint32 indexed destinationDomain,
+        bytes32 mintRecipient,
+        bytes32 destinationCaller,
+        uint256 maxFee,
+        uint32 minFinalityThreshold
+    );
 
     // ============ Types ============
 
@@ -71,20 +91,64 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
         stable = _stable;
     }
 
+    /// @notice Sets Circle CCTP TokenMessengerV2 contract used for bridging stable funds
+    /// @param _cctpBridge CCTP bridge adapter address
+    function setCCTPBridge(address _cctpBridge) external onlyOwner {
+        if (_cctpBridge == address(0)) revert InvalidAddress();
+        cctpBridge = _cctpBridge;
+        emit CCTPBridgeUpdated(_cctpBridge);
+    }
+
+    function setCCTPReceiver(address _cctpReceiver) external onlyOwner {
+        if (_cctpReceiver == address(0)) revert InvalidAddress();
+        cctpReceiver = _cctpReceiver;
+        emit CCTPReceiverUpdated(_cctpReceiver);
+    }
+
     // ============ External Functions ============
 
-    /// @notice Buy an instrument: swap USDC to market currency (if needed) and deposit
+    /// @notice Buy an instrument, bridging cross-chain if needed
     /// @param instrumentId The globally unique instrument identifier
     /// @param amount The amount of stable currency to spend
-    /// @return depositedAmount The actual amount deposited to the lending protocol
-    function buy(bytes32 instrumentId, uint256 amount) external returns (uint256 depositedAmount) {
+    /// @param fastTransfer Whether to use fast CCTP transfer (cross-chain only)
+    /// @param maxFee Maximum fee for fast transfer (cross-chain only)
+    function buy(bytes32 instrumentId, uint256 amount, bool fastTransfer, uint256 maxFee)
+        external
+        returns (uint256 depositedAmount)
+    {
         if (amount == 0) revert InvalidAmount();
 
+        uint32 targetChain = InstrumentIdLib.getInstrumentChainId(instrumentId);
+        if (targetChain != uint32(block.chainid)) {
+            _bridgeForCrossChainInstrument(instrumentId, amount, targetChain, fastTransfer, maxFee);
+            return 0;
+        }
+
+        return _buyLocal(instrumentId, amount, msg.sender, msg.sender);
+    }
+
+    /// @notice Buy on behalf of a recipient — called by CCTPReceiver for cross-chain buys
+    /// @dev Only callable by the configured cctpReceiver
+    function buyFor(bytes32 instrumentId, uint256 amount, address recipient)
+        external
+        returns (uint256 depositedAmount)
+    {
+        if (msg.sender != cctpReceiver) revert UnauthorizedBuyForCaller();
+        if (amount == 0) revert InvalidAmount();
+        if (recipient == address(0)) revert InvalidAddress();
+
+        return _buyLocal(instrumentId, amount, msg.sender, recipient);
+    }
+
+    function _buyLocal(bytes32 instrumentId, uint256 amount, address payer, address recipient)
+        internal
+        returns (uint256 depositedAmount)
+    {
         (address adapter, bytes32 marketId) = instrumentRegistry.getInstrumentDirect(instrumentId);
         Currency marketCurrency = ILendingAdapter(adapter).getMarketCurrency(marketId);
 
         // Pull stable tokens from user
-        IERC20(Currency.unwrap(stable)).safeTransferFrom(msg.sender, address(this), amount);
+        IERC20(Currency.unwrap(stable)).safeTransferFrom(payer, address(this), amount);
 
         // Swap if stable differs from the market's underlying currency
         if (Currency.unwrap(stable) != Currency.unwrap(marketCurrency)) {
@@ -94,10 +158,10 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
             depositedAmount = amount;
         }
 
-        // Deposit to lending protocol — yield tokens go to msg.sender
-        LendingExecutor.deposit(adapter, marketId, marketCurrency, depositedAmount, msg.sender);
+        // Deposit to lending protocol — yield tokens go to recipient
+        LendingExecutor.deposit(adapter, marketId, marketCurrency, depositedAmount, recipient);
 
-        emit Buy(instrumentId, msg.sender, amount, depositedAmount);
+        emit Buy(instrumentId, recipient, amount, depositedAmount);
     }
 
     /// @notice Sell an instrument: withdraw from lending and swap to USDC (if needed)
@@ -105,6 +169,9 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
     /// @param yieldTokenAmount The amount of yield-bearing tokens to redeem
     /// @return outputAmount The actual amount of stable currency returned to the caller
     function sell(bytes32 instrumentId, uint256 yieldTokenAmount) external returns (uint256 outputAmount) {
+        if (InstrumentIdLib.getInstrumentChainId(instrumentId) != uint32(block.chainid)) {
+            revert CrossChainSellNotSupported();
+        }
         if (yieldTokenAmount == 0) revert InvalidAmount();
 
         (address adapter, bytes32 marketId) = instrumentRegistry.getInstrumentDirect(instrumentId);
@@ -112,7 +179,8 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
         address yieldToken = ILendingAdapter(adapter).getYieldToken(marketId);
 
         // Withdraw from lending protocol — yield tokens transferred from user to adapter
-        uint256 withdrawnAmount = LendingExecutor.withdraw(adapter, marketId, yieldToken, yieldTokenAmount, msg.sender, address(this));
+        uint256 withdrawnAmount =
+            LendingExecutor.withdraw(adapter, marketId, yieldToken, yieldTokenAmount, msg.sender, address(this));
 
         // Swap if market currency differs from stable
         if (Currency.unwrap(marketCurrency) != Currency.unwrap(stable)) {
@@ -161,9 +229,42 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
         outputAmount = abi.decode(result, (uint256));
     }
 
+    function _bridgeForCrossChainInstrument(
+        bytes32 instrumentId,
+        uint256 amount,
+        uint32 targetChain,
+        bool fastTransfer,
+        uint256 maxFee
+    ) internal {
+        if (cctpBridge == address(0)) revert CrossChainBridgeNotConfigured();
+
+        address stableToken = Currency.unwrap(stable);
+
+        IERC20(stableToken).safeTransferFrom(msg.sender, address(this), amount);
+        IERC20(stableToken).safeTransfer(cctpBridge, amount);
+
+        bytes memory hookData = abi.encode(instrumentId, msg.sender);
+
+        (uint32 destinationDomain, bytes32 resolvedMintRecipient, uint32 minFinalityThreshold) = ICCTPBridge(cctpBridge)
+            .bridge(
+                stableToken, msg.sender, amount, targetChain, fastTransfer, maxFee, bytes32(0), bytes32(0), hookData
+            );
+
+        emit CCTPBridgeInitiated(
+            msg.sender,
+            instrumentId,
+            amount,
+            destinationDomain,
+            resolvedMintRecipient,
+            bytes32(0),
+            maxFee,
+            minFinalityThreshold
+        );
+    }
+
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     // ============ Storage Gap ============
 
-    uint256[46] private __gap;
+    uint256[43] private __gap;
 }

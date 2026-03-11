@@ -158,7 +158,7 @@ contract SwapDepositRouterFuzzTest is Test {
         usdc.approve(address(router), amount);
 
         vm.prank(fuzzUser);
-        uint256 deposited = router.buy(usdcInstrumentId, amount);
+        uint256 deposited = router.buy(usdcInstrumentId, amount, false, 0);
 
         assertEq(deposited, amount);
         assertEq(aUsdc.balanceOf(fuzzUser), amount);
@@ -174,7 +174,7 @@ contract SwapDepositRouterFuzzTest is Test {
         usdc.approve(address(router), amount);
 
         vm.prank(fuzzUser);
-        uint256 deposited = router.buy(usdtInstrumentId, amount);
+        uint256 deposited = router.buy(usdtInstrumentId, amount, false, 0);
 
         assertEq(deposited, amount);
         assertEq(aUsdt.balanceOf(fuzzUser), amount);
@@ -188,7 +188,7 @@ contract SwapDepositRouterFuzzTest is Test {
 
         vm.prank(fuzzUser);
         vm.expectRevert(SwapDepositRouter.InvalidAmount.selector);
-        router.buy(usdcInstrumentId, amount);
+        router.buy(usdcInstrumentId, amount, false, 0);
     }
 
     function testFuzz_buy_invalidInstrumentId_reverts(bytes32 randomId) public {
@@ -203,7 +203,7 @@ contract SwapDepositRouterFuzzTest is Test {
 
         vm.prank(fuzzUser);
         vm.expectRevert(InstrumentRegistry.InstrumentNotRegistered.selector);
-        router.buy(randomId, DEPOSIT_AMOUNT);
+        router.buy(randomId, DEPOSIT_AMOUNT, false, 0);
     }
 
     // ============ Sell Fuzz Tests ============
@@ -217,7 +217,7 @@ contract SwapDepositRouterFuzzTest is Test {
         // Buy first
         vm.startPrank(fuzzUser);
         usdc.approve(address(router), amount);
-        router.buy(usdcInstrumentId, amount);
+        router.buy(usdcInstrumentId, amount, false, 0);
 
         // Sell
         aUsdc.approve(address(router), amount);
@@ -238,7 +238,7 @@ contract SwapDepositRouterFuzzTest is Test {
         // Buy USDT instrument
         vm.startPrank(fuzzUser);
         usdc.approve(address(router), amount);
-        router.buy(usdtInstrumentId, amount);
+        router.buy(usdtInstrumentId, amount, false, 0);
 
         // Sell USDT instrument → get USDC back
         aUsdt.approve(address(router), amount);
@@ -271,7 +271,7 @@ contract SwapDepositRouterFuzzTest is Test {
 
         vm.startPrank(fuzzUser);
         usdc.approve(address(router), amount);
-        router.buy(usdcInstrumentId, amount);
+        router.buy(usdcInstrumentId, amount, false, 0);
 
         aUsdc.approve(address(router), amount);
         router.sell(usdcInstrumentId, amount);
@@ -289,7 +289,7 @@ contract SwapDepositRouterFuzzTest is Test {
 
         vm.startPrank(fuzzUser);
         usdc.approve(address(router), amount);
-        router.buy(usdtInstrumentId, amount);
+        router.buy(usdtInstrumentId, amount, false, 0);
 
         aUsdt.approve(address(router), amount);
         router.sell(usdtInstrumentId, amount);
@@ -313,7 +313,7 @@ contract SwapDepositRouterFuzzTest is Test {
 
             vm.startPrank(fuzzUser);
             usdc.approve(address(router), amount);
-            router.buy(usdcInstrumentId, amount);
+            router.buy(usdcInstrumentId, amount, false, 0);
             vm.stopPrank();
 
             totalDeposited += amount;

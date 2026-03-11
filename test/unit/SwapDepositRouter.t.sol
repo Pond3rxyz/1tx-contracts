@@ -10,6 +10,7 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 import {SwapDepositRouter} from "../../src/SwapDepositRouter.sol";
+import {CCTPBridge} from "../../src/CCTPBridge.sol";
 import {InstrumentRegistry} from "../../src/registries/InstrumentRegistry.sol";
 import {SwapPoolRegistry} from "../../src/registries/SwapPoolRegistry.sol";
 import {InstrumentIdLib} from "../../src/libraries/InstrumentIdLib.sol";
@@ -18,6 +19,37 @@ import {AaveAdapter} from "../../src/adapters/AaveAdapter.sol";
 import {MockPoolManager} from "../mocks/MockPoolManager.sol";
 import {MockAavePool} from "../mocks/MockAavePool.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
+
+contract MockTokenMessengerV2 {
+    uint256 public lastAmount;
+    uint32 public lastDestinationDomain;
+    bytes32 public lastMintRecipient;
+    address public lastBurnToken;
+    bytes32 public lastDestinationCaller;
+    uint256 public lastMaxFee;
+    uint32 public lastMinFinalityThreshold;
+    bytes public lastHookData;
+
+    function depositForBurnWithHook(
+        uint256 amount,
+        uint32 destinationDomain,
+        bytes32 mintRecipient,
+        address burnToken,
+        bytes32 destinationCaller,
+        uint256 maxFee,
+        uint32 minFinalityThreshold,
+        bytes calldata hookData
+    ) external {
+        lastAmount = amount;
+        lastDestinationDomain = destinationDomain;
+        lastMintRecipient = mintRecipient;
+        lastBurnToken = burnToken;
+        lastDestinationCaller = destinationCaller;
+        lastMaxFee = maxFee;
+        lastMinFinalityThreshold = minFinalityThreshold;
+        lastHookData = hookData;
+    }
+}
 
 contract SwapDepositRouterTest is Test {
     using CurrencyLibrary for Currency;
@@ -29,6 +61,8 @@ contract SwapDepositRouterTest is Test {
     MockPoolManager public mockPM;
     AaveAdapter public aaveAdapter;
     MockAavePool public mockAavePool;
+    CCTPBridge public cctpBridge;
+    MockTokenMessengerV2 public mockTokenMessenger;
 
     // Tokens
     MockERC20 public usdc;
@@ -61,6 +95,17 @@ contract SwapDepositRouterTest is Test {
     // Events
     event Buy(bytes32 indexed instrumentId, address indexed sender, uint256 inputAmount, uint256 depositedAmount);
     event Sell(bytes32 indexed instrumentId, address indexed sender, uint256 yieldTokenAmount, uint256 outputAmount);
+    event CCTPBridgeUpdated(address indexed cctpBridge);
+    event CCTPBridgeInitiated(
+        address indexed sender,
+        bytes32 indexed instrumentId,
+        uint256 amount,
+        uint32 indexed destinationDomain,
+        bytes32 mintRecipient,
+        bytes32 destinationCaller,
+        uint256 maxFee,
+        uint32 minFinalityThreshold
+    );
 
     function setUp() public {
         owner = makeAddr("owner");
@@ -78,6 +123,7 @@ contract SwapDepositRouterTest is Test {
 
         // Deploy mock PoolManager
         mockPM = new MockPoolManager();
+        mockTokenMessenger = new MockTokenMessengerV2();
 
         // Deploy registries via proxies
         InstrumentRegistry irImpl = new InstrumentRegistry();
@@ -117,6 +163,11 @@ contract SwapDepositRouterTest is Test {
             )
         );
         router = SwapDepositRouter(address(routerProxy));
+
+        CCTPBridge cctpBridgeImpl = new CCTPBridge();
+        ERC1967Proxy cctpBridgeProxy =
+            new ERC1967Proxy(address(cctpBridgeImpl), abi.encodeWithSelector(CCTPBridge.initialize.selector, owner));
+        cctpBridge = CCTPBridge(address(cctpBridgeProxy));
 
         // Register adapter as authorized caller (for sell/withdraw)
         vm.prank(owner);
@@ -186,6 +237,28 @@ contract SwapDepositRouterTest is Test {
         );
     }
 
+    function test_setCCTPBridge_onlyOwner() public {
+        vm.prank(user);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, user));
+        router.setCCTPBridge(address(cctpBridge));
+    }
+
+    function test_setCCTPBridge_updatesStateAndEmits() public {
+        vm.expectEmit(true, false, false, true);
+        emit CCTPBridgeUpdated(address(cctpBridge));
+
+        vm.prank(owner);
+        router.setCCTPBridge(address(cctpBridge));
+
+        assertEq(router.cctpBridge(), address(cctpBridge));
+    }
+
+    function test_setCCTPBridge_revertsOnZeroAddress() public {
+        vm.prank(owner);
+        vm.expectRevert(SwapDepositRouter.InvalidAddress.selector);
+        router.setCCTPBridge(address(0));
+    }
+
     // ============ Buy Tests — No Swap (USDC market) ============
 
     function test_buy_noSwap_success() public {
@@ -193,7 +266,7 @@ contract SwapDepositRouterTest is Test {
         usdc.approve(address(router), DEPOSIT_AMOUNT);
 
         vm.prank(user);
-        uint256 deposited = router.buy(usdcInstrumentId, DEPOSIT_AMOUNT);
+        uint256 deposited = router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, false, 0);
 
         assertEq(deposited, DEPOSIT_AMOUNT);
         assertEq(aUsdc.balanceOf(user), DEPOSIT_AMOUNT);
@@ -208,16 +281,16 @@ contract SwapDepositRouterTest is Test {
         emit Buy(usdcInstrumentId, user, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT);
 
         vm.prank(user);
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, false, 0);
     }
 
     function test_buy_noSwap_multipleDeposits() public {
         vm.startPrank(user);
         usdc.approve(address(router), DEPOSIT_AMOUNT * 3);
 
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT);
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT);
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, false, 0);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, false, 0);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, false, 0);
         vm.stopPrank();
 
         assertEq(aUsdc.balanceOf(user), DEPOSIT_AMOUNT * 3);
@@ -231,7 +304,7 @@ contract SwapDepositRouterTest is Test {
         usdc.approve(address(router), DEPOSIT_AMOUNT);
 
         vm.prank(user);
-        uint256 deposited = router.buy(usdtInstrumentId, DEPOSIT_AMOUNT);
+        uint256 deposited = router.buy(usdtInstrumentId, DEPOSIT_AMOUNT, false, 0);
 
         // Mock PM does 1:1 swap
         assertEq(deposited, DEPOSIT_AMOUNT);
@@ -246,7 +319,7 @@ contract SwapDepositRouterTest is Test {
         emit Buy(usdtInstrumentId, user, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT);
 
         vm.prank(user);
-        router.buy(usdtInstrumentId, DEPOSIT_AMOUNT);
+        router.buy(usdtInstrumentId, DEPOSIT_AMOUNT, false, 0);
     }
 
     // ============ Buy Tests — Revert Cases ============
@@ -254,18 +327,19 @@ contract SwapDepositRouterTest is Test {
     function test_buy_revertsOnZeroAmount() public {
         vm.prank(user);
         vm.expectRevert(SwapDepositRouter.InvalidAmount.selector);
-        router.buy(usdcInstrumentId, 0);
+        router.buy(usdcInstrumentId, 0, false, 0);
     }
 
     function test_buy_revertsOnUnregisteredInstrument() public {
-        bytes32 fakeId = keccak256("fake");
+        bytes32 fakeMarketId = keccak256("fake");
+        bytes32 fakeId = InstrumentIdLib.generateInstrumentId(block.chainid, makeAddr("fakeExecution"), fakeMarketId);
 
         vm.prank(user);
         usdc.approve(address(router), DEPOSIT_AMOUNT);
 
         vm.prank(user);
         vm.expectRevert(InstrumentRegistry.InstrumentNotRegistered.selector);
-        router.buy(fakeId, DEPOSIT_AMOUNT);
+        router.buy(fakeId, DEPOSIT_AMOUNT, false, 0);
     }
 
     function test_buy_revertsOnInsufficientBalance() public {
@@ -276,13 +350,13 @@ contract SwapDepositRouterTest is Test {
 
         vm.prank(poorUser);
         vm.expectRevert();
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, false, 0);
     }
 
     function test_buy_revertsOnNoApproval() public {
         vm.prank(user);
         vm.expectRevert();
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, false, 0);
     }
 
     // ============ Sell Tests — No Swap (USDC market) ============
@@ -291,7 +365,7 @@ contract SwapDepositRouterTest is Test {
         // First buy to get aTokens
         vm.startPrank(user);
         usdc.approve(address(router), DEPOSIT_AMOUNT);
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, false, 0);
 
         // Now sell
         aUsdc.approve(address(router), DEPOSIT_AMOUNT);
@@ -307,7 +381,7 @@ contract SwapDepositRouterTest is Test {
     function test_sell_noSwap_emitsEvent() public {
         vm.startPrank(user);
         usdc.approve(address(router), DEPOSIT_AMOUNT);
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, false, 0);
 
         aUsdc.approve(address(router), DEPOSIT_AMOUNT);
 
@@ -321,7 +395,7 @@ contract SwapDepositRouterTest is Test {
     function test_sell_noSwap_partialSell() public {
         vm.startPrank(user);
         usdc.approve(address(router), DEPOSIT_AMOUNT);
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, false, 0);
 
         uint256 halfAmount = DEPOSIT_AMOUNT / 2;
         aUsdc.approve(address(router), halfAmount);
@@ -338,7 +412,7 @@ contract SwapDepositRouterTest is Test {
         // Buy USDT instrument first
         vm.startPrank(user);
         usdc.approve(address(router), DEPOSIT_AMOUNT);
-        router.buy(usdtInstrumentId, DEPOSIT_AMOUNT);
+        router.buy(usdtInstrumentId, DEPOSIT_AMOUNT, false, 0);
 
         // Sell USDT instrument → withdraw USDT → swap to USDC
         aUsdt.approve(address(router), DEPOSIT_AMOUNT);
@@ -350,6 +424,205 @@ contract SwapDepositRouterTest is Test {
         assertEq(aUsdt.balanceOf(user), 0);
     }
 
+    // ============ Bridge Tests ============
+
+    function test_buy_crossChain_bridgesWithStandardModeByDefault() public {
+        uint256 amount = 100e6;
+        uint32 targetChainId = 8453;
+        uint32 destinationDomain = 6;
+        bytes32 marketId = keccak256("remote-market");
+        bytes32 remoteInstrumentId = InstrumentIdLib.generateInstrumentId(targetChainId, makeAddr("remoteExecution"), marketId);
+        bytes32 mintRecipient = bytes32(uint256(uint160(user)));
+        bytes32 destinationCaller = bytes32(0);
+        uint256 maxFee = 0;
+
+        vm.prank(owner);
+        cctpBridge.setTokenMessenger(address(mockTokenMessenger));
+
+        vm.prank(owner);
+        cctpBridge.setDestinationDomain(targetChainId, destinationDomain);
+
+        vm.prank(owner);
+        cctpBridge.setDestinationMintRecipient(targetChainId, bytes32(uint256(uint160(user))));
+
+        vm.prank(owner);
+        cctpBridge.setDestinationCaller(targetChainId, bytes32(0));
+
+        vm.prank(owner);
+        cctpBridge.setAuthorizedCaller(address(router), true);
+
+        vm.prank(owner);
+        router.setCCTPBridge(address(cctpBridge));
+
+        vm.prank(user);
+        usdc.approve(address(router), amount);
+
+        vm.expectEmit(true, true, true, true);
+        emit CCTPBridgeInitiated(user, remoteInstrumentId, amount, destinationDomain, mintRecipient, destinationCaller, maxFee, 2000);
+
+        vm.prank(user);
+        uint256 deposited = router.buy(remoteInstrumentId, amount, false, 0);
+
+        assertEq(deposited, 0);
+
+        assertEq(mockTokenMessenger.lastAmount(), amount);
+        assertEq(mockTokenMessenger.lastDestinationDomain(), destinationDomain);
+        assertEq(mockTokenMessenger.lastMintRecipient(), mintRecipient);
+        assertEq(mockTokenMessenger.lastBurnToken(), address(usdc));
+        assertEq(mockTokenMessenger.lastDestinationCaller(), destinationCaller);
+        assertEq(mockTokenMessenger.lastMaxFee(), maxFee);
+        assertEq(mockTokenMessenger.lastMinFinalityThreshold(), 2000);
+    }
+
+    function test_buy_crossChain_bridgesWithFastMode() public {
+        uint256 amount = 100e6;
+        uint32 targetChainId = 8453;
+        uint32 destinationDomain = 6;
+        bytes32 marketId = keccak256("remote-market-fast");
+        bytes32 remoteInstrumentId = InstrumentIdLib.generateInstrumentId(targetChainId, makeAddr("remoteExecutionFast"), marketId);
+        bytes32 mintRecipient = bytes32(uint256(uint160(makeAddr("destRecipientFast"))));
+        bytes32 destinationCaller = bytes32(uint256(uint160(makeAddr("relayer"))));
+        uint256 maxFee = 50_000;
+
+        vm.prank(owner);
+        cctpBridge.setTokenMessenger(address(mockTokenMessenger));
+
+        vm.prank(owner);
+        cctpBridge.setDestinationDomain(targetChainId, destinationDomain);
+
+        vm.prank(owner);
+        cctpBridge.setDestinationMintRecipient(targetChainId, mintRecipient);
+
+        vm.prank(owner);
+        cctpBridge.setDestinationCaller(targetChainId, destinationCaller);
+
+        vm.prank(owner);
+        cctpBridge.setAuthorizedCaller(address(router), true);
+
+        vm.prank(owner);
+        router.setCCTPBridge(address(cctpBridge));
+
+        vm.prank(user);
+        usdc.approve(address(router), amount);
+
+        vm.prank(user);
+        uint256 deposited = router.buy(remoteInstrumentId, amount, true, maxFee);
+
+        assertEq(deposited, 0);
+
+        assertEq(mockTokenMessenger.lastAmount(), amount);
+        assertEq(mockTokenMessenger.lastDestinationDomain(), destinationDomain);
+        assertEq(mockTokenMessenger.lastMintRecipient(), mintRecipient);
+        assertEq(mockTokenMessenger.lastBurnToken(), address(usdc));
+        assertEq(mockTokenMessenger.lastDestinationCaller(), destinationCaller);
+        assertEq(mockTokenMessenger.lastMaxFee(), maxFee);
+        assertEq(mockTokenMessenger.lastMinFinalityThreshold(), 1000);
+    }
+
+    function test_buy_crossChain_bridgesWithFastMode_overload() public {
+        uint256 amount = 100e6;
+        uint32 targetChainId = 8453;
+        uint32 destinationDomain = 6;
+        bytes32 marketId = keccak256("remote-market-fast-overload");
+        bytes32 remoteInstrumentId = InstrumentIdLib.generateInstrumentId(targetChainId, makeAddr("remoteExecutionFastOverload"), marketId);
+        bytes32 mintRecipient = bytes32(uint256(uint160(makeAddr("destRecipientFastOverload"))));
+        bytes32 destinationCaller = bytes32(uint256(uint160(makeAddr("relayerOverload"))));
+        uint256 maxFee = 75_000;
+
+        vm.prank(owner);
+        cctpBridge.setTokenMessenger(address(mockTokenMessenger));
+
+        vm.prank(owner);
+        cctpBridge.setDestinationDomain(targetChainId, destinationDomain);
+
+        vm.prank(owner);
+        cctpBridge.setDestinationMintRecipient(targetChainId, mintRecipient);
+
+        vm.prank(owner);
+        cctpBridge.setDestinationCaller(targetChainId, destinationCaller);
+
+        vm.prank(owner);
+        cctpBridge.setAuthorizedCaller(address(router), true);
+
+        vm.prank(owner);
+        router.setCCTPBridge(address(cctpBridge));
+
+        vm.prank(user);
+        usdc.approve(address(router), amount);
+
+        vm.prank(user);
+        uint256 deposited = router.buy(remoteInstrumentId, amount, true, maxFee);
+
+        assertEq(deposited, 0);
+        assertEq(mockTokenMessenger.lastAmount(), amount);
+        assertEq(mockTokenMessenger.lastDestinationDomain(), destinationDomain);
+        assertEq(mockTokenMessenger.lastMintRecipient(), mintRecipient);
+        assertEq(mockTokenMessenger.lastDestinationCaller(), destinationCaller);
+        assertEq(mockTokenMessenger.lastMaxFee(), maxFee);
+        assertEq(mockTokenMessenger.lastMinFinalityThreshold(), 1000);
+    }
+
+    function test_buy_crossChain_revertsWhenMessengerNotConfigured() public {
+        bytes32 remoteInstrumentId = InstrumentIdLib.generateInstrumentId(8453, makeAddr("remoteExecutionNoMessenger"), keccak256("m"));
+
+        vm.prank(user);
+        usdc.approve(address(router), DEPOSIT_AMOUNT);
+
+        vm.prank(user);
+        vm.expectRevert(SwapDepositRouter.CrossChainBridgeNotConfigured.selector);
+        router.buy(remoteInstrumentId, DEPOSIT_AMOUNT, false, 0);
+    }
+
+    function test_buy_crossChain_revertsWhenDomainNotConfigured() public {
+        bytes32 remoteInstrumentId = InstrumentIdLib.generateInstrumentId(8453, makeAddr("remoteExecutionNoDomain"), keccak256("m2"));
+
+        vm.prank(owner);
+        cctpBridge.setTokenMessenger(address(mockTokenMessenger));
+
+        vm.prank(owner);
+        cctpBridge.setAuthorizedCaller(address(router), true);
+
+        vm.prank(owner);
+        router.setCCTPBridge(address(cctpBridge));
+
+        vm.prank(user);
+        usdc.approve(address(router), DEPOSIT_AMOUNT);
+
+        vm.prank(user);
+        vm.expectRevert(abi.encodeWithSelector(CCTPBridge.DestinationDomainNotConfigured.selector, uint32(8453)));
+        router.buy(remoteInstrumentId, DEPOSIT_AMOUNT, false, 0);
+    }
+
+    function test_buy_crossChain_fastMode_revertsOnZeroFee() public {
+        uint32 targetChainId = 8453;
+        bytes32 remoteInstrumentId = InstrumentIdLib.generateInstrumentId(targetChainId, makeAddr("remoteExecutionFastNoFee"), keccak256("m3"));
+
+        vm.prank(owner);
+        cctpBridge.setTokenMessenger(address(mockTokenMessenger));
+
+        vm.prank(owner);
+        cctpBridge.setDestinationDomain(targetChainId, 6);
+
+        vm.prank(owner);
+        cctpBridge.setDestinationMintRecipient(targetChainId, bytes32(uint256(uint160(user))));
+
+        vm.prank(owner);
+        cctpBridge.setDestinationCaller(targetChainId, bytes32(0));
+
+        vm.prank(owner);
+        cctpBridge.setAuthorizedCaller(address(router), true);
+
+        vm.prank(owner);
+        router.setCCTPBridge(address(cctpBridge));
+
+        vm.prank(user);
+        usdc.approve(address(router), DEPOSIT_AMOUNT);
+
+        vm.prank(user);
+        vm.expectRevert(CCTPBridge.FastTransferRequiresFee.selector);
+        router.buy(remoteInstrumentId, DEPOSIT_AMOUNT, true, 0);
+    }
+
     // ============ Sell Tests — Revert Cases ============
 
     function test_sell_revertsOnZeroAmount() public {
@@ -359,18 +632,27 @@ contract SwapDepositRouterTest is Test {
     }
 
     function test_sell_revertsOnUnregisteredInstrument() public {
-        bytes32 fakeId = keccak256("fake");
+        bytes32 fakeMarketId = keccak256("fake");
+        bytes32 fakeId = InstrumentIdLib.generateInstrumentId(block.chainid, makeAddr("fakeExecutionSell"), fakeMarketId);
 
         vm.prank(user);
         vm.expectRevert(InstrumentRegistry.InstrumentNotRegistered.selector);
         router.sell(fakeId, DEPOSIT_AMOUNT);
     }
 
+    function test_sell_revertsOnCrossChainInstrument() public {
+        bytes32 remoteInstrumentId = InstrumentIdLib.generateInstrumentId(8453, makeAddr("remoteExecutionSell"), keccak256("m4"));
+
+        vm.prank(user);
+        vm.expectRevert(SwapDepositRouter.CrossChainSellNotSupported.selector);
+        router.sell(remoteInstrumentId, DEPOSIT_AMOUNT);
+    }
+
     function test_sell_revertsOnNoApproval() public {
         // Buy first
         vm.startPrank(user);
         usdc.approve(address(router), DEPOSIT_AMOUNT);
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, false, 0);
         vm.stopPrank();
 
         // Try sell without approving aTokens
@@ -394,7 +676,7 @@ contract SwapDepositRouterTest is Test {
 
         vm.startPrank(user);
         usdc.approve(address(router), DEPOSIT_AMOUNT);
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, false, 0);
 
         aUsdc.approve(address(router), DEPOSIT_AMOUNT);
         router.sell(usdcInstrumentId, DEPOSIT_AMOUNT);
@@ -409,7 +691,7 @@ contract SwapDepositRouterTest is Test {
 
         vm.startPrank(user);
         usdc.approve(address(router), DEPOSIT_AMOUNT);
-        router.buy(usdtInstrumentId, DEPOSIT_AMOUNT);
+        router.buy(usdtInstrumentId, DEPOSIT_AMOUNT, false, 0);
 
         aUsdt.approve(address(router), DEPOSIT_AMOUNT);
         router.sell(usdtInstrumentId, DEPOSIT_AMOUNT);
@@ -439,5 +721,106 @@ contract SwapDepositRouterTest is Test {
         // State should be preserved
         assertEq(router.owner(), owner);
         assertEq(Currency.unwrap(router.stable()), address(usdc));
+    }
+
+    // ============ setCCTPReceiver Tests ============
+
+    function test_setCCTPReceiver_onlyOwner() public {
+        vm.prank(user);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, user));
+        router.setCCTPReceiver(makeAddr("receiver"));
+    }
+
+    function test_setCCTPReceiver_updatesState() public {
+        address receiverAddr = makeAddr("receiver");
+        vm.prank(owner);
+        router.setCCTPReceiver(receiverAddr);
+        assertEq(router.cctpReceiver(), receiverAddr);
+    }
+
+    function test_setCCTPReceiver_revertsOnZeroAddress() public {
+        vm.prank(owner);
+        vm.expectRevert(SwapDepositRouter.InvalidAddress.selector);
+        router.setCCTPReceiver(address(0));
+    }
+
+    // ============ buyFor Tests ============
+
+    function test_buyFor_success() public {
+        address receiverAddr = makeAddr("receiver");
+        vm.prank(owner);
+        router.setCCTPReceiver(receiverAddr);
+
+        // Fund receiver and approve router
+        usdc.mint(receiverAddr, DEPOSIT_AMOUNT);
+        vm.prank(receiverAddr);
+        usdc.approve(address(router), DEPOSIT_AMOUNT);
+
+        vm.prank(receiverAddr);
+        uint256 deposited = router.buyFor(usdcInstrumentId, DEPOSIT_AMOUNT, user);
+
+        assertEq(deposited, DEPOSIT_AMOUNT);
+        assertEq(aUsdc.balanceOf(user), DEPOSIT_AMOUNT);
+    }
+
+    function test_buyFor_revertsWhenCallerNotReceiver() public {
+        vm.prank(owner);
+        router.setCCTPReceiver(makeAddr("receiver"));
+
+        vm.prank(user);
+        vm.expectRevert(SwapDepositRouter.UnauthorizedBuyForCaller.selector);
+        router.buyFor(usdcInstrumentId, DEPOSIT_AMOUNT, user);
+    }
+
+    function test_buyFor_revertsOnZeroAmount() public {
+        address receiverAddr = makeAddr("receiver");
+        vm.prank(owner);
+        router.setCCTPReceiver(receiverAddr);
+
+        vm.prank(receiverAddr);
+        vm.expectRevert(SwapDepositRouter.InvalidAmount.selector);
+        router.buyFor(usdcInstrumentId, 0, user);
+    }
+
+    function test_buyFor_revertsOnZeroRecipient() public {
+        address receiverAddr = makeAddr("receiver");
+        vm.prank(owner);
+        router.setCCTPReceiver(receiverAddr);
+
+        vm.prank(receiverAddr);
+        vm.expectRevert(SwapDepositRouter.InvalidAddress.selector);
+        router.buyFor(usdcInstrumentId, DEPOSIT_AMOUNT, address(0));
+    }
+
+    function test_buyFor_emitsBuyEvent() public {
+        address receiverAddr = makeAddr("receiver");
+        vm.prank(owner);
+        router.setCCTPReceiver(receiverAddr);
+
+        usdc.mint(receiverAddr, DEPOSIT_AMOUNT);
+        vm.startPrank(receiverAddr);
+        usdc.approve(address(router), DEPOSIT_AMOUNT);
+
+        vm.expectEmit(true, true, false, true);
+        emit Buy(usdcInstrumentId, user, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT);
+
+        router.buyFor(usdcInstrumentId, DEPOSIT_AMOUNT, user);
+        vm.stopPrank();
+    }
+
+    function test_buyFor_withSwap_success() public {
+        address receiverAddr = makeAddr("receiver");
+        vm.prank(owner);
+        router.setCCTPReceiver(receiverAddr);
+
+        usdc.mint(receiverAddr, DEPOSIT_AMOUNT);
+        vm.startPrank(receiverAddr);
+        usdc.approve(address(router), DEPOSIT_AMOUNT);
+
+        uint256 deposited = router.buyFor(usdtInstrumentId, DEPOSIT_AMOUNT, user);
+        vm.stopPrank();
+
+        assertEq(deposited, DEPOSIT_AMOUNT);
+        assertEq(aUsdt.balanceOf(user), DEPOSIT_AMOUNT);
     }
 }
