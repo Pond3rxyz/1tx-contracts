@@ -2,10 +2,7 @@
 pragma solidity ^0.8.26;
 
 import {Test} from "forge-std/Test.sol";
-import {
-    Currency,
-    CurrencyLibrary
-} from "@uniswap/v4-core/src/types/Currency.sol";
+import {Currency, CurrencyLibrary} from "@uniswap/v4-core/src/types/Currency.sol";
 
 import {AaveAdapter} from "../../../src/adapters/AaveAdapter.sol";
 import {CompoundAdapter} from "../../../src/adapters/CompoundAdapter.sol";
@@ -86,11 +83,7 @@ contract AdapterFuzzTest is Test {
         vm.stopPrank();
 
         // Setup Morpho
-        mockMorphoVault = new MockERC4626Vault(
-            address(usdc),
-            "Morpho USDC",
-            "mvUSDC"
-        );
+        mockMorphoVault = new MockERC4626Vault(address(usdc), "Morpho USDC", "mvUSDC");
         morphoMarketId = bytes32(uint256(uint160(address(mockMorphoVault))));
 
         vm.prank(owner);
@@ -226,9 +219,7 @@ contract AdapterFuzzTest is Test {
 
     // ============ Invalid Market ID Fuzzing Tests ============
 
-    function testFuzz_aave_invalidMarketId_reverts(
-        bytes32 randomMarketId
-    ) public {
+    function testFuzz_aave_invalidMarketId_reverts(bytes32 randomMarketId) public {
         vm.assume(randomMarketId != usdcMarketId);
 
         address user = makeAddr("user");
@@ -242,9 +233,7 @@ contract AdapterFuzzTest is Test {
         aaveAdapter.deposit(randomMarketId, 1000e6, user);
     }
 
-    function testFuzz_compound_invalidMarketId_reverts(
-        bytes32 randomMarketId
-    ) public {
+    function testFuzz_compound_invalidMarketId_reverts(bytes32 randomMarketId) public {
         vm.assume(randomMarketId != usdcMarketId);
 
         address user = makeAddr("user");
@@ -258,9 +247,7 @@ contract AdapterFuzzTest is Test {
         compoundAdapter.deposit(randomMarketId, 1000e6, user);
     }
 
-    function testFuzz_morpho_invalidMarketId_reverts(
-        bytes32 randomMarketId
-    ) public {
+    function testFuzz_morpho_invalidMarketId_reverts(bytes32 randomMarketId) public {
         vm.assume(randomMarketId != morphoMarketId);
 
         address user = makeAddr("user");
@@ -274,9 +261,7 @@ contract AdapterFuzzTest is Test {
         morphoAdapter.deposit(randomMarketId, 1000e6, user);
     }
 
-    function testFuzz_fluid_invalidMarketId_reverts(
-        bytes32 randomMarketId
-    ) public {
+    function testFuzz_fluid_invalidMarketId_reverts(bytes32 randomMarketId) public {
         vm.assume(randomMarketId != fluidMarketId);
 
         address user = makeAddr("user");
@@ -299,11 +284,7 @@ contract AdapterFuzzTest is Test {
         uint256 totalDeposited = 0;
 
         for (uint256 i = 0; i < numOps; i++) {
-            uint256 amount = bound(
-                uint256(keccak256(abi.encode(seed, i))),
-                1e6,
-                10_000e6
-            );
+            uint256 amount = bound(uint256(keccak256(abi.encode(seed, i))), 1e6, 10_000e6);
 
             usdc.mint(user, amount);
 
@@ -323,11 +304,7 @@ contract AdapterFuzzTest is Test {
         aUsdc.transfer(address(aaveAdapter), totalDeposited);
 
         vm.prank(authorizedCaller);
-        uint256 withdrawn = aaveAdapter.withdraw(
-            usdcMarketId,
-            totalDeposited,
-            user
-        );
+        uint256 withdrawn = aaveAdapter.withdraw(usdcMarketId, totalDeposited, user);
 
         assertEq(withdrawn, totalDeposited);
         assertEq(usdc.balanceOf(user), totalDeposited);
@@ -340,11 +317,7 @@ contract AdapterFuzzTest is Test {
         uint256 totalShares = 0;
 
         for (uint256 i = 0; i < numOps; i++) {
-            uint256 amount = bound(
-                uint256(keccak256(abi.encode(seed, i))),
-                1e6,
-                10_000e6
-            );
+            uint256 amount = bound(uint256(keccak256(abi.encode(seed, i))), 1e6, 10_000e6);
 
             usdc.mint(user, amount);
 
@@ -374,11 +347,7 @@ contract AdapterFuzzTest is Test {
         mockMorphoVault.transfer(address(morphoAdapter), totalShares);
 
         vm.prank(authorizedCaller);
-        uint256 withdrawn = morphoAdapter.withdraw(
-            morphoMarketId,
-            totalShares,
-            user
-        );
+        uint256 withdrawn = morphoAdapter.withdraw(morphoMarketId, totalShares, user);
 
         // Should receive more than shares due to accumulated yield
         assertTrue(withdrawn >= totalShares);
@@ -407,9 +376,7 @@ contract AdapterFuzzTest is Test {
         aaveAdapter.withdraw(usdcMarketId, 1000e6, user);
     }
 
-    function testFuzz_compound_unauthorizedWithdraw_reverts(
-        address caller
-    ) public {
+    function testFuzz_compound_unauthorizedWithdraw_reverts(address caller) public {
         vm.assume(caller != authorizedCaller);
         vm.assume(caller != address(0));
 

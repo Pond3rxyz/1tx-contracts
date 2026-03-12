@@ -35,10 +35,7 @@ contract BaseHookTest is Test {
         vm.label(address(swapRouter), "V4SwapRouter");
     }
 
-    function deployToken(string memory name, string memory symbol, uint8 decimals)
-        internal
-        returns (MockERC20 token)
-    {
+    function deployToken(string memory name, string memory symbol, uint8 decimals) internal returns (MockERC20 token) {
         token = new MockERC20(name, symbol, decimals);
         token.mint(address(this), 10_000_000 * 10 ** decimals);
 
@@ -49,10 +46,7 @@ contract BaseHookTest is Test {
         permit2.approve(address(token), address(poolManager), type(uint160).max, type(uint48).max);
     }
 
-    function deployCurrencyPair()
-        internal
-        returns (Currency currency0, Currency currency1)
-    {
+    function deployCurrencyPair() internal returns (Currency currency0, Currency currency1) {
         MockERC20 token0 = deployToken("Token0", "TK0", 18);
         MockERC20 token1 = deployToken("Token1", "TK1", 18);
 
@@ -78,9 +72,7 @@ contract BaseHookTest is Test {
 
     function _deployPositionManager() internal {
         positionManager = IPositionManager(
-            V4PositionManagerDeployer.deploy(
-                address(poolManager), address(permit2), 300_000, address(0), address(0)
-            )
+            V4PositionManagerDeployer.deploy(address(poolManager), address(permit2), 300_000, address(0), address(0))
         );
     }
 

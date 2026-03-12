@@ -187,13 +187,8 @@ contract SwapDepositRouterTest is Test {
 
         // Register swap pool for USDC<>USDT
         (Currency currency0, Currency currency1) = _orderCurrencies(usdcCurrency, usdtCurrency);
-        swapPoolKey = PoolKey({
-            currency0: currency0,
-            currency1: currency1,
-            fee: 500,
-            tickSpacing: 10,
-            hooks: IHooks(address(0))
-        });
+        swapPoolKey =
+            PoolKey({currency0: currency0, currency1: currency1, fee: 500, tickSpacing: 10, hooks: IHooks(address(0))});
 
         vm.startPrank(owner);
         swapPoolRegistry.registerDefaultSwapPool(usdcCurrency, usdtCurrency, swapPoolKey);
@@ -231,9 +226,7 @@ contract SwapDepositRouterTest is Test {
 
     function test_initialize_cannotReinitialize() public {
         vm.expectRevert();
-        router.initialize(
-            user, IPoolManager(address(mockPM)), instrumentRegistry, swapPoolRegistry, usdcCurrency
-        );
+        router.initialize(user, IPoolManager(address(mockPM)), instrumentRegistry, swapPoolRegistry, usdcCurrency);
     }
 
     function test_setCCTPBridge_onlyOwner() public {
@@ -541,7 +534,8 @@ contract SwapDepositRouterTest is Test {
         uint32 targetChainId = 8453;
         uint32 destinationDomain = 6;
         bytes32 marketId = keccak256("remote-market");
-        bytes32 remoteInstrumentId = InstrumentIdLib.generateInstrumentId(targetChainId, makeAddr("remoteExecution"), marketId);
+        bytes32 remoteInstrumentId =
+            InstrumentIdLib.generateInstrumentId(targetChainId, makeAddr("remoteExecution"), marketId);
         bytes32 mintRecipient = bytes32(uint256(uint160(user)));
         bytes32 destinationCaller = bytes32(uint256(uint160(makeAddr("standardRelayer"))));
         uint256 maxFee = 0;
@@ -589,7 +583,8 @@ contract SwapDepositRouterTest is Test {
         uint32 targetChainId = 8453;
         uint32 destinationDomain = 6;
         bytes32 marketId = keccak256("remote-market-fast");
-        bytes32 remoteInstrumentId = InstrumentIdLib.generateInstrumentId(targetChainId, makeAddr("remoteExecutionFast"), marketId);
+        bytes32 remoteInstrumentId =
+            InstrumentIdLib.generateInstrumentId(targetChainId, makeAddr("remoteExecutionFast"), marketId);
         bytes32 mintRecipient = bytes32(uint256(uint160(makeAddr("destRecipientFast"))));
         bytes32 destinationCaller = bytes32(uint256(uint160(makeAddr("relayer"))));
         uint256 maxFee = 50_000;
@@ -634,7 +629,8 @@ contract SwapDepositRouterTest is Test {
         uint32 targetChainId = 8453;
         uint32 destinationDomain = 6;
         bytes32 marketId = keccak256("remote-market-fast-overload");
-        bytes32 remoteInstrumentId = InstrumentIdLib.generateInstrumentId(targetChainId, makeAddr("remoteExecutionFastOverload"), marketId);
+        bytes32 remoteInstrumentId =
+            InstrumentIdLib.generateInstrumentId(targetChainId, makeAddr("remoteExecutionFastOverload"), marketId);
         bytes32 mintRecipient = bytes32(uint256(uint160(makeAddr("destRecipientFastOverload"))));
         bytes32 destinationCaller = bytes32(uint256(uint160(makeAddr("relayerOverload"))));
         uint256 maxFee = 75_000;
@@ -673,7 +669,8 @@ contract SwapDepositRouterTest is Test {
     }
 
     function test_buy_crossChain_revertsWhenMessengerNotConfigured() public {
-        bytes32 remoteInstrumentId = InstrumentIdLib.generateInstrumentId(8453, makeAddr("remoteExecutionNoMessenger"), keccak256("m"));
+        bytes32 remoteInstrumentId =
+            InstrumentIdLib.generateInstrumentId(8453, makeAddr("remoteExecutionNoMessenger"), keccak256("m"));
 
         vm.prank(user);
         usdc.approve(address(router), DEPOSIT_AMOUNT);
@@ -684,7 +681,8 @@ contract SwapDepositRouterTest is Test {
     }
 
     function test_buy_crossChain_revertsWhenDomainNotConfigured() public {
-        bytes32 remoteInstrumentId = InstrumentIdLib.generateInstrumentId(8453, makeAddr("remoteExecutionNoDomain"), keccak256("m2"));
+        bytes32 remoteInstrumentId =
+            InstrumentIdLib.generateInstrumentId(8453, makeAddr("remoteExecutionNoDomain"), keccak256("m2"));
 
         vm.prank(owner);
         cctpBridge.setTokenMessenger(address(mockTokenMessenger));
@@ -705,7 +703,8 @@ contract SwapDepositRouterTest is Test {
 
     function test_buy_crossChain_fastMode_revertsOnZeroFee() public {
         uint32 targetChainId = 8453;
-        bytes32 remoteInstrumentId = InstrumentIdLib.generateInstrumentId(targetChainId, makeAddr("remoteExecutionFastNoFee"), keccak256("m3"));
+        bytes32 remoteInstrumentId =
+            InstrumentIdLib.generateInstrumentId(targetChainId, makeAddr("remoteExecutionFastNoFee"), keccak256("m3"));
 
         vm.prank(owner);
         cctpBridge.setTokenMessenger(address(mockTokenMessenger));
@@ -743,7 +742,8 @@ contract SwapDepositRouterTest is Test {
 
     function test_sell_revertsOnUnregisteredInstrument() public {
         bytes32 fakeMarketId = keccak256("fake");
-        bytes32 fakeId = InstrumentIdLib.generateInstrumentId(block.chainid, makeAddr("fakeExecutionSell"), fakeMarketId);
+        bytes32 fakeId =
+            InstrumentIdLib.generateInstrumentId(block.chainid, makeAddr("fakeExecutionSell"), fakeMarketId);
 
         vm.prank(user);
         vm.expectRevert(InstrumentRegistry.InstrumentNotRegistered.selector);
@@ -751,7 +751,8 @@ contract SwapDepositRouterTest is Test {
     }
 
     function test_sell_revertsOnCrossChainInstrument() public {
-        bytes32 remoteInstrumentId = InstrumentIdLib.generateInstrumentId(8453, makeAddr("remoteExecutionSell"), keccak256("m4"));
+        bytes32 remoteInstrumentId =
+            InstrumentIdLib.generateInstrumentId(8453, makeAddr("remoteExecutionSell"), keccak256("m4"));
 
         vm.prank(user);
         vm.expectRevert(SwapDepositRouter.CrossChainSellNotSupported.selector);

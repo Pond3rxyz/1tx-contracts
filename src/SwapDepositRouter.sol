@@ -206,7 +206,10 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
     /// @param yieldTokenAmount The amount of yield-bearing tokens to redeem
     /// @param minOutputAmount Minimum stable currency to receive (slippage protection)
     /// @return outputAmount The actual amount of stable currency returned to the caller
-    function sell(bytes32 instrumentId, uint256 yieldTokenAmount, uint256 minOutputAmount) external returns (uint256 outputAmount) {
+    function sell(bytes32 instrumentId, uint256 yieldTokenAmount, uint256 minOutputAmount)
+        external
+        returns (uint256 outputAmount)
+    {
         if (InstrumentIdLib.getInstrumentChainId(instrumentId) != _safeChainId()) {
             revert CrossChainSellNotSupported();
         }
@@ -294,19 +297,11 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
 
         bytes memory hookData = abi.encode(instrumentId, msg.sender);
 
-        (uint32 destinationDomain, bytes32 resolvedMintRecipient, uint32 minFinalityThreshold) = ICCTPBridge(cctpBridge)
-            .bridge(
-                stableToken, msg.sender, amount, targetChain, fastTransfer, maxFee, hookData
-            );
+        (uint32 destinationDomain, bytes32 resolvedMintRecipient, uint32 minFinalityThreshold) =
+            ICCTPBridge(cctpBridge).bridge(stableToken, msg.sender, amount, targetChain, fastTransfer, maxFee, hookData);
 
         emit CCTPBridgeInitiated(
-            msg.sender,
-            instrumentId,
-            amount,
-            destinationDomain,
-            resolvedMintRecipient,
-            maxFee,
-            minFinalityThreshold
+            msg.sender, instrumentId, amount, destinationDomain, resolvedMintRecipient, maxFee, minFinalityThreshold
         );
     }
 

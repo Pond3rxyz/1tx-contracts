@@ -63,13 +63,7 @@ contract MockTokenMessengerV2E2E {
         IERC20(burnToken).transferFrom(msg.sender, address(this), amount);
 
         emit DepositForBurnCalled(
-            amount,
-            destinationDomain,
-            mintRecipient,
-            burnToken,
-            destinationCaller,
-            maxFee,
-            minFinalityThreshold
+            amount, destinationDomain, mintRecipient, burnToken, destinationCaller, maxFee, minFinalityThreshold
         );
     }
 }
@@ -157,18 +151,12 @@ contract CrossChainBuyE2ETest is Test {
         sourceUsdc.approve(address(sourceRouter), AMOUNT);
 
         vm.expectEmit(false, false, false, true, address(sourceMessenger));
-        emit DepositForBurnCalled(AMOUNT, DESTINATION_DOMAIN, mintRecipient, address(sourceUsdc), destinationCaller, 0, 2000);
+        emit DepositForBurnCalled(
+            AMOUNT, DESTINATION_DOMAIN, mintRecipient, address(sourceUsdc), destinationCaller, 0, 2000
+        );
 
         vm.expectEmit(true, true, true, true, address(sourceRouter));
-        emit CCTPBridgeInitiated(
-            user,
-            sourceRemoteInstrumentId,
-            AMOUNT,
-            DESTINATION_DOMAIN,
-            mintRecipient,
-            0,
-            2000
-        );
+        emit CCTPBridgeInitiated(user, sourceRemoteInstrumentId, AMOUNT, DESTINATION_DOMAIN, mintRecipient, 0, 2000);
 
         vm.prank(user);
         uint256 sourceResult = sourceRouter.buy(sourceRemoteInstrumentId, AMOUNT, 0, false, 0);
@@ -273,52 +261,50 @@ contract CrossChainBuyE2ETest is Test {
 
         bytes32 usdtMarketId = keccak256(abi.encode(Currency.wrap(address(destinationUsdt))));
         address destinationExecutionAddress = makeAddr("destinationExecutionAddress");
-        destinationInstrumentId = InstrumentIdLib.generateInstrumentId(block.chainid, destinationExecutionAddress, usdtMarketId);
-        sourceRemoteInstrumentId = InstrumentIdLib.generateInstrumentId(
-            DESTINATION_CHAIN_ID, destinationExecutionAddress, usdtMarketId
-        );
+        destinationInstrumentId =
+            InstrumentIdLib.generateInstrumentId(block.chainid, destinationExecutionAddress, usdtMarketId);
+        sourceRemoteInstrumentId =
+            InstrumentIdLib.generateInstrumentId(DESTINATION_CHAIN_ID, destinationExecutionAddress, usdtMarketId);
 
         vm.prank(owner);
         destinationIR.registerInstrument(destinationExecutionAddress, usdtMarketId, address(destinationAdapter));
 
-        (Currency currency0, Currency currency1) = _orderCurrencies(
-            Currency.wrap(address(destinationUsdc)), Currency.wrap(address(destinationUsdt))
-        );
-        PoolKey memory swapPool = PoolKey({
-            currency0: currency0,
-            currency1: currency1,
-            fee: 500,
-            tickSpacing: 10,
-            hooks: IHooks(address(0))
-        });
+        (Currency currency0, Currency currency1) =
+            _orderCurrencies(Currency.wrap(address(destinationUsdc)), Currency.wrap(address(destinationUsdt)));
+        PoolKey memory swapPool =
+            PoolKey({currency0: currency0, currency1: currency1, fee: 500, tickSpacing: 10, hooks: IHooks(address(0))});
 
         vm.startPrank(owner);
-        destinationSPR.registerDefaultSwapPool(Currency.wrap(address(destinationUsdc)), Currency.wrap(address(destinationUsdt)), swapPool);
-        destinationSPR.registerDefaultSwapPool(Currency.wrap(address(destinationUsdt)), Currency.wrap(address(destinationUsdc)), swapPool);
+        destinationSPR.registerDefaultSwapPool(
+            Currency.wrap(address(destinationUsdc)), Currency.wrap(address(destinationUsdt)), swapPool
+        );
+        destinationSPR.registerDefaultSwapPool(
+            Currency.wrap(address(destinationUsdt)), Currency.wrap(address(destinationUsdc)), swapPool
+        );
         vm.stopPrank();
 
         destinationUsdt.mint(address(destinationPM), 1_000_000e6);
         destinationUsdc.mint(address(destinationPM), 1_000_000e6);
     }
 
-    function _deployRouter(
-        MockPoolManager pm,
-        InstrumentRegistry ir,
-        SwapPoolRegistry spr,
-        Currency stable
-    ) internal returns (SwapDepositRouter router) {
+    function _deployRouter(MockPoolManager pm, InstrumentRegistry ir, SwapPoolRegistry spr, Currency stable)
+        internal
+        returns (SwapDepositRouter router)
+    {
         SwapDepositRouter impl = new SwapDepositRouter();
         ERC1967Proxy proxy = new ERC1967Proxy(
-            address(impl), abi.encodeWithSelector(SwapDepositRouter.initialize.selector, owner, IPoolManager(address(pm)), ir, spr, stable)
+            address(impl),
+            abi.encodeWithSelector(
+                SwapDepositRouter.initialize.selector, owner, IPoolManager(address(pm)), ir, spr, stable
+            )
         );
         router = SwapDepositRouter(address(proxy));
     }
 
     function _deployInstrumentRegistry() internal returns (InstrumentRegistry registry) {
         InstrumentRegistry impl = new InstrumentRegistry();
-        ERC1967Proxy proxy = new ERC1967Proxy(
-            address(impl), abi.encodeWithSelector(InstrumentRegistry.initialize.selector, owner)
-        );
+        ERC1967Proxy proxy =
+            new ERC1967Proxy(address(impl), abi.encodeWithSelector(InstrumentRegistry.initialize.selector, owner));
         registry = InstrumentRegistry(address(proxy));
     }
 

@@ -1,0 +1,14 @@
+{
+  "name": "1tx-contracts",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "lint": "solhint 'src/**/*.sol'",
+    "lint:fix": "solhint 'src/**/*.sol' --fix",
+    "fmt": "forge fmt",
+    "fmt:check": "forge fmt --check"
+  },
+  "devDependencies": {
+    "solhint": "^5.0.0"
+  }
+}

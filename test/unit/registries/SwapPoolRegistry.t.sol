@@ -55,13 +55,8 @@ contract SwapPoolRegistryTest is Test {
             currency1 = usdcCurrency;
         }
 
-        validPoolKey = PoolKey({
-            currency0: currency0,
-            currency1: currency1,
-            fee: 500,
-            tickSpacing: 10,
-            hooks: IHooks(address(0))
-        });
+        validPoolKey =
+            PoolKey({currency0: currency0, currency1: currency1, fee: 500, tickSpacing: 10, hooks: IHooks(address(0))});
 
         // Deploy registry via proxy
         SwapPoolRegistry impl = new SwapPoolRegistry();
@@ -185,13 +180,8 @@ contract SwapPoolRegistryTest is Test {
             c1 = usdcCurrency;
         }
 
-        PoolKey memory wrongPool = PoolKey({
-            currency0: c0,
-            currency1: c1,
-            fee: 500,
-            tickSpacing: 10,
-            hooks: IHooks(address(0))
-        });
+        PoolKey memory wrongPool =
+            PoolKey({currency0: c0, currency1: c1, fee: 500, tickSpacing: 10, hooks: IHooks(address(0))});
 
         vm.prank(owner);
         vm.expectRevert(SwapPoolRegistry.PoolCurrenciesDontMatch.selector);
@@ -332,13 +322,8 @@ contract SwapPoolRegistryTest is Test {
             c1 = usdcCurrency;
         }
 
-        PoolKey memory usdcDaiPool = PoolKey({
-            currency0: c0,
-            currency1: c1,
-            fee: 100,
-            tickSpacing: 1,
-            hooks: IHooks(address(0))
-        });
+        PoolKey memory usdcDaiPool =
+            PoolKey({currency0: c0, currency1: c1, fee: 100, tickSpacing: 1, hooks: IHooks(address(0))});
 
         vm.startPrank(owner);
         registry.registerDefaultSwapPool(usdcCurrency, usdtCurrency, validPoolKey);

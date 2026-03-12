@@ -68,12 +68,16 @@ contract PortfolioHookMultiUserWithdrawTest is BaseHookTest {
 
         InstrumentRegistry irImpl = new InstrumentRegistry();
         instrumentRegistry = InstrumentRegistry(
-            address(new ERC1967Proxy(address(irImpl), abi.encodeWithSelector(InstrumentRegistry.initialize.selector, owner)))
+            address(
+                new ERC1967Proxy(address(irImpl), abi.encodeWithSelector(InstrumentRegistry.initialize.selector, owner))
+            )
         );
 
         SwapPoolRegistry sprImpl = new SwapPoolRegistry();
         swapPoolRegistry = SwapPoolRegistry(
-            address(new ERC1967Proxy(address(sprImpl), abi.encodeWithSelector(SwapPoolRegistry.initialize.selector, owner)))
+            address(
+                new ERC1967Proxy(address(sprImpl), abi.encodeWithSelector(SwapPoolRegistry.initialize.selector, owner))
+            )
         );
 
         mockAavePool = new MockAavePool();
@@ -106,7 +110,9 @@ contract PortfolioHookMultiUserWithdrawTest is BaseHookTest {
         });
 
         vault = PortfolioVault(
-            address(new ERC1967Proxy(address(vaultImpl), abi.encodeWithSelector(PortfolioVault.initialize.selector, params)))
+            address(
+                new ERC1967Proxy(address(vaultImpl), abi.encodeWithSelector(PortfolioVault.initialize.selector, params))
+            )
         );
 
         address hookAddress = _computeHookAddress();
@@ -123,13 +129,7 @@ contract PortfolioHookMultiUserWithdrawTest is BaseHookTest {
             ? (usdcCurrency, Currency.wrap(address(vault)))
             : (Currency.wrap(address(vault)), usdcCurrency);
 
-        portfolioPoolKey = PoolKey({
-            currency0: c0,
-            currency1: c1,
-            fee: 0,
-            tickSpacing: 60,
-            hooks: IHooks(hookAddress)
-        });
+        portfolioPoolKey = PoolKey({currency0: c0, currency1: c1, fee: 0, tickSpacing: 60, hooks: IHooks(hookAddress)});
         portfolioPoolId = portfolioPoolKey.toId();
 
         poolManager.initialize(portfolioPoolKey, Constants.SQRT_PRICE_1_1);
@@ -241,7 +241,8 @@ contract PortfolioHookMultiUserWithdrawTest is BaseHookTest {
                 hookData: abi.encode(user_),
                 receiver: user_,
                 deadline: block.timestamp + 1
-            }) {} catch {
+            }) {}
+            catch {
                 // Fallback: try smaller chunk once.
                 uint256 half = toSell / 2;
                 if (half == 0) break;
@@ -322,7 +323,8 @@ contract PortfolioHookMultiUserWithdrawTest is BaseHookTest {
                 hookData: abi.encode(user_),
                 receiver: user_,
                 deadline: block.timestamp + 1
-            }) {} catch {
+            }) {}
+            catch {
                 uint256 discountedOut = (targetOut * 99) / 100;
                 if (discountedOut == 0) break;
 
@@ -335,7 +337,8 @@ contract PortfolioHookMultiUserWithdrawTest is BaseHookTest {
                     hookData: abi.encode(user_),
                     receiver: user_,
                     deadline: block.timestamp + 1
-                }) {} catch {
+                }) {}
+                catch {
                     continue;
                 }
             }

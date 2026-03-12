@@ -148,16 +148,17 @@ contract CCTPBridge is Initializable, UUPSUpgradeable, OwnableUpgradeable, ICCTP
         bytes32 resolvedDestinationCaller = chainIdToDestinationCaller[p.targetChain];
         if (resolvedDestinationCaller == bytes32(0)) revert DestinationCallerNotConfigured(p.targetChain);
 
-        ITokenMessengerV2(tokenMessenger).depositForBurnWithHook(
-            p.amount,
-            destinationDomain,
-            resolvedMintRecipient,
-            p.stableToken,
-            resolvedDestinationCaller,
-            p.maxFee,
-            minFinalityThreshold,
-            hookData
-        );
+        ITokenMessengerV2(tokenMessenger)
+            .depositForBurnWithHook(
+                p.amount,
+                destinationDomain,
+                resolvedMintRecipient,
+                p.stableToken,
+                resolvedDestinationCaller,
+                p.maxFee,
+                minFinalityThreshold,
+                hookData
+            );
 
         emit BridgeExecuted(
             p.sender,

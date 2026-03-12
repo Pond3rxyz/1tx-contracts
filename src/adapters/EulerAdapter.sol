@@ -2,13 +2,8 @@
 pragma solidity ^0.8.26;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {
-    SafeERC20
-} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {
-    Currency,
-    CurrencyLibrary
-} from "@uniswap/v4-core/src/types/Currency.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Currency, CurrencyLibrary} from "@uniswap/v4-core/src/types/Currency.sol";
 
 import {AdapterBase} from "./base/AdapterBase.sol";
 import {IERC4626} from "../interfaces/IERC4626.sol";
@@ -34,30 +29,16 @@ contract EulerAdapter is AdapterBase {
     mapping(bytes32 marketId => VaultConfig) public vaults;
 
     /// @notice Emitted when a new vault is registered
-    event VaultRegistered(
-        bytes32 indexed marketId,
-        Currency currency,
-        address vault
-    );
+    event VaultRegistered(bytes32 indexed marketId, Currency currency, address vault);
 
     /// @notice Emitted when a vault is deactivated
     event VaultDeactivated(bytes32 indexed marketId);
 
     /// @notice Emitted when a deposit is made to Euler Earn Vault
-    event DepositedToEuler(
-        bytes32 indexed marketId,
-        uint256 assets,
-        uint256 shares,
-        address onBehalfOf
-    );
+    event DepositedToEuler(bytes32 indexed marketId, uint256 assets, uint256 shares, address onBehalfOf);
 
     /// @notice Emitted when a withdrawal is made from Euler Earn Vault
-    event WithdrawnFromEuler(
-        bytes32 indexed marketId,
-        uint256 assets,
-        uint256 shares,
-        address to
-    );
+    event WithdrawnFromEuler(bytes32 indexed marketId, uint256 assets, uint256 shares, address to);
 
     /// @notice Constructor
     /// @param initialOwner The initial owner of the adapter (can register vaults)
@@ -69,10 +50,7 @@ contract EulerAdapter is AdapterBase {
     /// @dev Uses simple encoding to avoid double-hashing (vault is also in executionAddress)
     /// @param currency The underlying currency for this vault
     /// @param vault The address of the ERC-4626 vault contract
-    function registerVault(
-        Currency currency,
-        address vault
-    ) external onlyOwner validCurrency(currency) {
+    function registerVault(Currency currency, address vault) external onlyOwner validCurrency(currency) {
         if (vault == address(0)) revert InvalidVaultAddress();
 
         // Verify that the vault's asset matches the currency
@@ -85,11 +63,7 @@ contract EulerAdapter is AdapterBase {
         bytes32 marketId = bytes32(uint256(uint160(vault)));
         if (vaults[marketId].active) revert MarketAlreadyRegistered();
 
-        vaults[marketId] = VaultConfig({
-            currency: currency,
-            vault: vault,
-            active: true
-        });
+        vaults[marketId] = VaultConfig({currency: currency, vault: vault, active: true});
 
         emit VaultRegistered(marketId, currency, vault);
     }
@@ -105,12 +79,7 @@ contract EulerAdapter is AdapterBase {
 
     /// @notice Returns the metadata for this lending adapter
     /// @return metadata The adapter metadata containing name and chainId
-    function getAdapterMetadata()
-        external
-        view
-        override
-        returns (AdapterMetadata memory metadata)
-    {
+    function getAdapterMetadata() external view override returns (AdapterMetadata memory metadata) {
         return AdapterMetadata({name: "Euler Earn", chainId: block.chainid});
     }
 
@@ -125,11 +94,11 @@ contract EulerAdapter is AdapterBase {
     /// @param marketId The market identifier
     /// @param amount The amount of assets to deposit
     /// @param onBehalfOf The address that will receive the vault shares
-    function deposit(
-        bytes32 marketId,
-        uint256 amount,
-        address onBehalfOf
-    ) external override validDepositWithdrawParams(amount, onBehalfOf) {
+    function deposit(bytes32 marketId, uint256 amount, address onBehalfOf)
+        external
+        override
+        validDepositWithdrawParams(amount, onBehalfOf)
+    {
         VaultConfig memory config = vaults[marketId];
         if (!config.active) revert MarketNotActive();
 
@@ -137,11 +106,7 @@ contract EulerAdapter is AdapterBase {
         IERC4626 vault = IERC4626(config.vault);
 
         // Transfer tokens from caller to this adapter
-        IERC20(tokenAddress).safeTransferFrom(
-            msg.sender,
-            address(this),
-            amount
-        );
+        IERC20(tokenAddress).safeTransferFrom(msg.sender, address(this), amount);
 
         // Approve vault to spend tokens
         IERC20(tokenAddress).forceApprove(config.vault, amount);
@@ -157,11 +122,7 @@ contract EulerAdapter is AdapterBase {
     /// @param amount The amount of vault shares to redeem
     /// @param to The address that will receive the withdrawn tokens
     /// @dev The caller (msg.sender) must have transferred vault shares to this adapter
-    function withdraw(
-        bytes32 marketId,
-        uint256 amount,
-        address to
-    )
+    function withdraw(bytes32 marketId, uint256 amount, address to)
         external
         override
         onlyAuthorizedCaller
@@ -188,9 +149,7 @@ contract EulerAdapter is AdapterBase {
     /// @notice Returns the yield-bearing token address for a given market
     /// @param marketId The market identifier
     /// @return The address of the ERC-4626 vault (which is the yield token)
-    function getYieldToken(
-        bytes32 marketId
-    ) external view override returns (address) {
+    function getYieldToken(bytes32 marketId) external view override returns (address) {
         VaultConfig memory config = vaults[marketId];
         if (!config.active) revert MarketNotActive();
         return config.vault;
@@ -199,9 +158,7 @@ contract EulerAdapter is AdapterBase {
     /// @notice Returns the underlying currency for a given market
     /// @param marketId The market identifier
     /// @return The underlying currency of the vault
-    function getMarketCurrency(
-        bytes32 marketId
-    ) external view override returns (Currency) {
+    function getMarketCurrency(bytes32 marketId) external view override returns (Currency) {
         VaultConfig memory config = vaults[marketId];
         if (!config.active) revert MarketNotActive();
         return config.currency;

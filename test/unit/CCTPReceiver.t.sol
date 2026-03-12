@@ -171,7 +171,9 @@ contract CCTPReceiverTest is Test {
         vm.expectRevert(CCTPReceiver.ZeroAddress.selector);
         new ERC1967Proxy(
             address(impl),
-            abi.encodeWithSelector(CCTPReceiver.initialize.selector, owner, address(0), address(usdc), address(transmitter))
+            abi.encodeWithSelector(
+                CCTPReceiver.initialize.selector, owner, address(0), address(usdc), address(transmitter)
+            )
         );
     }
 
@@ -180,7 +182,9 @@ contract CCTPReceiverTest is Test {
         vm.expectRevert(CCTPReceiver.ZeroAddress.selector);
         new ERC1967Proxy(
             address(impl),
-            abi.encodeWithSelector(CCTPReceiver.initialize.selector, owner, address(mockRouter), address(0), address(transmitter))
+            abi.encodeWithSelector(
+                CCTPReceiver.initialize.selector, owner, address(mockRouter), address(0), address(transmitter)
+            )
         );
     }
 
@@ -189,7 +193,9 @@ contract CCTPReceiverTest is Test {
         vm.expectRevert(CCTPReceiver.ZeroAddress.selector);
         new ERC1967Proxy(
             address(impl),
-            abi.encodeWithSelector(CCTPReceiver.initialize.selector, owner, address(mockRouter), address(usdc), address(0))
+            abi.encodeWithSelector(
+                CCTPReceiver.initialize.selector, owner, address(mockRouter), address(usdc), address(0)
+            )
         );
     }
 

@@ -80,5 +80,14 @@ eth_rpc_url = "${RPC_URL}"
 # that causes "stack too deep" and "array copy not supported" errors without IR
 no_match_coverage = "(script/.*)"
 
+[fmt]
+line_length = 120
+tab_width = 4
+bracket_spacing = false
+quote_style = "double"
+number_underscore = "preserve"
+single_line_statement_blocks = "preserve"
+sort_imports = false
+
 [lint]
 exclude = ["screaming-snake-case-immutable", "screaming-snake-case-const"]
