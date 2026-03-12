@@ -102,7 +102,6 @@ contract SwapDepositRouterTest is Test {
         uint256 amount,
         uint32 indexed destinationDomain,
         bytes32 mintRecipient,
-        bytes32 destinationCaller,
         uint256 maxFee,
         uint32 minFinalityThreshold
     );
@@ -433,7 +432,7 @@ contract SwapDepositRouterTest is Test {
         bytes32 marketId = keccak256("remote-market");
         bytes32 remoteInstrumentId = InstrumentIdLib.generateInstrumentId(targetChainId, makeAddr("remoteExecution"), marketId);
         bytes32 mintRecipient = bytes32(uint256(uint160(user)));
-        bytes32 destinationCaller = bytes32(0);
+        bytes32 destinationCaller = bytes32(uint256(uint160(makeAddr("standardRelayer"))));
         uint256 maxFee = 0;
 
         vm.prank(owner);
@@ -443,10 +442,10 @@ contract SwapDepositRouterTest is Test {
         cctpBridge.setDestinationDomain(targetChainId, destinationDomain);
 
         vm.prank(owner);
-        cctpBridge.setDestinationMintRecipient(targetChainId, bytes32(uint256(uint160(user))));
+        cctpBridge.setDestinationMintRecipient(targetChainId, mintRecipient);
 
         vm.prank(owner);
-        cctpBridge.setDestinationCaller(targetChainId, bytes32(0));
+        cctpBridge.setDestinationCaller(targetChainId, destinationCaller);
 
         vm.prank(owner);
         cctpBridge.setAuthorizedCaller(address(router), true);
@@ -458,7 +457,7 @@ contract SwapDepositRouterTest is Test {
         usdc.approve(address(router), amount);
 
         vm.expectEmit(true, true, true, true);
-        emit CCTPBridgeInitiated(user, remoteInstrumentId, amount, destinationDomain, mintRecipient, destinationCaller, maxFee, 2000);
+        emit CCTPBridgeInitiated(user, remoteInstrumentId, amount, destinationDomain, mintRecipient, maxFee, 2000);
 
         vm.prank(user);
         uint256 deposited = router.buy(remoteInstrumentId, amount, 0, false, 0);

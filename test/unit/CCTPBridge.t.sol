@@ -68,6 +68,12 @@ contract CCTPBridgeTest is Test {
 
         vm.prank(owner);
         bridge.setAuthorizedCaller(router, true);
+
+        vm.prank(owner);
+        bridge.setDestinationCaller(8453, bytes32(uint256(uint160(makeAddr("destinationCaller")))));
+
+        vm.prank(owner);
+        bridge.setDestinationMintRecipient(8453, bytes32(uint256(uint160(makeAddr("mintRecipient")))));
     }
 
     // ============ Initialize / Upgrade ============
@@ -99,21 +105,26 @@ contract CCTPBridgeTest is Test {
 
     function test_bridge_standardMode_success() public {
         uint256 amount = 100e6;
+        bytes32 expectedRecipient = bytes32(uint256(uint160(makeAddr("mintRecipient"))));
+        bytes32 expectedCaller = bytes32(uint256(uint160(makeAddr("destinationCaller"))));
         usdc.mint(address(bridge), amount);
 
+        vm.expectEmit(true, true, false, true, address(bridge));
+        emit CCTPBridge.BridgeExecuted(user, 6, expectedRecipient, expectedCaller, amount, 0, 2000);
+
         vm.prank(router);
-        (uint32 destDomain, bytes32 mintRecipient, uint32 minFinality) =
-            bridge.bridge(address(usdc), user, amount, 8453, false, 0, bytes32(0), bytes32(0), "");
+        (uint32 destDomain, bytes32 resolvedRecipient, uint32 minFinality) =
+            bridge.bridge(address(usdc), user, amount, 8453, false, 0, "");
 
         assertEq(destDomain, 6);
-        assertEq(mintRecipient, bytes32(uint256(uint160(user))));
+        assertEq(resolvedRecipient, expectedRecipient);
         assertEq(minFinality, 2000);
 
         assertEq(messenger.lastAmount(), amount);
         assertEq(messenger.lastDestinationDomain(), 6);
-        assertEq(messenger.lastMintRecipient(), bytes32(uint256(uint160(user))));
+        assertEq(messenger.lastMintRecipient(), expectedRecipient);
         assertEq(messenger.lastBurnToken(), address(usdc));
-        assertEq(messenger.lastDestinationCaller(), bytes32(0));
+        assertEq(messenger.lastDestinationCaller(), bytes32(uint256(uint160(makeAddr("destinationCaller")))));
         assertEq(messenger.lastMaxFee(), 0);
         assertEq(messenger.lastMinFinalityThreshold(), 2000);
     }
@@ -123,24 +134,27 @@ contract CCTPBridgeTest is Test {
     function test_bridge_fastMode_success() public {
         uint256 amount = 100e6;
         uint256 maxFee = 50_000;
-        bytes32 destinationCaller = bytes32(uint256(uint160(makeAddr("relayer"))));
-        bytes32 mintRecipient = bytes32(uint256(uint160(makeAddr("destinationUser"))));
+        bytes32 expectedRecipient = bytes32(uint256(uint160(makeAddr("mintRecipient"))));
+        bytes32 expectedCaller = bytes32(uint256(uint160(makeAddr("destinationCaller"))));
 
         usdc.mint(address(bridge), amount);
 
+        vm.expectEmit(true, true, false, true, address(bridge));
+        emit CCTPBridge.BridgeExecuted(user, 6, expectedRecipient, expectedCaller, amount, maxFee, 1000);
+
         vm.prank(router);
         (uint32 destDomain, bytes32 resolvedRecipient, uint32 minFinality) =
-            bridge.bridge(address(usdc), user, amount, 8453, true, maxFee, destinationCaller, mintRecipient, "");
+            bridge.bridge(address(usdc), user, amount, 8453, true, maxFee, "");
 
         assertEq(destDomain, 6);
-        assertEq(resolvedRecipient, mintRecipient);
+        assertEq(resolvedRecipient, expectedRecipient);
         assertEq(minFinality, 1000);
 
         assertEq(messenger.lastAmount(), amount);
         assertEq(messenger.lastDestinationDomain(), 6);
-        assertEq(messenger.lastMintRecipient(), mintRecipient);
+        assertEq(messenger.lastMintRecipient(), expectedRecipient);
         assertEq(messenger.lastBurnToken(), address(usdc));
-        assertEq(messenger.lastDestinationCaller(), destinationCaller);
+        assertEq(messenger.lastDestinationCaller(), bytes32(uint256(uint160(makeAddr("destinationCaller")))));
         assertEq(messenger.lastMaxFee(), maxFee);
         assertEq(messenger.lastMinFinalityThreshold(), 1000);
     }
@@ -150,19 +164,23 @@ contract CCTPBridgeTest is Test {
     function test_bridge_domain0_ethereumMainnet_success() public {
         uint32 ethChainId = 1;
         uint32 ethCCTPDomain = 0;
+        bytes32 ethRecipient = bytes32(uint256(uint160(makeAddr("ethRecipient"))));
 
-        vm.prank(owner);
+        vm.startPrank(owner);
         bridge.setDestinationDomain(ethChainId, ethCCTPDomain);
+        bridge.setDestinationCaller(ethChainId, bytes32(uint256(uint160(makeAddr("ethCaller")))));
+        bridge.setDestinationMintRecipient(ethChainId, ethRecipient);
+        vm.stopPrank();
 
         uint256 amount = 100e6;
         usdc.mint(address(bridge), amount);
 
         vm.prank(router);
-        (uint32 destDomain, bytes32 mintRecipient, uint32 minFinality) =
-            bridge.bridge(address(usdc), user, amount, ethChainId, false, 0, bytes32(0), bytes32(0), "");
+        (uint32 destDomain, bytes32 resolvedRecipient, uint32 minFinality) =
+            bridge.bridge(address(usdc), user, amount, ethChainId, false, 0, "");
 
         assertEq(destDomain, 0);
-        assertEq(mintRecipient, bytes32(uint256(uint160(user))));
+        assertEq(resolvedRecipient, ethRecipient);
         assertEq(minFinality, 2000);
         assertEq(messenger.lastDestinationDomain(), 0);
     }
@@ -176,79 +194,69 @@ contract CCTPBridgeTest is Test {
         bytes memory hookData = abi.encode(bytes32(uint256(42)), makeAddr("recipient"));
 
         vm.prank(router);
-        bridge.bridge(address(usdc), user, amount, 8453, false, 0, bytes32(0), bytes32(0), hookData);
+        bridge.bridge(address(usdc), user, amount, 8453, false, 0, hookData);
 
         assertEq(messenger.lastHookData(), hookData);
     }
 
-    // ============ Bridge — MintRecipient Fallback ============
+    // ============ Bridge — MintRecipient from Mapping ============
 
-    function test_bridge_usesCachedMintRecipient() public {
-        bytes32 cachedRecipient = bytes32(uint256(uint160(makeAddr("cachedRecipient"))));
-
-        vm.prank(owner);
-        bridge.setDestinationMintRecipient(8453, cachedRecipient);
+    function test_bridge_usesConfiguredMintRecipient() public {
+        bytes32 configuredRecipient = bytes32(uint256(uint160(makeAddr("mintRecipient"))));
 
         uint256 amount = 100e6;
         usdc.mint(address(bridge), amount);
 
         vm.prank(router);
         (, bytes32 resolvedRecipient,) =
-            bridge.bridge(address(usdc), user, amount, 8453, false, 0, bytes32(0), bytes32(0), "");
+            bridge.bridge(address(usdc), user, amount, 8453, false, 0, "");
 
-        assertEq(resolvedRecipient, cachedRecipient);
-        assertEq(messenger.lastMintRecipient(), cachedRecipient);
+        assertEq(resolvedRecipient, configuredRecipient);
+        assertEq(messenger.lastMintRecipient(), configuredRecipient);
     }
 
-    function test_bridge_explicitMintRecipientOverridesCached() public {
-        bytes32 cachedRecipient = bytes32(uint256(uint160(makeAddr("cachedRecipient"))));
-        bytes32 explicitRecipient = bytes32(uint256(uint160(makeAddr("explicitRecipient"))));
-
-        vm.prank(owner);
-        bridge.setDestinationMintRecipient(8453, cachedRecipient);
+    function test_bridge_revertsWhenMintRecipientNotConfigured() public {
+        // Configure domain 42161 and destinationCaller but NOT mintRecipient
+        vm.startPrank(owner);
+        bridge.setDestinationDomain(42161, 3);
+        bridge.setDestinationCaller(42161, bytes32(uint256(uint160(makeAddr("caller")))));
+        vm.stopPrank();
 
         uint256 amount = 100e6;
         usdc.mint(address(bridge), amount);
 
         vm.prank(router);
-        (, bytes32 resolvedRecipient,) =
-            bridge.bridge(address(usdc), user, amount, 8453, false, 0, bytes32(0), explicitRecipient, "");
-
-        assertEq(resolvedRecipient, explicitRecipient);
-        assertEq(messenger.lastMintRecipient(), explicitRecipient);
+        vm.expectRevert(abi.encodeWithSelector(CCTPBridge.MintRecipientNotConfigured.selector, uint32(42161)));
+        bridge.bridge(address(usdc), user, amount, 42161, false, 0, "");
     }
 
-    // ============ Bridge — DestinationCaller Fallback ============
+    // ============ Bridge — DestinationCaller from Mapping ============
 
-    function test_bridge_usesCachedDestinationCaller() public {
-        bytes32 cachedCaller = bytes32(uint256(uint160(makeAddr("cachedCaller"))));
-
-        vm.prank(owner);
-        bridge.setDestinationCaller(8453, cachedCaller);
+    function test_bridge_usesConfiguredDestinationCaller() public {
+        bytes32 configuredCaller = bytes32(uint256(uint160(makeAddr("destinationCaller"))));
 
         uint256 amount = 100e6;
         usdc.mint(address(bridge), amount);
 
         vm.prank(router);
-        bridge.bridge(address(usdc), user, amount, 8453, false, 0, bytes32(0), bytes32(0), "");
+        bridge.bridge(address(usdc), user, amount, 8453, false, 0, "");
 
-        assertEq(messenger.lastDestinationCaller(), cachedCaller);
+        assertEq(messenger.lastDestinationCaller(), configuredCaller);
     }
 
-    function test_bridge_explicitDestinationCallerOverridesCached() public {
-        bytes32 cachedCaller = bytes32(uint256(uint160(makeAddr("cachedCaller"))));
-        bytes32 explicitCaller = bytes32(uint256(uint160(makeAddr("explicitCaller"))));
-
-        vm.prank(owner);
-        bridge.setDestinationCaller(8453, cachedCaller);
+    function test_bridge_revertsWhenDestinationCallerNotConfigured() public {
+        // Configure domain 42161 and mintRecipient but NOT destinationCaller
+        vm.startPrank(owner);
+        bridge.setDestinationDomain(42161, 3);
+        bridge.setDestinationMintRecipient(42161, bytes32(uint256(uint160(makeAddr("recipient")))));
+        vm.stopPrank();
 
         uint256 amount = 100e6;
         usdc.mint(address(bridge), amount);
 
         vm.prank(router);
-        bridge.bridge(address(usdc), user, amount, 8453, false, 0, explicitCaller, bytes32(0), "");
-
-        assertEq(messenger.lastDestinationCaller(), explicitCaller);
+        vm.expectRevert(abi.encodeWithSelector(CCTPBridge.DestinationCallerNotConfigured.selector, uint32(42161)));
+        bridge.bridge(address(usdc), user, amount, 42161, false, 0, "");
     }
 
     // ============ Admin — Access Control ============
@@ -293,7 +301,7 @@ contract CCTPBridgeTest is Test {
 
         vm.prank(router);
         vm.expectRevert(abi.encodeWithSelector(CCTPBridge.DestinationDomainNotConfigured.selector, uint32(8453)));
-        bridge.bridge(address(usdc), user, 1e6, 8453, false, 0, bytes32(0), bytes32(0), "");
+        bridge.bridge(address(usdc), user, 1e6, 8453, false, 0, "");
     }
 
     function test_removeDestinationDomain_revertsIfNotConfigured() public {
@@ -349,7 +357,7 @@ contract CCTPBridgeTest is Test {
 
         vm.prank(user);
         vm.expectRevert(CCTPBridge.UnauthorizedCaller.selector);
-        bridge.bridge(address(usdc), user, amount, 8453, false, 0, bytes32(0), bytes32(0), "");
+        bridge.bridge(address(usdc), user, amount, 8453, false, 0, "");
     }
 
     function test_bridge_revertsWhenDomainNotConfigured() public {
@@ -358,7 +366,7 @@ contract CCTPBridgeTest is Test {
 
         vm.prank(router);
         vm.expectRevert(abi.encodeWithSelector(CCTPBridge.DestinationDomainNotConfigured.selector, uint32(42161)));
-        bridge.bridge(address(usdc), user, amount, 42161, false, 0, bytes32(0), bytes32(0), "");
+        bridge.bridge(address(usdc), user, amount, 42161, false, 0, "");
     }
 
     function test_bridge_fastMode_revertsOnZeroFee() public {
@@ -367,25 +375,25 @@ contract CCTPBridgeTest is Test {
 
         vm.prank(router);
         vm.expectRevert(CCTPBridge.FastTransferRequiresFee.selector);
-        bridge.bridge(address(usdc), user, amount, 8453, true, 0, bytes32(0), bytes32(0), "");
+        bridge.bridge(address(usdc), user, amount, 8453, true, 0, "");
     }
 
     function test_bridge_revertsOnZeroAmount() public {
         vm.prank(router);
         vm.expectRevert(CCTPBridge.InvalidAmount.selector);
-        bridge.bridge(address(usdc), user, 0, 8453, false, 0, bytes32(0), bytes32(0), "");
+        bridge.bridge(address(usdc), user, 0, 8453, false, 0, "");
     }
 
     function test_bridge_revertsOnZeroStableToken() public {
         vm.prank(router);
         vm.expectRevert(CCTPBridge.InvalidAddress.selector);
-        bridge.bridge(address(0), user, 1e6, 8453, false, 0, bytes32(0), bytes32(0), "");
+        bridge.bridge(address(0), user, 1e6, 8453, false, 0, "");
     }
 
     function test_bridge_revertsOnZeroSender() public {
         vm.prank(router);
         vm.expectRevert(CCTPBridge.InvalidAddress.selector);
-        bridge.bridge(address(usdc), address(0), 1e6, 8453, false, 0, bytes32(0), bytes32(0), "");
+        bridge.bridge(address(usdc), address(0), 1e6, 8453, false, 0, "");
     }
 
     function test_bridge_revertsWhenTokenMessengerNotConfigured() public {
@@ -406,6 +414,6 @@ contract CCTPBridgeTest is Test {
 
         vm.prank(router);
         vm.expectRevert(CCTPBridge.TokenMessengerNotConfigured.selector);
-        freshBridge.bridge(address(usdc), user, 1e6, 8453, false, 0, bytes32(0), bytes32(0), "");
+        freshBridge.bridge(address(usdc), user, 1e6, 8453, false, 0, "");
     }
 }

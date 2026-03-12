@@ -22,8 +22,6 @@ contract CCTPBridge is Initializable, UUPSUpgradeable, OwnableUpgradeable, ICCTP
         uint32 targetChain;
         bool fastTransfer;
         uint256 maxFee;
-        bytes32 destinationCaller;
-        bytes32 mintRecipient;
     }
 
     uint32 public constant CCTP_FAST_FINALITY_THRESHOLD = 1000;
@@ -42,6 +40,8 @@ contract CCTPBridge is Initializable, UUPSUpgradeable, OwnableUpgradeable, ICCTP
     error TokenMessengerNotConfigured();
     error DestinationDomainNotConfigured(uint32 chainId);
     error FastTransferRequiresFee();
+    error DestinationCallerNotConfigured(uint32 chainId);
+    error MintRecipientNotConfigured(uint32 chainId);
     error DomainNotConfigured(uint32 chainId);
 
     event TokenMessengerUpdated(address indexed tokenMessenger);
@@ -51,6 +51,15 @@ contract CCTPBridge is Initializable, UUPSUpgradeable, OwnableUpgradeable, ICCTP
     event AuthorizedCallerUpdated(address indexed caller, bool allowed);
     event DestinationDomainRemoved(uint32 indexed chainId);
     event TokensRescued(address indexed token, address indexed to, uint256 amount);
+    event BridgeExecuted(
+        address indexed sender,
+        uint32 indexed destinationDomain,
+        bytes32 mintRecipient,
+        bytes32 destinationCaller,
+        uint256 amount,
+        uint256 maxFee,
+        uint32 minFinalityThreshold
+    );
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -103,8 +112,6 @@ contract CCTPBridge is Initializable, UUPSUpgradeable, OwnableUpgradeable, ICCTP
         uint32 targetChain,
         bool fastTransfer,
         uint256 maxFee,
-        bytes32 destinationCaller,
-        bytes32 mintRecipient,
         bytes calldata hookData
     ) external returns (uint32 destinationDomain, bytes32 resolvedMintRecipient, uint32 minFinalityThreshold) {
         BridgeParams memory p = BridgeParams({
@@ -113,9 +120,7 @@ contract CCTPBridge is Initializable, UUPSUpgradeable, OwnableUpgradeable, ICCTP
             amount: amount,
             targetChain: targetChain,
             fastTransfer: fastTransfer,
-            maxFee: maxFee,
-            destinationCaller: destinationCaller,
-            mintRecipient: mintRecipient
+            maxFee: maxFee
         });
         return _executeBridge(p, hookData);
     }
@@ -136,19 +141,12 @@ contract CCTPBridge is Initializable, UUPSUpgradeable, OwnableUpgradeable, ICCTP
         minFinalityThreshold = p.fastTransfer ? CCTP_FAST_FINALITY_THRESHOLD : CCTP_STANDARD_FINALITY_THRESHOLD;
         if (p.fastTransfer && p.maxFee == 0) revert FastTransferRequiresFee();
 
-        resolvedMintRecipient = p.mintRecipient;
-        if (resolvedMintRecipient == bytes32(0)) {
-            resolvedMintRecipient = chainIdToMintRecipient[p.targetChain];
-            if (resolvedMintRecipient == bytes32(0)) {
-                resolvedMintRecipient = bytes32(uint256(uint160(p.sender)));
-            }
-        }
+        resolvedMintRecipient = chainIdToMintRecipient[p.targetChain];
+        if (resolvedMintRecipient == bytes32(0)) revert MintRecipientNotConfigured(p.targetChain);
 
         IERC20(p.stableToken).forceApprove(tokenMessenger, p.amount);
-        bytes32 resolvedDestinationCaller = p.destinationCaller;
-        if (resolvedDestinationCaller == bytes32(0)) {
-            resolvedDestinationCaller = chainIdToDestinationCaller[p.targetChain];
-        }
+        bytes32 resolvedDestinationCaller = chainIdToDestinationCaller[p.targetChain];
+        if (resolvedDestinationCaller == bytes32(0)) revert DestinationCallerNotConfigured(p.targetChain);
 
         ITokenMessengerV2(tokenMessenger).depositForBurnWithHook(
             p.amount,
@@ -159,6 +157,16 @@ contract CCTPBridge is Initializable, UUPSUpgradeable, OwnableUpgradeable, ICCTP
             p.maxFee,
             minFinalityThreshold,
             hookData
+        );
+
+        emit BridgeExecuted(
+            p.sender,
+            destinationDomain,
+            resolvedMintRecipient,
+            resolvedDestinationCaller,
+            p.amount,
+            p.maxFee,
+            minFinalityThreshold
         );
     }
 
