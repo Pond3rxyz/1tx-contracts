@@ -56,4 +56,26 @@ library SwapExecutor {
         // Take output tokens (PM owes caller)
         poolManager.take(outputCurrency, address(this), outputAmount);
     }
+
+    /// @notice Execute a swap with minimum output amount enforcement
+    /// @param poolManager The Uniswap V4 PoolManager
+    /// @param swapPool The pool to swap on
+    /// @param inputCurrency The currency being sold
+    /// @param outputCurrency The currency being bought
+    /// @param inputAmount The amount of input currency to swap
+    /// @param minOutputAmount The minimum acceptable output amount
+    /// @return outputAmount The amount of output currency received
+    function executeSwap(
+        IPoolManager poolManager,
+        PoolKey memory swapPool,
+        Currency inputCurrency,
+        Currency outputCurrency,
+        uint256 inputAmount,
+        uint256 minOutputAmount
+    ) internal returns (uint256 outputAmount) {
+        outputAmount = executeSwap(poolManager, swapPool, inputCurrency, outputCurrency, inputAmount);
+        if (outputAmount < minOutputAmount) revert InsufficientOutputAmount(outputAmount, minOutputAmount);
+    }
+
+    error InsufficientOutputAmount(uint256 actual, uint256 minimum);
 }

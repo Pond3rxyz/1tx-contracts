@@ -163,4 +163,14 @@ contract MorphoAdapter is AdapterBase {
         if (!config.active) revert MarketNotActive();
         return config.currency;
     }
+
+    /// @notice Converts vault shares to underlying asset value via ERC-4626
+    /// @param marketId The market identifier
+    /// @param yieldTokenAmount The amount of vault shares
+    /// @return The equivalent amount of underlying assets
+    function convertToUnderlying(bytes32 marketId, uint256 yieldTokenAmount) external view override returns (uint256) {
+        VaultConfig memory config = vaults[marketId];
+        if (!config.active) revert MarketNotActive();
+        return IERC4626(config.vault).convertToAssets(yieldTokenAmount);
+    }
 }

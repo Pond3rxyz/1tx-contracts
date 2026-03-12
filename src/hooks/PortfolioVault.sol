@@ -5,14 +5,16 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {ReentrancyGuardTransient} from "openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/utils/ReentrancyGuardTransient.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {IUnlockCallback} from "@uniswap/v4-core/src/interfaces/callback/IUnlockCallback.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
+import {PoolId, PoolIdLibrary} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {Currency, CurrencyLibrary} from "@uniswap/v4-core/src/types/Currency.sol";
+import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
 
 import {InstrumentRegistry} from "../registries/InstrumentRegistry.sol";
 import {SwapPoolRegistry} from "../registries/SwapPoolRegistry.sol";
@@ -26,10 +28,12 @@ import {LendingExecutor} from "../libraries/LendingExecutor.sol";
 ///      withdrawal, and share minting. The hook settles swaps at NAV price via V4's
 ///      beforeSwapReturnDelta custom curve pattern and calls these functions to deploy
 ///      or withdraw capital during each swap.
-contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, ReentrancyGuard, UUPSUpgradeable, IUnlockCallback {
+contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, ReentrancyGuardTransient, UUPSUpgradeable, IUnlockCallback {
     using SafeERC20 for IERC20;
     using CurrencyLibrary for Currency;
     using Math for uint256;
+    using StateLibrary for IPoolManager;
+    using PoolIdLibrary for PoolKey;
 
     // ============ Types ============
 
@@ -55,6 +59,7 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
     uint16 public constant BPS_DENOMINATOR = 10000;
     uint256 internal constant VIRTUAL_SHARES = 1e6;
     uint256 internal constant VIRTUAL_ASSETS = 1;
+    uint16 internal constant DEFAULT_MAX_SLIPPAGE_BPS = 100; // 1%
 
     // ============ State ============
 
@@ -64,6 +69,7 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
     SwapPoolRegistry public swapPoolRegistry;
     IPoolManager public poolManager;
     address public hook;
+    uint16 public maxSlippageBps;
 
     // ============ Errors ============
 
@@ -75,6 +81,7 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
     error TooManyAllocations();
     error HookAlreadySet();
     error InvalidHookAddress();
+    error InvalidSlippageBps();
 
     // ============ Events ============
 
@@ -84,6 +91,8 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
     event Rebalanced();
     event HookSet(address indexed hook);
     event SharesBurned(address indexed from, uint256 amount);
+    event MaxSlippageUpdated(uint16 newSlippageBps);
+    event HookApprovalRevoked();
 
     // ============ Modifiers ============
 
@@ -106,6 +115,7 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
         poolManager = params.poolManager;
         instrumentRegistry = params.instrumentRegistry;
         swapPoolRegistry = params.swapPoolRegistry;
+        maxSlippageBps = DEFAULT_MAX_SLIPPAGE_BPS;
         _setAllocations(params.allocations);
     }
 
@@ -116,6 +126,21 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
         hook = _hook;
         IERC20(Currency.unwrap(stable)).approve(_hook, type(uint256).max);
         emit HookSet(_hook);
+    }
+
+    /// @notice Revoke the unlimited stable approval granted to the hook
+    /// @dev Emergency function in case the hook contract is compromised
+    function revokeHookApproval() external onlyOwner {
+        IERC20(Currency.unwrap(stable)).approve(hook, 0);
+        emit HookApprovalRevoked();
+    }
+
+    /// @notice Set maximum slippage tolerance for internal swaps
+    /// @param _maxSlippageBps Slippage in basis points (e.g., 100 = 1%)
+    function setMaxSlippageBps(uint16 _maxSlippageBps) external onlyOwner {
+        if (_maxSlippageBps > BPS_DENOMINATOR) revert InvalidSlippageBps();
+        maxSlippageBps = _maxSlippageBps;
+        emit MaxSlippageUpdated(_maxSlippageBps);
     }
 
     // ============ ERC-4626 View Functions ============
@@ -178,7 +203,8 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
             // Swap stable -> marketCurrency if needed
             if (Currency.unwrap(stable) != Currency.unwrap(marketCurrency)) {
                 PoolKey memory swapPool = swapPoolRegistry.getDefaultSwapPool(stable, marketCurrency);
-                depositAmount = SwapExecutor.executeSwap(poolManager, swapPool, stable, marketCurrency, amount);
+                uint256 minOutput = _getMinSwapOutput(swapPool, stable, amount);
+                depositAmount = SwapExecutor.executeSwap(poolManager, swapPool, stable, marketCurrency, amount, minOutput);
             }
 
             // Deposit into lending protocol — yield tokens stay in this vault
@@ -214,7 +240,8 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
             // Swap marketCurrency -> stable if needed
             if (Currency.unwrap(marketCurrency) != Currency.unwrap(stable)) {
                 PoolKey memory swapPool = swapPoolRegistry.getDefaultSwapPool(marketCurrency, stable);
-                withdrawn = SwapExecutor.executeSwap(poolManager, swapPool, marketCurrency, stable, withdrawn);
+                uint256 minOutput = _getMinSwapOutput(swapPool, marketCurrency, withdrawn);
+                withdrawn = SwapExecutor.executeSwap(poolManager, swapPool, marketCurrency, stable, withdrawn, minOutput);
             }
 
             stableOut += withdrawn;
@@ -279,7 +306,8 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
 
                 if (Currency.unwrap(marketCurrency) != Currency.unwrap(stable)) {
                     PoolKey memory swapPool = swapPoolRegistry.getDefaultSwapPool(marketCurrency, stable);
-                    withdrawn = SwapExecutor.executeSwap(poolManager, swapPool, marketCurrency, stable, withdrawn);
+                    uint256 minOutput = _getMinSwapOutput(swapPool, marketCurrency, withdrawn);
+                    withdrawn = SwapExecutor.executeSwap(poolManager, swapPool, marketCurrency, stable, withdrawn, minOutput);
                 }
 
                 stableAccumulated += withdrawn;
@@ -302,7 +330,8 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
                 uint256 actualDeposit = depositAmount;
                 if (Currency.unwrap(stable) != Currency.unwrap(marketCurrency)) {
                     PoolKey memory swapPool = swapPoolRegistry.getDefaultSwapPool(stable, marketCurrency);
-                    actualDeposit = SwapExecutor.executeSwap(poolManager, swapPool, stable, marketCurrency, depositAmount);
+                    uint256 minOutput = _getMinSwapOutput(swapPool, stable, depositAmount);
+                    actualDeposit = SwapExecutor.executeSwap(poolManager, swapPool, stable, marketCurrency, depositAmount, minOutput);
                 }
 
                 LendingExecutor.deposit(adapter, marketId, marketCurrency, actualDeposit, address(this));
@@ -361,34 +390,65 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
         address yieldToken = ILendingAdapter(adapter).getYieldToken(marketId);
         uint256 yieldBalance = IERC20(yieldToken).balanceOf(address(this));
         if (yieldBalance == 0) return 0;
-        return _getUnderlyingValue(adapter, yieldToken, yieldBalance);
+
+        uint256 underlyingValue = ILendingAdapter(adapter).convertToUnderlying(marketId, yieldBalance);
+        Currency marketCurrency = ILendingAdapter(adapter).getMarketCurrency(marketId);
+        return _convertToStable(marketCurrency, underlyingValue);
     }
 
-    /// @notice Convert yield token balance to underlying value
-    function _getUnderlyingValue(address, address yieldToken, uint256 yieldBalance)
+    /// @notice Convert an amount denominated in marketCurrency to stable terms using pool spot price
+    /// @dev Uses Uniswap V4 pool's sqrtPriceX96 for conversion. No-op if currencies match.
+    function _convertToStable(Currency marketCurrency, uint256 amount) internal view returns (uint256) {
+        if (Currency.unwrap(marketCurrency) == Currency.unwrap(stable)) return amount;
+
+        PoolKey memory swapPool = swapPoolRegistry.getDefaultSwapPool(stable, marketCurrency);
+        PoolId poolId = swapPool.toId();
+        (uint160 sqrtPriceX96,,,) = poolManager.getSlot0(poolId);
+
+        bool stableIsToken0 = Currency.unwrap(swapPool.currency0) == Currency.unwrap(stable);
+
+        if (stableIsToken0) {
+            // price = token1/token0 = sqrtPriceX96^2 / 2^192
+            // We have marketCurrency (token1), want stable (token0)
+            // stableAmount = marketAmount / price = marketAmount * 2^192 / sqrtPriceX96^2
+            return Math.mulDiv(Math.mulDiv(amount, 2 ** 96, sqrtPriceX96), 2 ** 96, sqrtPriceX96);
+        } else {
+            // price = token1/token0 = sqrtPriceX96^2 / 2^192
+            // We have marketCurrency (token0), want stable (token1)
+            // stableAmount = marketAmount * price = marketAmount * sqrtPriceX96^2 / 2^192
+            return Math.mulDiv(Math.mulDiv(amount, sqrtPriceX96, 2 ** 96), sqrtPriceX96, 2 ** 96);
+        }
+    }
+
+    /// @notice Compute minimum acceptable output for a swap based on pool spot price and slippage tolerance
+    function _getMinSwapOutput(PoolKey memory swapPool, Currency inputCurrency, uint256 inputAmount)
         internal
         view
         returns (uint256)
     {
-        try IERC4626Minimal(yieldToken).convertToAssets(yieldBalance) returns (uint256 assets) {
-            return assets;
-        } catch {
-            return yieldBalance;
+        if (maxSlippageBps == 0) return 0;
+
+        PoolId poolId = swapPool.toId();
+        (uint160 sqrtPriceX96,,,) = poolManager.getSlot0(poolId);
+
+        bool zeroForOne = Currency.unwrap(swapPool.currency0) == Currency.unwrap(inputCurrency);
+        uint256 expectedOutput;
+        if (zeroForOne) {
+            // Selling token0 for token1: output = input * price
+            expectedOutput = Math.mulDiv(Math.mulDiv(inputAmount, sqrtPriceX96, 2 ** 96), sqrtPriceX96, 2 ** 96);
+        } else {
+            // Selling token1 for token0: output = input / price
+            expectedOutput = Math.mulDiv(Math.mulDiv(inputAmount, 2 ** 96, sqrtPriceX96), 2 ** 96, sqrtPriceX96);
         }
+        return (expectedOutput * (BPS_DENOMINATOR - maxSlippageBps)) / BPS_DENOMINATOR;
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     // ============ Storage Gap ============
-    // Direct state variables: stable, allocations, instrumentRegistry, swapPoolRegistry, poolManager, hook = 6
-    // ReentrancyGuardUpgradeable uses ERC-7201 namespaced storage (no slot here).
-    // Gap: 50 - 6 = 44. Verify with: forge inspect PortfolioVault storage-layout
-    // If adding a new state variable, DECREMENT the gap size by the slots consumed.
+    // Direct state variables: stable, allocations, instrumentRegistry, swapPoolRegistry, poolManager, hook, maxSlippageBps = 7
+    // ReentrancyGuardTransient uses transient storage (no slot here).
+    // Gap: 50 - 7 = 43. Verify with: forge inspect PortfolioVault storage-layout
 
-    uint256[44] private __gap;
-}
-
-/// @dev Minimal interface for ERC4626 convertToAssets
-interface IERC4626Minimal {
-    function convertToAssets(uint256 shares) external view returns (uint256);
+    uint256[43] private __gap;
 }
