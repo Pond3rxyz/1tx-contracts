@@ -258,6 +258,117 @@ contract SwapDepositRouterTest is Test {
         router.setCCTPBridge(address(0));
     }
 
+    // ============ Admin Setter Tests ============
+
+    function test_setPoolManager_success() public {
+        address newPM = makeAddr("newPM");
+        vm.prank(owner);
+        router.setPoolManager(IPoolManager(newPM));
+        assertEq(address(router.poolManager()), newPM);
+    }
+
+    function test_setPoolManager_revertsOnZeroAddress() public {
+        vm.prank(owner);
+        vm.expectRevert(SwapDepositRouter.InvalidPoolManager.selector);
+        router.setPoolManager(IPoolManager(address(0)));
+    }
+
+    function test_setPoolManager_onlyOwner() public {
+        vm.prank(user);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, user));
+        router.setPoolManager(IPoolManager(makeAddr("newPM")));
+    }
+
+    function test_setInstrumentRegistry_success() public {
+        address newIR = makeAddr("newIR");
+        vm.prank(owner);
+        router.setInstrumentRegistry(InstrumentRegistry(newIR));
+        assertEq(address(router.instrumentRegistry()), newIR);
+    }
+
+    function test_setInstrumentRegistry_revertsOnZeroAddress() public {
+        vm.prank(owner);
+        vm.expectRevert(SwapDepositRouter.InvalidRegistry.selector);
+        router.setInstrumentRegistry(InstrumentRegistry(address(0)));
+    }
+
+    function test_setInstrumentRegistry_onlyOwner() public {
+        vm.prank(user);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, user));
+        router.setInstrumentRegistry(InstrumentRegistry(makeAddr("newIR")));
+    }
+
+    function test_setSwapPoolRegistry_success() public {
+        address newSPR = makeAddr("newSPR");
+        vm.prank(owner);
+        router.setSwapPoolRegistry(SwapPoolRegistry(newSPR));
+        assertEq(address(router.swapPoolRegistry()), newSPR);
+    }
+
+    function test_setSwapPoolRegistry_revertsOnZeroAddress() public {
+        vm.prank(owner);
+        vm.expectRevert(SwapDepositRouter.InvalidRegistry.selector);
+        router.setSwapPoolRegistry(SwapPoolRegistry(address(0)));
+    }
+
+    function test_setSwapPoolRegistry_onlyOwner() public {
+        vm.prank(user);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, user));
+        router.setSwapPoolRegistry(SwapPoolRegistry(makeAddr("newSPR")));
+    }
+
+    // ============ Rescue Tokens Tests ============
+
+    function test_rescueTokens_success() public {
+        uint256 stuckAmount = 500e6;
+        usdc.mint(address(router), stuckAmount);
+
+        address rescueTo = makeAddr("rescueTo");
+        vm.prank(owner);
+        router.rescueTokens(address(usdc), rescueTo, stuckAmount);
+
+        assertEq(usdc.balanceOf(rescueTo), stuckAmount);
+        assertEq(usdc.balanceOf(address(router)), 0);
+    }
+
+    function test_rescueTokens_revertsOnZeroAddress() public {
+        vm.prank(owner);
+        vm.expectRevert(SwapDepositRouter.InvalidAddress.selector);
+        router.rescueTokens(address(usdc), address(0), 100e6);
+    }
+
+    function test_rescueTokens_onlyOwner() public {
+        vm.prank(user);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, user));
+        router.rescueTokens(address(usdc), user, 100e6);
+    }
+
+    // ============ Slippage Protection Tests ============
+
+    function test_buy_revertsOnInsufficientDepositedAmount() public {
+        vm.startPrank(user);
+        usdc.approve(address(router), DEPOSIT_AMOUNT);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(SwapDepositRouter.InsufficientOutput.selector, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT + 1)
+        );
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT + 1, false, 0);
+        vm.stopPrank();
+    }
+
+    function test_sell_revertsOnInsufficientOutputAmount() public {
+        vm.startPrank(user);
+        usdc.approve(address(router), DEPOSIT_AMOUNT);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+
+        aUsdc.approve(address(router), DEPOSIT_AMOUNT);
+        vm.expectRevert(
+            abi.encodeWithSelector(SwapDepositRouter.InsufficientOutput.selector, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT + 1)
+        );
+        router.sell(usdcInstrumentId, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT + 1);
+        vm.stopPrank();
+    }
+
     // ============ Buy Tests — No Swap (USDC market) ============
 
     function test_buy_noSwap_success() public {

@@ -49,6 +49,7 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
     error CrossChainSellNotSupported();
     error UnauthorizedBuyForCaller();
     error InsufficientOutput(uint256 actual, uint256 minimum);
+    error ChainIdOverflow();
 
     // ============ Events ============
 
@@ -271,7 +272,7 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
 
     /// @dev Safely cast block.chainid to uint32, reverts on overflow
     function _safeChainId() internal view returns (uint32) {
-        if (block.chainid > type(uint32).max) revert InvalidAmount(); // chainId overflow
+        if (block.chainid > type(uint32).max) revert ChainIdOverflow();
         return uint32(block.chainid);
     }
 

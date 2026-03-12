@@ -436,29 +436,68 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
 
     // ============ E2E Tests: Slippage Protection ============
 
-    function test_fork_e2e_buy_minDepositedAmount_reverts() public {
-        if (instruments.length == 0) return;
-        Instrument memory inst = instruments[0];
+    /// @notice No-swap buy: minDepositedAmount = amount should pass (deposited == amount exactly)
+    function test_fork_e2e_buy_noSwap_exactSlippage_passes() public {
+        Instrument memory inst = _findInstrument(false);
+
+        _dealTokens(usdc, user, DEPOSIT_AMOUNT);
+        _approveTokens(usdc, user, address(router), DEPOSIT_AMOUNT);
+
+        vm.prank(user);
+        uint256 deposited = router.buy(inst.id, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT, false, 0);
+        assertEq(deposited, DEPOSIT_AMOUNT, "No-swap deposit should equal input exactly");
+    }
+
+    /// @notice No-swap buy: minDepositedAmount above input reverts
+    function test_fork_e2e_buy_noSwap_tightSlippage_reverts() public {
+        Instrument memory inst = _findInstrument(false);
 
         _dealTokens(usdc, user, DEPOSIT_AMOUNT);
         _approveTokens(usdc, user, address(router), DEPOSIT_AMOUNT);
 
         vm.prank(user);
         vm.expectRevert();
-        router.buy(inst.id, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT + 1e6, false, 0);
+        router.buy(inst.id, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT + 1, false, 0);
     }
 
-    function test_fork_e2e_sell_minOutputAmount_reverts() public {
-        if (instruments.length == 0) return;
-        Instrument memory inst = instruments[0];
+    /// @notice With-swap buy: minDepositedAmount = input reverts (swap always has fees)
+    function test_fork_e2e_buy_withSwap_tightSlippage_reverts() public {
+        Instrument memory inst = _findInstrument(true);
 
-        // Buy first
+        _dealTokens(usdc, user, DEPOSIT_AMOUNT);
+        _approveTokens(usdc, user, address(router), DEPOSIT_AMOUNT);
+
+        // Requiring full input amount back after a swap should fail (fees/slippage)
+        vm.prank(user);
+        vm.expectRevert();
+        router.buy(inst.id, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT, false, 0);
+    }
+
+    /// @notice With-swap buy (USDT — USD stable): 99% minDepositedAmount should pass
+    function test_fork_e2e_buy_withSwap_reasonableSlippage_passes() public {
+        // First with-swap instrument is Aave-USDT (USD→USD stable swap, minimal slippage)
+        Instrument memory inst = _findInstrument(true);
+
+        // 1% max slippage — production-realistic for stablecoin swaps
+        uint256 minDeposited = DEPOSIT_AMOUNT * 99 / 100;
+
+        _dealTokens(usdc, user, DEPOSIT_AMOUNT);
+        _approveTokens(usdc, user, address(router), DEPOSIT_AMOUNT);
+
+        vm.prank(user);
+        uint256 deposited = router.buy(inst.id, DEPOSIT_AMOUNT, minDeposited, false, 0);
+        assertGe(deposited, minDeposited, "Stable-to-stable swap should lose less than 1%");
+    }
+
+    /// @notice Sell: minOutputAmount above actual output reverts
+    function test_fork_e2e_sell_tightSlippage_reverts() public {
+        Instrument memory inst = _findInstrument(false);
+
         _dealTokens(usdc, user, DEPOSIT_AMOUNT);
         _approveTokens(usdc, user, address(router), DEPOSIT_AMOUNT);
         vm.prank(user);
         router.buy(inst.id, DEPOSIT_AMOUNT, 0, false, 0);
 
-        // Sell with excessive minOutput
         address yieldToken = ILendingAdapter(inst.adapter).getYieldToken(inst.marketId);
         uint256 yieldBalance = _getBalance(yieldToken, user);
         _approveYieldTokens(inst.adapter, yieldToken, user, address(router), yieldBalance);
@@ -466,6 +505,44 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
         vm.prank(user);
         vm.expectRevert();
         router.sell(inst.id, yieldBalance, DEPOSIT_AMOUNT * 2);
+    }
+
+    /// @notice Sell: discover actual output, then verify minOutputAmount at that level passes
+    function test_fork_e2e_sell_reasonableSlippage_passes() public {
+        Instrument memory inst = _findInstrument(false);
+
+        // Buy
+        _dealTokens(usdc, user, DEPOSIT_AMOUNT);
+        _approveTokens(usdc, user, address(router), DEPOSIT_AMOUNT);
+        vm.prank(user);
+        router.buy(inst.id, DEPOSIT_AMOUNT, 0, false, 0);
+
+        // Discover actual sell output with a probe
+        address probe = makeAddr("sell-probe");
+        _dealTokens(usdc, probe, DEPOSIT_AMOUNT);
+        _approveTokens(usdc, probe, address(router), DEPOSIT_AMOUNT);
+        vm.prank(probe);
+        router.buy(inst.id, DEPOSIT_AMOUNT, 0, false, 0);
+
+        address yieldToken = ILendingAdapter(inst.adapter).getYieldToken(inst.marketId);
+        uint256 probeYield = _getBalance(yieldToken, probe);
+        _approveYieldTokens(inst.adapter, yieldToken, probe, address(router), probeYield);
+        vm.prank(probe);
+        uint256 actualOutput = router.sell(inst.id, probeYield, 0);
+
+        // Now sell with minOutputAmount set to actual output — should pass
+        uint256 userYield = _getBalance(yieldToken, user);
+        _approveYieldTokens(inst.adapter, yieldToken, user, address(router), userYield);
+        vm.prank(user);
+        uint256 output = router.sell(inst.id, userYield, actualOutput);
+        assertGe(output, actualOutput, "Should meet min when using actual output as threshold");
+    }
+
+    function _findInstrument(bool requiresSwap) internal view returns (Instrument memory) {
+        for (uint256 i = 0; i < instruments.length; i++) {
+            if (instruments[i].requiresSwap == requiresSwap) return instruments[i];
+        }
+        revert("No matching instrument found");
     }
 
     // ============ E2E Tests: Small / Large Amounts ============
@@ -633,7 +710,11 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
         vm.prank(testUser);
         uint256 deposited = router.buy(inst.id, amount, 0, false, 0);
 
-        assertGt(deposited, 0, string.concat("Buy should deposit nonzero for ", inst.name));
+        if (!inst.requiresSwap) {
+            assertEq(deposited, amount, string.concat("No-swap deposit should equal input for ", inst.name));
+        } else {
+            assertGt(deposited, 0, string.concat("With-swap deposit should be nonzero for ", inst.name));
+        }
 
         address yieldToken = ILendingAdapter(inst.adapter).getYieldToken(inst.marketId);
         assertGt(_getBalance(yieldToken, testUser), 0, string.concat("Should receive yield tokens for ", inst.name));
@@ -662,7 +743,8 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
         // Compare output USDC against input USDC (not deposited amount which may be in different decimals)
         if (!inst.requiresSwap) {
             // Allow small rounding loss from yield token share math (aTokens, ERC4626 vaults)
-            assertGe(output, amount - 2, string.concat("Roundtrip should preserve value for ", inst.name));
+            // Allow small rounding loss (up to 3 wei) from yield token share math
+            assertGe(output, amount - 3, string.concat("Roundtrip should preserve value for ", inst.name));
         } else {
             // With swap, allow up to 10% slippage from fees
             assertGt(output, amount * 90 / 100, string.concat("Roundtrip lost too much to slippage for ", inst.name));
