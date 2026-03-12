@@ -59,6 +59,10 @@ contract MockLendingAdapter is ILendingAdapter {
         return markets[marketId].currency;
     }
 
+    function convertToUnderlying(bytes32, uint256 yieldTokenAmount) external pure override returns (uint256) {
+        return yieldTokenAmount;
+    }
+
     function requiresAllow() external pure override returns (bool) {
         return false;
     }

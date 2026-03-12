@@ -49,6 +49,10 @@ contract ConcreteAdapter is AdapterBase {
         return CurrencyLibrary.ADDRESS_ZERO;
     }
 
+    function convertToUnderlying(bytes32, uint256 yieldTokenAmount) external pure override returns (uint256) {
+        return yieldTokenAmount;
+    }
+
     // Test helper: register a market with validCurrency check
     function registerMarket(Currency currency) external validCurrency(currency) {
         bytes32 marketId = keccak256(abi.encode(currency));

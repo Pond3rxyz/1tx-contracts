@@ -163,4 +163,14 @@ contract FluidAdapter is AdapterBase {
         if (!config.active) revert MarketNotActive();
         return config.currency;
     }
+
+    /// @notice Converts fToken shares to underlying asset value via ERC-4626
+    /// @param marketId The market identifier
+    /// @param yieldTokenAmount The amount of fToken shares
+    /// @return The equivalent amount of underlying assets
+    function convertToUnderlying(bytes32 marketId, uint256 yieldTokenAmount) external view override returns (uint256) {
+        FTokenConfig memory config = fTokens[marketId];
+        if (!config.active) revert MarketNotActive();
+        return IERC4626(config.fToken).convertToAssets(yieldTokenAmount);
+    }
 }

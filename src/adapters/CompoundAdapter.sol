@@ -164,6 +164,14 @@ contract CompoundAdapter is AdapterBase {
         return config.currency;
     }
 
+    /// @notice Converts Comet balance to underlying value (1:1 for Compound V3)
+    /// @dev Comet's balanceOf already returns the underlying value including accrued interest
+    /// @param yieldTokenAmount The Comet token balance
+    /// @return The equivalent amount of underlying assets
+    function convertToUnderlying(bytes32, uint256 yieldTokenAmount) external pure override returns (uint256) {
+        return yieldTokenAmount;
+    }
+
     /// @notice Compound V3 comet tokens require allow() instead of approve()
     /// @return True since Compound V3 uses permission-based transfers
     function requiresAllow() external pure override returns (bool) {

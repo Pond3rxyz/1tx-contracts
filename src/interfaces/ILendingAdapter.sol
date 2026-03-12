@@ -52,6 +52,13 @@ interface ILendingAdapter {
     /// @return The underlying currency of the market
     function getMarketCurrency(bytes32 marketId) external view returns (Currency);
 
+    /// @notice Converts yield token amount to underlying asset value
+    /// @dev Each adapter handles its own conversion logic (1:1 for Aave/Compound, ERC-4626 for others)
+    /// @param marketId The protocol-specific market identifier
+    /// @param yieldTokenAmount The amount of yield tokens to convert
+    /// @return The equivalent amount of underlying assets
+    function convertToUnderlying(bytes32 marketId, uint256 yieldTokenAmount) external view returns (uint256);
+
     /// @notice Check if the yield token requires allow() instead of approve()
     /// @dev Compound V3 comet tokens use allow() instead of standard ERC20 approve()
     /// @return True if the yield token requires allow() for transfers

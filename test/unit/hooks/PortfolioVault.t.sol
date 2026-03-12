@@ -117,6 +117,9 @@ contract PortfolioVaultTest is Test {
         swapPoolRegistry.registerDefaultSwapPool(usdtCurrency, usdcCurrency, swapPoolKey);
         vm.stopPrank();
 
+        // Set 1:1 pool price for stablecoin pair (sqrtPriceX96 = 2^96 means price = 1.0)
+        mockPM.setPoolPrice(swapPoolKey, uint160(1 << 96));
+
         // Fund mock PM
         usdt.mint(address(mockPM), INITIAL_BALANCE);
         usdc.mint(address(mockPM), INITIAL_BALANCE);
@@ -662,5 +665,90 @@ contract PortfolioVaultTest is Test {
         assertEq(vault.hook(), hookAddr);
         assertEq(vault.totalAssets(), DEPOSIT_AMOUNT);
         assertGt(vault.balanceOf(user), 0);
+    }
+
+    // ============ Slippage Protection Tests ============
+
+    function test_setMaxSlippageBps_updatesValue() public {
+        vm.prank(owner);
+        vault.setMaxSlippageBps(200);
+        assertEq(vault.maxSlippageBps(), 200);
+    }
+
+    function test_setMaxSlippageBps_revertsIfNotOwner() public {
+        vm.prank(user);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, user));
+        vault.setMaxSlippageBps(200);
+    }
+
+    function test_setMaxSlippageBps_revertsIfTooHigh() public {
+        vm.prank(owner);
+        vm.expectRevert(PortfolioVault.InvalidSlippageBps.selector);
+        vault.setMaxSlippageBps(10001);
+    }
+
+    function test_setMaxSlippageBps_emitsEvent() public {
+        vm.expectEmit(false, false, false, true);
+        emit PortfolioVault.MaxSlippageUpdated(200);
+        vm.prank(owner);
+        vault.setMaxSlippageBps(200);
+    }
+
+    function test_maxSlippageBps_defaultValue() public view {
+        assertEq(vault.maxSlippageBps(), 100); // 1% default
+    }
+
+    function test_setMaxSlippageBps_allowsZero() public {
+        vm.prank(owner);
+        vault.setMaxSlippageBps(0);
+        assertEq(vault.maxSlippageBps(), 0);
+    }
+
+    // ============ Hook Approval Revocation Tests ============
+
+    function test_revokeHookApproval_revokesApproval() public {
+        uint256 allowanceBefore = usdc.allowance(address(vault), hookAddr);
+        assertEq(allowanceBefore, type(uint256).max);
+
+        vm.prank(owner);
+        vault.revokeHookApproval();
+
+        uint256 allowanceAfter = usdc.allowance(address(vault), hookAddr);
+        assertEq(allowanceAfter, 0);
+    }
+
+    function test_revokeHookApproval_revertsIfNotOwner() public {
+        vm.prank(user);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, user));
+        vault.revokeHookApproval();
+    }
+
+    function test_revokeHookApproval_emitsEvent() public {
+        vm.expectEmit(false, false, false, false);
+        emit PortfolioVault.HookApprovalRevoked();
+        vm.prank(owner);
+        vault.revokeHookApproval();
+    }
+
+    // ============ Cross-Currency NAV Tests ============
+
+    function test_totalAssets_crossCurrency_convertsToStable() public {
+        // Deploy with dual allocation (USDC 60% + USDT 40%)
+        _deployVault(_dualAllocation(usdcInstrumentId, 6000, usdtInstrumentId, 4000));
+
+        _deployCapitalAsHook(DEPOSIT_AMOUNT);
+
+        // With 1:1 pool price, totalAssets should equal DEPOSIT_AMOUNT
+        // The USDT portion is converted to USDC terms via pool price
+        assertEq(vault.totalAssets(), DEPOSIT_AMOUNT);
+    }
+
+    // ============ Adapter convertToUnderlying Tests ============
+
+    function test_totalAssets_usesAdapterConversion() public {
+        _deployCapitalAsHook(DEPOSIT_AMOUNT);
+
+        // With Aave's 1:1 aToken, totalAssets should match deposit
+        assertEq(vault.totalAssets(), DEPOSIT_AMOUNT);
     }
 }
