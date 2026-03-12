@@ -15,8 +15,6 @@ interface ICCTPBridge {
         uint32 targetChain,
         bool fastTransfer,
         uint256 maxFee,
-        bytes32 destinationCaller,
-        bytes32 mintRecipient,
         bytes calldata hookData
     ) external returns (uint32 destinationDomain, bytes32 resolvedMintRecipient, uint32 minFinalityThreshold);
 }

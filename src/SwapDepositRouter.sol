@@ -62,7 +62,6 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
         uint256 amount,
         uint32 indexed destinationDomain,
         bytes32 mintRecipient,
-        bytes32 destinationCaller,
         uint256 maxFee,
         uint32 minFinalityThreshold
     );
@@ -296,7 +295,7 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
 
         (uint32 destinationDomain, bytes32 resolvedMintRecipient, uint32 minFinalityThreshold) = ICCTPBridge(cctpBridge)
             .bridge(
-                stableToken, msg.sender, amount, targetChain, fastTransfer, maxFee, bytes32(0), bytes32(0), hookData
+                stableToken, msg.sender, amount, targetChain, fastTransfer, maxFee, hookData
             );
 
         emit CCTPBridgeInitiated(
@@ -305,7 +304,6 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
             amount,
             destinationDomain,
             resolvedMintRecipient,
-            bytes32(0),
             maxFee,
             minFinalityThreshold
         );

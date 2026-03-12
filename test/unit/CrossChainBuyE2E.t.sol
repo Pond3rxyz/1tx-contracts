@@ -106,7 +106,6 @@ contract CrossChainBuyE2ETest is Test {
         uint256 amount,
         uint32 indexed destinationDomain,
         bytes32 mintRecipient,
-        bytes32 destinationCaller,
         uint256 maxFee,
         uint32 minFinalityThreshold
     );
@@ -151,7 +150,7 @@ contract CrossChainBuyE2ETest is Test {
     }
 
     function test_e2e_crossChainBuy_standardMode_sourceEvents_and_destinationExecution() public {
-        bytes32 destinationCaller = bytes32(0);
+        bytes32 destinationCaller = bytes32(uint256(uint160(makeAddr("destinationCaller"))));
         bytes32 mintRecipient = bytes32(uint256(uint160(address(destinationReceiver))));
 
         vm.prank(user);
@@ -167,7 +166,6 @@ contract CrossChainBuyE2ETest is Test {
             AMOUNT,
             DESTINATION_DOMAIN,
             mintRecipient,
-            destinationCaller,
             0,
             2000
         );
@@ -220,6 +218,9 @@ contract CrossChainBuyE2ETest is Test {
         sourceBridge.setDestinationDomain(DESTINATION_CHAIN_ID, DESTINATION_DOMAIN);
         sourceBridge.setDestinationMintRecipient(
             DESTINATION_CHAIN_ID, bytes32(uint256(uint160(address(destinationReceiver))))
+        );
+        sourceBridge.setDestinationCaller(
+            DESTINATION_CHAIN_ID, bytes32(uint256(uint160(makeAddr("destinationCaller"))))
         );
         sourceBridge.setAuthorizedCaller(address(sourceRouter), true);
         sourceRouter.setCCTPBridge(address(sourceBridge));
