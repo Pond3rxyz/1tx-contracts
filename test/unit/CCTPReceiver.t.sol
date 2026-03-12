@@ -87,6 +87,25 @@ contract ReentrantTransmitter {
     }
 }
 
+contract OverMintingTransmitter {
+    MockERC20 public immutable token;
+
+    constructor(MockERC20 _token) {
+        token = _token;
+    }
+
+    function receiveMessage(bytes calldata message, bytes calldata) external returns (bool) {
+        bytes calldata body = message[148:];
+        uint256 amount;
+        assembly {
+            amount := calldataload(add(body.offset, 68))
+        }
+        // Mint more than the message amount to trigger AmountMismatch
+        token.mint(msg.sender, amount + 1);
+        return true;
+    }
+}
+
 contract CCTPReceiverTest is Test {
     CCTPReceiver public receiver;
     MockMessageTransmitter public transmitter;
@@ -102,6 +121,7 @@ contract CCTPReceiverTest is Test {
     event CrossChainBuyFailed(bytes32 indexed instrumentId, address indexed recipient, uint256 amount, bytes reason);
     event RouterUpdated(address indexed oldRouter, address indexed newRouter);
     event MessageTransmitterUpdated(address indexed oldTransmitter, address indexed newTransmitter);
+    event StableTokenUpdated(address indexed oldToken, address indexed newToken);
 
     function setUp() public {
         owner = makeAddr("owner");
@@ -290,17 +310,21 @@ contract CCTPReceiverTest is Test {
     }
 
     function test_redeem_revertsOnAmountMismatch() public {
-        // Build message claiming 100e6 but transmitter will also mint 100e6
-        // Then pre-fund receiver so balanceAfter - balanceBefore > messageAmount
         uint256 messageAmount = 100e6;
         bytes memory message = _buildMessage(messageAmount, "");
 
-        // Pre-fund receiver so actualMinted will appear larger than the message amount
-        // Actually, the mock transmitter always mints exactly the message amount,
-        // so we need a different approach: we can pre-fund the receiver so
-        // balanceAfter - balanceBefore = messageAmount, but the check is
-        // actualMinted > messageAmount, which won't trigger. Let's skip this
-        // and test with a custom transmitter.
+        // Pre-mint extra tokens to receiver so balanceAfter - balanceBefore > messageAmount
+        usdc.mint(address(receiver), 1);
+
+        // The mock transmitter mints messageAmount, but receiver already had 1 extra
+        // Wait — that doesn't affect the delta. We need a transmitter that over-mints.
+        // Use an over-minting transmitter instead.
+        OverMintingTransmitter overMinter = new OverMintingTransmitter(usdc);
+        vm.prank(owner);
+        receiver.setMessageTransmitter(address(overMinter));
+
+        vm.expectRevert(CCTPReceiver.AmountMismatch.selector);
+        receiver.redeem(message, bytes("attestation"));
     }
 
     function test_redeem_revertsOnInvalidRecipient() public {
@@ -325,5 +349,81 @@ contract CCTPReceiverTest is Test {
 
         vm.expectRevert(CCTPReceiver.ReentrancyGuard.selector);
         receiver.redeem(message, bytes("attestation"));
+    }
+
+    // ============ Invalid hookData length ============
+
+    function test_redeem_revertsOnInvalidHookDataLength() public {
+        uint256 amount = 100e6;
+        bytes memory hookData = abi.encode(bytes32(uint256(42))); // 32 bytes, not 64
+        bytes memory message = _buildMessage(amount, hookData);
+
+        vm.expectRevert(CCTPReceiver.InvalidHookData.selector);
+        receiver.redeem(message, bytes("attestation"));
+    }
+
+    // ============ Anyone can call redeem ============
+
+    function test_redeem_callableByAnyone() public {
+        uint256 amount = 100e6;
+        bytes32 instrumentId = bytes32(uint256(7));
+        bytes memory hookData = abi.encode(instrumentId, user);
+        bytes memory message = _buildMessage(amount, hookData);
+
+        address randomCaller = makeAddr("randomCaller");
+        vm.prank(randomCaller);
+        bool ok = receiver.redeem(message, bytes("attestation"));
+        assertTrue(ok);
+        assertEq(mockRouter.lastRecipient(), user);
+    }
+
+    // ============ setStableToken ============
+
+    function test_setStableToken_success() public {
+        address newToken = makeAddr("newToken");
+        vm.expectEmit(true, true, false, true);
+        emit StableTokenUpdated(address(usdc), newToken);
+
+        vm.prank(owner);
+        receiver.setStableToken(newToken);
+
+        assertEq(receiver.stableToken(), newToken);
+    }
+
+    function test_setStableToken_revertsOnZeroAddress() public {
+        vm.prank(owner);
+        vm.expectRevert(CCTPReceiver.ZeroAddress.selector);
+        receiver.setStableToken(address(0));
+    }
+
+    function test_setStableToken_onlyOwner() public {
+        vm.prank(user);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, user));
+        receiver.setStableToken(makeAddr("newToken"));
+    }
+
+    // ============ rescueTokens ============
+
+    function test_rescueTokens_success() public {
+        uint256 amount = 100e6;
+        usdc.mint(address(receiver), amount);
+
+        vm.prank(owner);
+        receiver.rescueTokens(IERC20(address(usdc)), owner, amount);
+
+        assertEq(usdc.balanceOf(owner), amount);
+        assertEq(usdc.balanceOf(address(receiver)), 0);
+    }
+
+    function test_rescueTokens_revertsOnZeroAddress() public {
+        vm.prank(owner);
+        vm.expectRevert(CCTPReceiver.ZeroAddress.selector);
+        receiver.rescueTokens(IERC20(address(usdc)), address(0), 100);
+    }
+
+    function test_rescueTokens_onlyOwner() public {
+        vm.prank(user);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, user));
+        receiver.rescueTokens(IERC20(address(usdc)), user, 100);
     }
 }

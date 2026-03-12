@@ -31,6 +31,7 @@ contract CCTPReceiver is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     event RouterUpdated(address indexed oldRouter, address indexed newRouter);
     event MessageTransmitterUpdated(address indexed oldTransmitter, address indexed newTransmitter);
+    event StableTokenUpdated(address indexed oldToken, address indexed newToken);
     event CrossChainBuyExecuted(bytes32 indexed instrumentId, address indexed recipient, uint256 amount, uint256 depositedAmount);
     event CrossChainBuyFailed(bytes32 indexed instrumentId, address indexed recipient, uint256 amount, bytes reason);
 
@@ -72,6 +73,17 @@ contract CCTPReceiver is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         if (_newTransmitter == address(0)) revert ZeroAddress();
         emit MessageTransmitterUpdated(messageTransmitter, _newTransmitter);
         messageTransmitter = _newTransmitter;
+    }
+
+    function setStableToken(address _newStableToken) external onlyOwner {
+        if (_newStableToken == address(0)) revert ZeroAddress();
+        emit StableTokenUpdated(stableToken, _newStableToken);
+        stableToken = _newStableToken;
+    }
+
+    function rescueTokens(IERC20 token, address to, uint256 amount) external onlyOwner {
+        if (to == address(0)) revert ZeroAddress();
+        token.safeTransfer(to, amount);
     }
 
     function redeem(bytes calldata message, bytes calldata attestation) external nonReentrant returns (bool) {
