@@ -196,7 +196,6 @@ contract PortfolioVaultTest is Test {
         stableOut = vault.withdrawCapital(stableNeeded);
     }
 
-
     // ============ Initialize Tests ============
 
     function test_initialize_setsNameAndSymbol() public view {
@@ -309,6 +308,43 @@ contract PortfolioVaultTest is Test {
         vault.mintShares(user, 1000e6);
     }
 
+    // ============ burnShares Tests ============
+
+    function test_burnShares_burnsFromAddress() public {
+        _mintSharesAsHook(user, 1000e6);
+
+        vm.prank(hookAddr);
+        vault.burnShares(user, 400e6);
+
+        assertEq(vault.balanceOf(user), 600e6);
+        assertEq(vault.totalSupply(), 600e6);
+    }
+
+    function test_burnShares_emitsEvent() public {
+        _mintSharesAsHook(user, 1000e6);
+
+        vm.expectEmit(true, false, false, true);
+        emit PortfolioVault.SharesBurned(user, 400e6);
+        vm.prank(hookAddr);
+        vault.burnShares(user, 400e6);
+    }
+
+    function test_burnShares_revertsIfNotHook() public {
+        _mintSharesAsHook(user, 1000e6);
+
+        vm.prank(user);
+        vm.expectRevert(PortfolioVault.OnlyHook.selector);
+        vault.burnShares(user, 400e6);
+    }
+
+    function test_burnShares_revertsOnInsufficientBalance() public {
+        _mintSharesAsHook(user, 1000e6);
+
+        vm.prank(hookAddr);
+        vm.expectRevert(); // ERC20 underflow
+        vault.burnShares(user, 2000e6);
+    }
+
     // ============ withdrawCapital Tests ============
 
     function test_withdrawCapital_returnsStable() public {
@@ -357,6 +393,32 @@ contract PortfolioVaultTest is Test {
         vault.withdrawCapital(DEPOSIT_AMOUNT);
     }
 
+    function test_withdrawCapital_zeroNav_returnsZero() public {
+        // No capital deployed — totalAssets() == 0
+        uint256 stableOut = _withdrawCapitalAsHook(DEPOSIT_AMOUNT);
+        assertEq(stableOut, 0);
+    }
+
+    function test_withdrawCapital_zeroNav_doesNotBrickVault() public {
+        // Call withdrawCapital with zero NAV
+        _withdrawCapitalAsHook(DEPOSIT_AMOUNT);
+
+        // Vault should still be functional — deployCapital should work
+        _deployCapitalAsHook(DEPOSIT_AMOUNT);
+        assertEq(vault.totalAssets(), DEPOSIT_AMOUNT);
+    }
+
+    function test_withdrawCapital_zeroNav_thenDeploy_thenWithdraw() public {
+        // Full cycle: withdraw on empty → deploy → withdraw
+        _withdrawCapitalAsHook(1000e6);
+
+        _deployCapitalAsHook(DEPOSIT_AMOUNT);
+        usdc.mint(address(mockAavePool), DEPOSIT_AMOUNT);
+
+        uint256 stableOut = _withdrawCapitalAsHook(DEPOSIT_AMOUNT);
+        assertEq(stableOut, DEPOSIT_AMOUNT);
+    }
+
     // ============ ERC-4626 View Tests ============
 
     function test_previewDeposit_beforeAnyDeposit() public view {
@@ -377,6 +439,64 @@ contract PortfolioVaultTest is Test {
 
     function test_totalAssets_emptyVault() public view {
         assertEq(vault.totalAssets(), 0);
+    }
+
+    function test_previewMint_roundsUp() public {
+        _deployCapitalAsHook(DEPOSIT_AMOUNT);
+        _mintSharesAsHook(user, 1000e6);
+
+        // previewMint should round up (ceil) — costs more assets
+        uint256 shares = 333e6;
+        uint256 assetsNeeded = vault.previewMint(shares);
+        uint256 assetsFloor = vault.convertToAssets(shares);
+        assertGe(assetsNeeded, assetsFloor);
+    }
+
+    function test_previewWithdraw_roundsUp() public {
+        _deployCapitalAsHook(DEPOSIT_AMOUNT);
+        _mintSharesAsHook(user, 1000e6);
+
+        // previewWithdraw should round up (ceil) — costs more shares
+        uint256 assets = 333e6;
+        uint256 sharesNeeded = vault.previewWithdraw(assets);
+        uint256 sharesFloor = vault.convertToShares(assets);
+        assertGe(sharesNeeded, sharesFloor);
+    }
+
+    function test_previewMint_zeroShares_returnsZero() public view {
+        assertEq(vault.previewMint(0), 0);
+    }
+
+    function test_previewWithdraw_zeroAssets_returnsZero() public view {
+        assertEq(vault.previewWithdraw(0), 0);
+    }
+
+    // ============ Effective Total Supply Tests ============
+
+    function test_effectiveTotalSupply_excludesPMShares() public {
+        _deployCapitalAsHook(DEPOSIT_AMOUNT);
+        _mintSharesAsHook(user, 1000e6);
+
+        // Mint shares directly to PM (simulates dead shares from sells)
+        _mintSharesAsHook(address(mockPM), 500e6);
+
+        // convertToAssets should use effective supply (excluding PM shares)
+        // If PM shares were included, each share would be worth less
+        uint256 assetsPerShare = vault.convertToAssets(1000e6);
+
+        // With effective supply = 1000e6, NAV = DEPOSIT_AMOUNT
+        // assetsPerShare should be close to DEPOSIT_AMOUNT
+        assertApproxEqRel(assetsPerShare, DEPOSIT_AMOUNT, 1e15);
+    }
+
+    function test_effectiveTotalSupply_allSharesInPM_returnsZero() public {
+        _deployCapitalAsHook(DEPOSIT_AMOUNT);
+        // Mint shares only to PM
+        _mintSharesAsHook(address(mockPM), 1000e6);
+
+        // Effective supply is 0, so convertToShares uses only virtual values
+        uint256 shares = vault.convertToShares(DEPOSIT_AMOUNT);
+        assertGt(shares, 0);
     }
 
     // ============ setAllocations Tests ============
@@ -467,6 +587,48 @@ contract PortfolioVaultTest is Test {
         uint256 stableOut = _withdrawCapitalAsHook(DEPOSIT_AMOUNT);
 
         assertApproxEqRel(stableOut, DEPOSIT_AMOUNT, 1e15);
+    }
+
+    function test_totalAssets_dualAllocation_sumsAll() public {
+        _deployVault(_dualAllocation(usdcInstrumentId, 6000, usdtInstrumentId, 4000));
+
+        _deployCapitalAsHook(DEPOSIT_AMOUNT);
+
+        // Both allocations contribute to totalAssets (1:1 mock aTokens)
+        assertEq(vault.totalAssets(), DEPOSIT_AMOUNT);
+    }
+
+    // ============ Rebalance Tests ============
+
+    function test_rebalance_emitsEvent() public {
+        _deployVault(_dualAllocation(usdcInstrumentId, 5000, usdtInstrumentId, 5000));
+        _deployCapitalAsHook(DEPOSIT_AMOUNT);
+
+        // Change weights to 70/30
+        vm.prank(owner);
+        vault.setAllocations(_dualAllocation(usdcInstrumentId, 7000, usdtInstrumentId, 3000));
+
+        // Fund pools for withdrawals
+        usdc.mint(address(mockAavePool), DEPOSIT_AMOUNT);
+        usdt.mint(address(mockAavePool), DEPOSIT_AMOUNT);
+
+        vm.expectEmit(false, false, false, false);
+        emit PortfolioVault.Rebalanced();
+        vm.prank(owner);
+        vault.rebalance();
+    }
+
+    function test_rebalance_zeroNav_noop() public {
+        // No capital deployed — rebalance should be a no-op
+        vm.prank(owner);
+        vault.rebalance();
+        assertEq(vault.totalAssets(), 0);
+    }
+
+    function test_rebalance_revertsIfNotOwner() public {
+        vm.prank(user);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, user));
+        vault.rebalance();
     }
 
     // ============ unlockCallback Tests ============
