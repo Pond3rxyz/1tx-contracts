@@ -8,11 +8,13 @@ import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
 import {SwapParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
 import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title SwapExecutor
 /// @notice Library for executing swaps on Uniswap V4 pools
 /// @dev Assumes caller is already in PoolManager unlock context. Never calls unlock() itself.
 library SwapExecutor {
+    using SafeERC20 for IERC20;
     error InvalidSwapDelta();
 
     /// @notice Execute a swap on a Uniswap V4 pool
@@ -48,7 +50,7 @@ library SwapExecutor {
 
         // Settle input tokens (caller owes PM)
         poolManager.sync(inputCurrency);
-        IERC20(Currency.unwrap(inputCurrency)).transfer(address(poolManager), settleAmount);
+        IERC20(Currency.unwrap(inputCurrency)).safeTransfer(address(poolManager), settleAmount);
         poolManager.settle();
 
         // Take output tokens (PM owes caller)
