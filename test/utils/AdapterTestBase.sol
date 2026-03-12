@@ -2,10 +2,7 @@
 pragma solidity ^0.8.26;
 
 import {Test} from "forge-std/Test.sol";
-import {
-    Currency,
-    CurrencyLibrary
-} from "@uniswap/v4-core/src/types/Currency.sol";
+import {Currency, CurrencyLibrary} from "@uniswap/v4-core/src/types/Currency.sol";
 
 import {MockERC20} from "../mocks/MockERC20.sol";
 
@@ -55,26 +52,17 @@ abstract contract AdapterTestBase is Test {
     }
 
     /// @notice Helper to compute market ID from currency (Aave/Compound pattern)
-    function _computeMarketId(
-        Currency currency
-    ) internal pure returns (bytes32) {
+    function _computeMarketId(Currency currency) internal pure returns (bytes32) {
         return keccak256(abi.encode(currency));
     }
 
     /// @notice Helper to compute market ID from vault/fToken address (Morpho/Fluid pattern)
-    function _computeVaultMarketId(
-        address vault
-    ) internal pure returns (bytes32) {
+    function _computeVaultMarketId(address vault) internal pure returns (bytes32) {
         return bytes32(uint256(uint160(vault)));
     }
 
     /// @notice Helper to approve tokens from user to spender
-    function _approveTokens(
-        address token,
-        address from,
-        address spender,
-        uint256 amount
-    ) internal {
+    function _approveTokens(address token, address from, address spender, uint256 amount) internal {
         vm.prank(from);
         MockERC20(token).approve(spender, amount);
     }

@@ -60,11 +60,7 @@ contract MorphoAdapterForkTest is AdapterForkTestBase {
 
     // ============ Helper Functions ============
 
-    function _testDeposit(
-        string memory tokenSymbol,
-        string memory vaultName,
-        uint256 amount
-    ) internal {
+    function _testDeposit(string memory tokenSymbol, string memory vaultName, uint256 amount) internal {
         address token = getToken(tokenSymbol);
         address vault = getMorphoVault(vaultName);
         if (token == address(0) || vault == address(0)) return;
@@ -85,18 +81,10 @@ contract MorphoAdapterForkTest is AdapterForkTestBase {
         vm.prank(user);
         adapter.deposit(marketId, amount, recipient);
 
-        assertGt(
-            IERC4626(vault).balanceOf(recipient),
-            0,
-            "Should receive vault shares"
-        );
+        assertGt(IERC4626(vault).balanceOf(recipient), 0, "Should receive vault shares");
     }
 
-    function _testDepositWithdraw(
-        string memory tokenSymbol,
-        string memory vaultName,
-        uint256 amount
-    ) internal {
+    function _testDepositWithdraw(string memory tokenSymbol, string memory vaultName, uint256 amount) internal {
         address token = getToken(tokenSymbol);
         address vault = getMorphoVault(vaultName);
         if (token == address(0) || vault == address(0)) return;
@@ -129,10 +117,6 @@ contract MorphoAdapterForkTest is AdapterForkTestBase {
         uint256 withdrawn = adapter.withdraw(marketId, shareBalance, recipient);
 
         assertGt(withdrawn, 0, "Should withdraw tokens");
-        assertGe(
-            _getBalance(token, recipient),
-            (withdrawn * 99) / 100,
-            "Recipient should receive tokens"
-        );
+        assertGe(_getBalance(token, recipient), (withdrawn * 99) / 100, "Recipient should receive tokens");
     }
 }

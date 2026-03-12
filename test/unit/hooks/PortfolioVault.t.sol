@@ -76,12 +76,16 @@ contract PortfolioVaultTest is Test {
         // Deploy registries via proxies
         InstrumentRegistry irImpl = new InstrumentRegistry();
         instrumentRegistry = InstrumentRegistry(
-            address(new ERC1967Proxy(address(irImpl), abi.encodeWithSelector(InstrumentRegistry.initialize.selector, owner)))
+            address(
+                new ERC1967Proxy(address(irImpl), abi.encodeWithSelector(InstrumentRegistry.initialize.selector, owner))
+            )
         );
 
         SwapPoolRegistry sprImpl = new SwapPoolRegistry();
         swapPoolRegistry = SwapPoolRegistry(
-            address(new ERC1967Proxy(address(sprImpl), abi.encodeWithSelector(SwapPoolRegistry.initialize.selector, owner)))
+            address(
+                new ERC1967Proxy(address(sprImpl), abi.encodeWithSelector(SwapPoolRegistry.initialize.selector, owner))
+            )
         );
 
         // Deploy Aave adapter + register markets
@@ -111,7 +115,8 @@ contract PortfolioVaultTest is Test {
 
         // Register swap pools
         (Currency c0, Currency c1) = _orderCurrencies(usdcCurrency, usdtCurrency);
-        PoolKey memory swapPoolKey = PoolKey({currency0: c0, currency1: c1, fee: 500, tickSpacing: 10, hooks: IHooks(address(0))});
+        PoolKey memory swapPoolKey =
+            PoolKey({currency0: c0, currency1: c1, fee: 500, tickSpacing: 10, hooks: IHooks(address(0))});
         vm.startPrank(owner);
         swapPoolRegistry.registerDefaultSwapPool(usdcCurrency, usdtCurrency, swapPoolKey);
         swapPoolRegistry.registerDefaultSwapPool(usdtCurrency, usdcCurrency, swapPoolKey);
@@ -171,7 +176,9 @@ contract PortfolioVaultTest is Test {
         });
 
         vault = PortfolioVault(
-            address(new ERC1967Proxy(address(vaultImpl), abi.encodeWithSelector(PortfolioVault.initialize.selector, params)))
+            address(
+                new ERC1967Proxy(address(vaultImpl), abi.encodeWithSelector(PortfolioVault.initialize.selector, params))
+            )
         );
 
         // Set hookAddr as the authorized hook
@@ -257,7 +264,9 @@ contract PortfolioVaultTest is Test {
             allocations: _singleAllocation(usdcInstrumentId, 10000)
         });
         PortfolioVault fresh = PortfolioVault(
-            address(new ERC1967Proxy(address(freshImpl), abi.encodeWithSelector(PortfolioVault.initialize.selector, params)))
+            address(
+                new ERC1967Proxy(address(freshImpl), abi.encodeWithSelector(PortfolioVault.initialize.selector, params))
+            )
         );
 
         vm.prank(owner);

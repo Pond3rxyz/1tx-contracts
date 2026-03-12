@@ -169,7 +169,9 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
 
         Currency currency = Currency.wrap(usdc);
         try eulerAdapter.registerVault(currency, vault) {
-            _registerInstrument("Euler-eeUSDC", address(eulerAdapter), _computeVaultMarketId(vault), false, eulerExecAddr);
+            _registerInstrument(
+                "Euler-eeUSDC", address(eulerAdapter), _computeVaultMarketId(vault), false, eulerExecAddr
+            );
         } catch {}
     }
 

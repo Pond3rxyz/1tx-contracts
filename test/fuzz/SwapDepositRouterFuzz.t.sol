@@ -66,18 +66,14 @@ contract SwapDepositRouterFuzzTest is Test {
         InstrumentRegistry irImpl = new InstrumentRegistry();
         instrumentRegistry = InstrumentRegistry(
             address(
-                new ERC1967Proxy(
-                    address(irImpl), abi.encodeWithSelector(InstrumentRegistry.initialize.selector, owner)
-                )
+                new ERC1967Proxy(address(irImpl), abi.encodeWithSelector(InstrumentRegistry.initialize.selector, owner))
             )
         );
 
         SwapPoolRegistry sprImpl = new SwapPoolRegistry();
         swapPoolRegistry = SwapPoolRegistry(
             address(
-                new ERC1967Proxy(
-                    address(sprImpl), abi.encodeWithSelector(SwapPoolRegistry.initialize.selector, owner)
-                )
+                new ERC1967Proxy(address(sprImpl), abi.encodeWithSelector(SwapPoolRegistry.initialize.selector, owner))
             )
         );
 

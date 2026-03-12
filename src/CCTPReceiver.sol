@@ -12,8 +12,8 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 contract CCTPReceiver is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     using SafeERC20 for IERC20;
 
-    uint256 constant CCTP_HEADER_SIZE = 148;
-    uint256 constant CCTP_BURN_MESSAGE_SIZE = 228;
+    uint256 internal constant CCTP_HEADER_SIZE = 148;
+    uint256 internal constant CCTP_BURN_MESSAGE_SIZE = 228;
 
     address public router;
     address public stableToken;
@@ -32,7 +32,9 @@ contract CCTPReceiver is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     event RouterUpdated(address indexed oldRouter, address indexed newRouter);
     event MessageTransmitterUpdated(address indexed oldTransmitter, address indexed newTransmitter);
     event StableTokenUpdated(address indexed oldToken, address indexed newToken);
-    event CrossChainBuyExecuted(bytes32 indexed instrumentId, address indexed recipient, uint256 amount, uint256 depositedAmount);
+    event CrossChainBuyExecuted(
+        bytes32 indexed instrumentId, address indexed recipient, uint256 amount, uint256 depositedAmount
+    );
     event CrossChainBuyFailed(bytes32 indexed instrumentId, address indexed recipient, uint256 amount, bytes reason);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -123,6 +125,7 @@ contract CCTPReceiver is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     function _readUint256(bytes calldata data, uint256 offset) internal pure returns (uint256 value) {
+        // solhint-disable-next-line no-inline-assembly
         assembly {
             value := calldataload(add(data.offset, offset))
         }

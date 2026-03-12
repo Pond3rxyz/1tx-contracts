@@ -19,8 +19,8 @@ import {PortfolioVault} from "./PortfolioVault.sol";
 contract PortfolioHook is BaseHook {
     using CurrencyLibrary for Currency;
 
-    PortfolioVault public immutable vault;
-    Currency public immutable stable;
+    PortfolioVault public immutable VAULT;
+    Currency public immutable STABLE;
 
     /// @dev Tracks shares settled to PM during a buy (cleared in afterSwap).
     /// afterSwap must not burn these — the router still needs to take them.
@@ -39,8 +39,8 @@ contract PortfolioHook is BaseHook {
     event SwapRouted(address indexed recipient, bool isBuy, bool usedAmm, uint256 amountSpecified);
 
     constructor(IPoolManager _poolManager, PortfolioVault _vault, Currency _stable) BaseHook(_poolManager) {
-        vault = _vault;
-        stable = _stable;
+        VAULT = _vault;
+        STABLE = _stable;
     }
 
     function getHookPermissions() public pure override returns (Hooks.Permissions memory) {
@@ -70,7 +70,7 @@ contract PortfolioHook is BaseHook {
         _validatePoolCurrencies(key);
         if (key.fee != 0) revert NonZeroPoolFee();
 
-        bool stableIsToken0 = Currency.unwrap(key.currency0) == Currency.unwrap(stable);
+        bool stableIsToken0 = Currency.unwrap(key.currency0) == Currency.unwrap(STABLE);
         bool isBuy = params.zeroForOne == stableIsToken0;
         bool isExactInput = params.amountSpecified < 0;
         uint256 amountSpecified = _absAmount(params.amountSpecified);
@@ -93,19 +93,19 @@ contract PortfolioHook is BaseHook {
         internal
         returns (int128 deltaUnspecified)
     {
-        uint256 stableAmount = isExactInput ? amountSpecified : vault.previewMint(amountSpecified);
-        uint256 shareAmount = isExactInput ? vault.convertToShares(amountSpecified) : amountSpecified;
+        uint256 stableAmount = isExactInput ? amountSpecified : VAULT.previewMint(amountSpecified);
+        uint256 shareAmount = isExactInput ? VAULT.convertToShares(amountSpecified) : amountSpecified;
 
-        poolManager.take(stable, address(this), stableAmount);
-        IERC20(Currency.unwrap(stable)).transfer(address(vault), stableAmount);
-        vault.deployCapital(stableAmount);
+        poolManager.take(STABLE, address(this), stableAmount);
+        IERC20(Currency.unwrap(STABLE)).transfer(address(VAULT), stableAmount);
+        VAULT.deployCapital(stableAmount);
 
-        vault.mintShares(address(this), shareAmount);
+        VAULT.mintShares(address(this), shareAmount);
         poolManager.sync(shareCurrency);
-        IERC20(address(vault)).transfer(address(poolManager), shareAmount);
+        IERC20(address(VAULT)).transfer(address(poolManager), shareAmount);
         poolManager.settle();
 
-        _buySharesSettled = shareAmount;
+        _buySharesSettled = shareAmount; // solhint-disable-line reentrancy
 
         emit SharesBought(recipient, stableAmount, shareAmount);
         emit SwapRouted(recipient, true, false, amountSpecified);
@@ -122,23 +122,23 @@ contract PortfolioHook is BaseHook {
 
         if (isExactInput) {
             shareAmount = amountSpecified;
-            stableAmount = vault.convertToAssets(shareAmount);
+            stableAmount = VAULT.convertToAssets(shareAmount);
         } else {
             stableAmount = amountSpecified;
-            uint256 maxAvailable = vault.totalAssets();
+            uint256 maxAvailable = VAULT.totalAssets();
             if (stableAmount > maxAvailable) revert SellSettlementExceedsNav(stableAmount, maxAvailable);
-            shareAmount = vault.previewWithdraw(stableAmount);
+            shareAmount = VAULT.previewWithdraw(stableAmount);
         }
 
         uint256 bufferedStableAmount = stableAmount + (stableAmount / 100) + 1;
-        uint256 stableOut = vault.withdrawCapital(bufferedStableAmount);
+        uint256 stableOut = VAULT.withdrawCapital(bufferedStableAmount);
         if (stableOut < stableAmount) revert InsufficientStableForSettlement(stableAmount, stableOut);
         if (stableOut > stableAmount) {
-            IERC20(Currency.unwrap(stable)).transfer(address(vault), stableOut - stableAmount);
+            IERC20(Currency.unwrap(STABLE)).transfer(address(VAULT), stableOut - stableAmount);
         }
 
-        poolManager.sync(stable);
-        IERC20(Currency.unwrap(stable)).transfer(address(poolManager), stableAmount);
+        poolManager.sync(STABLE);
+        IERC20(Currency.unwrap(STABLE)).transfer(address(poolManager), stableAmount);
         poolManager.settle();
 
         poolManager.mint(address(this), shareCurrency.toId(), shareAmount);
@@ -180,16 +180,16 @@ contract PortfolioHook is BaseHook {
         uint256 liveShares = _buySharesSettled;
         _buySharesSettled = 0;
 
-        uint256 pmShares = IERC20(address(vault)).balanceOf(address(poolManager));
+        uint256 pmShares = IERC20(address(VAULT)).balanceOf(address(poolManager));
         if (pmShares > liveShares) {
-            vault.burnShares(address(poolManager), pmShares - liveShares);
+            VAULT.burnShares(address(poolManager), pmShares - liveShares);
         }
         return (this.afterSwap.selector, 0);
     }
 
     function _validatePoolCurrencies(PoolKey calldata key) internal view {
-        address stableAddr = Currency.unwrap(stable);
-        address shareAddr = address(vault);
+        address stableAddr = Currency.unwrap(STABLE);
+        address shareAddr = address(VAULT);
         address c0 = Currency.unwrap(key.currency0);
         address c1 = Currency.unwrap(key.currency1);
 

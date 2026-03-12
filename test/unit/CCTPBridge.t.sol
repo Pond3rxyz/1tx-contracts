@@ -208,8 +208,7 @@ contract CCTPBridgeTest is Test {
         usdc.mint(address(bridge), amount);
 
         vm.prank(router);
-        (, bytes32 resolvedRecipient,) =
-            bridge.bridge(address(usdc), user, amount, 8453, false, 0, "");
+        (, bytes32 resolvedRecipient,) = bridge.bridge(address(usdc), user, amount, 8453, false, 0, "");
 
         assertEq(resolvedRecipient, configuredRecipient);
         assertEq(messenger.lastMintRecipient(), configuredRecipient);

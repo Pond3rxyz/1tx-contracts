@@ -149,7 +149,6 @@ contract PortfolioHookHandler is Test {
         if (x > max) return max;
         return x;
     }
-
 }
 
 contract PortfolioHookInvariantTest is StdInvariant, BaseHookTest {
@@ -197,12 +196,16 @@ contract PortfolioHookInvariantTest is StdInvariant, BaseHookTest {
 
         InstrumentRegistry irImpl = new InstrumentRegistry();
         instrumentRegistry = InstrumentRegistry(
-            address(new ERC1967Proxy(address(irImpl), abi.encodeWithSelector(InstrumentRegistry.initialize.selector, owner)))
+            address(
+                new ERC1967Proxy(address(irImpl), abi.encodeWithSelector(InstrumentRegistry.initialize.selector, owner))
+            )
         );
 
         SwapPoolRegistry sprImpl = new SwapPoolRegistry();
         swapPoolRegistry = SwapPoolRegistry(
-            address(new ERC1967Proxy(address(sprImpl), abi.encodeWithSelector(SwapPoolRegistry.initialize.selector, owner)))
+            address(
+                new ERC1967Proxy(address(sprImpl), abi.encodeWithSelector(SwapPoolRegistry.initialize.selector, owner))
+            )
         );
 
         mockAavePool = new MockAavePool();
@@ -235,7 +238,9 @@ contract PortfolioHookInvariantTest is StdInvariant, BaseHookTest {
         });
 
         vault = PortfolioVault(
-            address(new ERC1967Proxy(address(vaultImpl), abi.encodeWithSelector(PortfolioVault.initialize.selector, params)))
+            address(
+                new ERC1967Proxy(address(vaultImpl), abi.encodeWithSelector(PortfolioVault.initialize.selector, params))
+            )
         );
 
         address hookAddress = _computeHookAddress();
@@ -252,13 +257,7 @@ contract PortfolioHookInvariantTest is StdInvariant, BaseHookTest {
             ? (usdcCurrency, Currency.wrap(address(vault)))
             : (Currency.wrap(address(vault)), usdcCurrency);
 
-        portfolioPoolKey = PoolKey({
-            currency0: c0,
-            currency1: c1,
-            fee: 0,
-            tickSpacing: 60,
-            hooks: IHooks(hookAddress)
-        });
+        portfolioPoolKey = PoolKey({currency0: c0, currency1: c1, fee: 0, tickSpacing: 60, hooks: IHooks(hookAddress)});
         portfolioPoolId = portfolioPoolKey.toId();
 
         poolManager.initialize(portfolioPoolKey, Constants.SQRT_PRICE_1_1);
@@ -306,7 +305,8 @@ contract PortfolioHookInvariantTest is StdInvariant, BaseHookTest {
     }
 
     function invariant_routeAccountingIsConsistent() public view {
-        uint256 totalRouted = handler.navBuyRoutes() + handler.ammBuyRoutes() + handler.navSellRoutes() + handler.ammSellRoutes();
+        uint256 totalRouted =
+            handler.navBuyRoutes() + handler.ammBuyRoutes() + handler.navSellRoutes() + handler.ammSellRoutes();
         assertEq(totalRouted, handler.routeEvents());
         assertEq(handler.routeEvents(), handler.buyCalls() + handler.sellCalls());
     }

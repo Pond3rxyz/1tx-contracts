@@ -231,9 +231,7 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
 
         Currency currency = Currency.wrap(token);
         try fluidAdapter.registerFToken(currency, fToken) {
-            _registerInstrument(
-                name, address(fluidAdapter), _computeVaultMarketId(fToken), requiresSwap, fluidExecAddr
-            );
+            _registerInstrument(name, address(fluidAdapter), _computeVaultMarketId(fToken), requiresSwap, fluidExecAddr);
             if (requiresSwap) _registerSwapPool(token);
         } catch {}
     }

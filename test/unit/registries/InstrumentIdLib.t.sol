@@ -112,8 +112,7 @@ contract InstrumentIdLibTest is Test {
     function testFuzz_singleAssetMarketId_deterministic(address token) public pure {
         Currency currency = Currency.wrap(token);
         assertEq(
-            InstrumentIdLib.generateSingleAssetMarketId(currency),
-            InstrumentIdLib.generateSingleAssetMarketId(currency)
+            InstrumentIdLib.generateSingleAssetMarketId(currency), InstrumentIdLib.generateSingleAssetMarketId(currency)
         );
     }
 }

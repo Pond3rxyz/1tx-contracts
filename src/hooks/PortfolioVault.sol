@@ -5,7 +5,9 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {ReentrancyGuardTransient} from "openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/utils/ReentrancyGuardTransient.sol";
+import {
+    ReentrancyGuardTransient
+} from "openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/utils/ReentrancyGuardTransient.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -28,7 +30,14 @@ import {LendingExecutor} from "../libraries/LendingExecutor.sol";
 ///      withdrawal, and share minting. The hook settles swaps at NAV price via V4's
 ///      beforeSwapReturnDelta custom curve pattern and calls these functions to deploy
 ///      or withdraw capital during each swap.
-contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, ReentrancyGuardTransient, UUPSUpgradeable, IUnlockCallback {
+contract PortfolioVault is
+    Initializable,
+    ERC20Upgradeable,
+    OwnableUpgradeable,
+    ReentrancyGuardTransient,
+    UUPSUpgradeable,
+    IUnlockCallback
+{
     using SafeERC20 for IERC20;
     using CurrencyLibrary for Currency;
     using Math for uint256;
@@ -157,11 +166,13 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
     }
 
     function convertToShares(uint256 assets) public view returns (uint256) {
-        return assets.mulDiv(_effectiveTotalSupply() + VIRTUAL_SHARES, totalAssets() + VIRTUAL_ASSETS, Math.Rounding.Floor);
+        return
+            assets.mulDiv(_effectiveTotalSupply() + VIRTUAL_SHARES, totalAssets() + VIRTUAL_ASSETS, Math.Rounding.Floor);
     }
 
     function convertToAssets(uint256 shares) public view returns (uint256) {
-        return shares.mulDiv(totalAssets() + VIRTUAL_ASSETS, _effectiveTotalSupply() + VIRTUAL_SHARES, Math.Rounding.Floor);
+        return
+            shares.mulDiv(totalAssets() + VIRTUAL_ASSETS, _effectiveTotalSupply() + VIRTUAL_SHARES, Math.Rounding.Floor);
     }
 
     function previewDeposit(uint256 assets) public view returns (uint256) {
@@ -204,7 +215,8 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
             if (Currency.unwrap(stable) != Currency.unwrap(marketCurrency)) {
                 PoolKey memory swapPool = swapPoolRegistry.getDefaultSwapPool(stable, marketCurrency);
                 uint256 minOutput = _getMinSwapOutput(swapPool, stable, amount);
-                depositAmount = SwapExecutor.executeSwap(poolManager, swapPool, stable, marketCurrency, amount, minOutput);
+                depositAmount =
+                    SwapExecutor.executeSwap(poolManager, swapPool, stable, marketCurrency, amount, minOutput);
             }
 
             // Deposit into lending protocol — yield tokens stay in this vault
@@ -241,7 +253,8 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
             if (Currency.unwrap(marketCurrency) != Currency.unwrap(stable)) {
                 PoolKey memory swapPool = swapPoolRegistry.getDefaultSwapPool(marketCurrency, stable);
                 uint256 minOutput = _getMinSwapOutput(swapPool, marketCurrency, withdrawn);
-                withdrawn = SwapExecutor.executeSwap(poolManager, swapPool, marketCurrency, stable, withdrawn, minOutput);
+                withdrawn =
+                    SwapExecutor.executeSwap(poolManager, swapPool, marketCurrency, stable, withdrawn, minOutput);
             }
 
             stableOut += withdrawn;
@@ -292,7 +305,8 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
 
             if (currentValue > targetValue) {
                 uint256 excess = currentValue - targetValue;
-                (address adapter, bytes32 marketId) = instrumentRegistry.getInstrumentDirect(allocations[i].instrumentId);
+                (address adapter, bytes32 marketId) =
+                    instrumentRegistry.getInstrumentDirect(allocations[i].instrumentId);
                 Currency marketCurrency = ILendingAdapter(adapter).getMarketCurrency(marketId);
                 address yieldToken = ILendingAdapter(adapter).getYieldToken(marketId);
 
@@ -301,13 +315,15 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
                 uint256 yieldToWithdraw = allocationValue > 0 ? (yieldBalance * excess) / allocationValue : 0;
                 if (yieldToWithdraw == 0) continue;
 
-                uint256 withdrawn =
-                    LendingExecutor.withdraw(adapter, marketId, yieldToken, yieldToWithdraw, address(this), address(this));
+                uint256 withdrawn = LendingExecutor.withdraw(
+                    adapter, marketId, yieldToken, yieldToWithdraw, address(this), address(this)
+                );
 
                 if (Currency.unwrap(marketCurrency) != Currency.unwrap(stable)) {
                     PoolKey memory swapPool = swapPoolRegistry.getDefaultSwapPool(marketCurrency, stable);
                     uint256 minOutput = _getMinSwapOutput(swapPool, marketCurrency, withdrawn);
-                    withdrawn = SwapExecutor.executeSwap(poolManager, swapPool, marketCurrency, stable, withdrawn, minOutput);
+                    withdrawn =
+                        SwapExecutor.executeSwap(poolManager, swapPool, marketCurrency, stable, withdrawn, minOutput);
                 }
 
                 stableAccumulated += withdrawn;
@@ -324,14 +340,17 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
                 uint256 depositAmount = deficit < stableAccumulated ? deficit : stableAccumulated;
                 if (depositAmount == 0) continue;
 
-                (address adapter, bytes32 marketId) = instrumentRegistry.getInstrumentDirect(allocations[i].instrumentId);
+                (address adapter, bytes32 marketId) =
+                    instrumentRegistry.getInstrumentDirect(allocations[i].instrumentId);
                 Currency marketCurrency = ILendingAdapter(adapter).getMarketCurrency(marketId);
 
                 uint256 actualDeposit = depositAmount;
                 if (Currency.unwrap(stable) != Currency.unwrap(marketCurrency)) {
                     PoolKey memory swapPool = swapPoolRegistry.getDefaultSwapPool(stable, marketCurrency);
                     uint256 minOutput = _getMinSwapOutput(swapPool, stable, depositAmount);
-                    actualDeposit = SwapExecutor.executeSwap(poolManager, swapPool, stable, marketCurrency, depositAmount, minOutput);
+                    actualDeposit = SwapExecutor.executeSwap(
+                        poolManager, swapPool, stable, marketCurrency, depositAmount, minOutput
+                    );
                 }
 
                 LendingExecutor.deposit(adapter, marketId, marketCurrency, actualDeposit, address(this));

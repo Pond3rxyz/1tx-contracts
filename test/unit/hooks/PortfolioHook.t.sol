@@ -86,12 +86,16 @@ contract PortfolioHookTest is BaseHookTest {
         // Deploy registries
         InstrumentRegistry irImpl = new InstrumentRegistry();
         instrumentRegistry = InstrumentRegistry(
-            address(new ERC1967Proxy(address(irImpl), abi.encodeWithSelector(InstrumentRegistry.initialize.selector, owner)))
+            address(
+                new ERC1967Proxy(address(irImpl), abi.encodeWithSelector(InstrumentRegistry.initialize.selector, owner))
+            )
         );
 
         SwapPoolRegistry sprImpl = new SwapPoolRegistry();
         swapPoolRegistry = SwapPoolRegistry(
-            address(new ERC1967Proxy(address(sprImpl), abi.encodeWithSelector(SwapPoolRegistry.initialize.selector, owner)))
+            address(
+                new ERC1967Proxy(address(sprImpl), abi.encodeWithSelector(SwapPoolRegistry.initialize.selector, owner))
+            )
         );
 
         // Deploy Aave adapter
@@ -127,16 +131,14 @@ contract PortfolioHookTest is BaseHookTest {
         });
 
         vault = PortfolioVault(
-            address(new ERC1967Proxy(address(vaultImpl), abi.encodeWithSelector(PortfolioVault.initialize.selector, params)))
+            address(
+                new ERC1967Proxy(address(vaultImpl), abi.encodeWithSelector(PortfolioVault.initialize.selector, params))
+            )
         );
 
         // Deploy hook at address with correct flag bits
         address hookAddress = _computeHookAddress();
-        deployCodeTo(
-            "PortfolioHook.sol:PortfolioHook",
-            abi.encode(poolManager, vault, usdcCurrency),
-            hookAddress
-        );
+        deployCodeTo("PortfolioHook.sol:PortfolioHook", abi.encode(poolManager, vault, usdcCurrency), hookAddress);
         hook = PortfolioHook(hookAddress);
 
         // Set hook on vault
@@ -152,13 +154,7 @@ contract PortfolioHookTest is BaseHookTest {
             ? (usdcCurrency, Currency.wrap(address(vault)))
             : (Currency.wrap(address(vault)), usdcCurrency);
 
-        portfolioPoolKey = PoolKey({
-            currency0: c0,
-            currency1: c1,
-            fee: 0,
-            tickSpacing: 60,
-            hooks: IHooks(hookAddress)
-        });
+        portfolioPoolKey = PoolKey({currency0: c0, currency1: c1, fee: 0, tickSpacing: 60, hooks: IHooks(hookAddress)});
         portfolioPoolId = portfolioPoolKey.toId();
 
         // Initialize the pool on the real PoolManager

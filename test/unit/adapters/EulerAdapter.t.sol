@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {
-    Currency,
-    CurrencyLibrary
-} from "@uniswap/v4-core/src/types/Currency.sol";
+import {Currency, CurrencyLibrary} from "@uniswap/v4-core/src/types/Currency.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import {AdapterTestBase} from "../../utils/AdapterTestBase.sol";
@@ -21,34 +18,16 @@ contract EulerAdapterTest is AdapterTestBase {
 
     bytes32 public vaultMarketId;
 
-    event VaultRegistered(
-        bytes32 indexed marketId,
-        Currency currency,
-        address vault
-    );
+    event VaultRegistered(bytes32 indexed marketId, Currency currency, address vault);
     event VaultDeactivated(bytes32 indexed marketId);
-    event DepositedToEuler(
-        bytes32 indexed marketId,
-        uint256 assets,
-        uint256 shares,
-        address onBehalfOf
-    );
-    event WithdrawnFromEuler(
-        bytes32 indexed marketId,
-        uint256 assets,
-        uint256 shares,
-        address to
-    );
+    event DepositedToEuler(bytes32 indexed marketId, uint256 assets, uint256 shares, address onBehalfOf);
+    event WithdrawnFromEuler(bytes32 indexed marketId, uint256 assets, uint256 shares, address to);
 
     function setUp() public override {
         super.setUp();
 
         // Deploy mock vault
-        mockVault = new MockERC4626Vault(
-            address(usdc),
-            "Euler Earn USDC",
-            "eeUSDC"
-        );
+        mockVault = new MockERC4626Vault(address(usdc), "Euler Earn USDC", "eeUSDC");
 
         // Deploy adapter
         vm.prank(owner);
@@ -75,20 +54,12 @@ contract EulerAdapterTest is AdapterTestBase {
 
         assertTrue(adapter.hasMarket(vaultMarketId));
         assertEq(adapter.getYieldToken(vaultMarketId), address(mockVault));
-        assertEq(
-            Currency.unwrap(adapter.getMarketCurrency(vaultMarketId)),
-            address(usdc)
-        );
+        assertEq(Currency.unwrap(adapter.getMarketCurrency(vaultMarketId)), address(usdc));
     }
 
     function test_registerVault_revertsOnNonOwner() public {
         vm.prank(user);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Ownable.OwnableUnauthorizedAccount.selector,
-                user
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user));
         adapter.registerVault(usdcCurrency, address(mockVault));
     }
 
@@ -106,11 +77,7 @@ contract EulerAdapterTest is AdapterTestBase {
 
     function test_registerVault_revertsOnAssetMismatch() public {
         // Create vault for USDT but try to register with USDC currency
-        MockERC4626Vault usdtVault = new MockERC4626Vault(
-            address(usdt),
-            "Euler USDT Vault",
-            "eeUSDT"
-        );
+        MockERC4626Vault usdtVault = new MockERC4626Vault(address(usdt), "Euler USDT Vault", "eeUSDT");
 
         vm.prank(owner);
         vm.expectRevert(AdapterBase.AssetMismatch.selector);
@@ -133,25 +100,15 @@ contract EulerAdapterTest is AdapterTestBase {
         adapter.registerVault(usdcCurrency, address(mockVault));
 
         // Market ID should be bytes32(uint256(uint160(vault)))
-        bytes32 expectedMarketId = bytes32(
-            uint256(uint160(address(mockVault)))
-        );
+        bytes32 expectedMarketId = bytes32(uint256(uint160(address(mockVault))));
         assertEq(vaultMarketId, expectedMarketId);
         assertTrue(adapter.hasMarket(expectedMarketId));
     }
 
     function test_multipleVaultsSameCurrency_differentMarketIds() public {
         // Create two vaults for USDC
-        MockERC4626Vault vault1 = new MockERC4626Vault(
-            address(usdc),
-            "Vault 1",
-            "v1"
-        );
-        MockERC4626Vault vault2 = new MockERC4626Vault(
-            address(usdc),
-            "Vault 2",
-            "v2"
-        );
+        MockERC4626Vault vault1 = new MockERC4626Vault(address(usdc), "Vault 1", "v1");
+        MockERC4626Vault vault2 = new MockERC4626Vault(address(usdc), "Vault 2", "v2");
 
         vm.startPrank(owner);
         adapter.registerVault(usdcCurrency, address(vault1));
@@ -194,12 +151,7 @@ contract EulerAdapterTest is AdapterTestBase {
         adapter.registerVault(usdcCurrency, address(mockVault));
 
         vm.prank(user);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Ownable.OwnableUnauthorizedAccount.selector,
-                user
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user));
         adapter.deactivateMarket(vaultMarketId);
     }
 
@@ -215,12 +167,7 @@ contract EulerAdapterTest is AdapterTestBase {
         uint256 userBalanceBefore = usdc.balanceOf(user);
 
         vm.expectEmit(true, false, false, true);
-        emit DepositedToEuler(
-            vaultMarketId,
-            DEPOSIT_AMOUNT,
-            DEPOSIT_AMOUNT,
-            recipient
-        );
+        emit DepositedToEuler(vaultMarketId, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT, recipient);
 
         vm.prank(user);
         adapter.deposit(vaultMarketId, DEPOSIT_AMOUNT, recipient);
@@ -277,25 +224,13 @@ contract EulerAdapterTest is AdapterTestBase {
         uint256 recipientBalanceBefore = usdc.balanceOf(recipient);
 
         vm.expectEmit(true, false, false, true);
-        emit WithdrawnFromEuler(
-            vaultMarketId,
-            DEPOSIT_AMOUNT,
-            DEPOSIT_AMOUNT,
-            recipient
-        );
+        emit WithdrawnFromEuler(vaultMarketId, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT, recipient);
 
         vm.prank(authorizedCaller);
-        uint256 withdrawn = adapter.withdraw(
-            vaultMarketId,
-            DEPOSIT_AMOUNT,
-            recipient
-        );
+        uint256 withdrawn = adapter.withdraw(vaultMarketId, DEPOSIT_AMOUNT, recipient);
 
         assertEq(withdrawn, DEPOSIT_AMOUNT);
-        assertEq(
-            usdc.balanceOf(recipient),
-            recipientBalanceBefore + DEPOSIT_AMOUNT
-        );
+        assertEq(usdc.balanceOf(recipient), recipientBalanceBefore + DEPOSIT_AMOUNT);
     }
 
     function test_withdraw_revertsIfUnauthorized() public {
@@ -394,14 +329,12 @@ contract EulerAdapterTest is AdapterTestBase {
     // ============ getAdapterMetadata Tests ============
 
     function test_getAdapterMetadata_returnsCorrectName() public view {
-        EulerAdapter.AdapterMetadata memory metadata = adapter
-            .getAdapterMetadata();
+        EulerAdapter.AdapterMetadata memory metadata = adapter.getAdapterMetadata();
         assertEq(metadata.name, "Euler Earn");
     }
 
     function test_getAdapterMetadata_returnsCorrectChainId() public view {
-        EulerAdapter.AdapterMetadata memory metadata = adapter
-            .getAdapterMetadata();
+        EulerAdapter.AdapterMetadata memory metadata = adapter.getAdapterMetadata();
         assertEq(metadata.chainId, block.chainid);
     }
 
@@ -440,11 +373,7 @@ contract EulerAdapterTest is AdapterTestBase {
 
         // Withdraw - should get more than deposited due to yield
         vm.prank(authorizedCaller);
-        uint256 withdrawn = adapter.withdraw(
-            vaultMarketId,
-            sharesBefore,
-            recipient
-        );
+        uint256 withdrawn = adapter.withdraw(vaultMarketId, sharesBefore, recipient);
 
         // Should receive original + yield
         assertEq(withdrawn, DEPOSIT_AMOUNT + yieldAmount);
@@ -455,11 +384,7 @@ contract EulerAdapterTest is AdapterTestBase {
 
     function test_multipleVaults() public {
         // Create vaults for different currencies
-        MockERC4626Vault usdtVault = new MockERC4626Vault(
-            address(usdt),
-            "Euler USDT Vault",
-            "eeUSDT"
-        );
+        MockERC4626Vault usdtVault = new MockERC4626Vault(address(usdt), "Euler USDT Vault", "eeUSDT");
 
         vm.startPrank(owner);
         adapter.registerVault(usdcCurrency, address(mockVault));
