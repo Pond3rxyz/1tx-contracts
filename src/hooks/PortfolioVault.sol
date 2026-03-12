@@ -5,6 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -25,7 +26,7 @@ import {LendingExecutor} from "../libraries/LendingExecutor.sol";
 ///      withdrawal, and share minting. The hook settles swaps at NAV price via V4's
 ///      beforeSwapReturnDelta custom curve pattern and calls these functions to deploy
 ///      or withdraw capital during each swap.
-contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, UUPSUpgradeable, IUnlockCallback {
+contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, ReentrancyGuard, UUPSUpgradeable, IUnlockCallback {
     using SafeERC20 for IERC20;
     using CurrencyLibrary for Currency;
     using Math for uint256;
@@ -63,7 +64,6 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
     SwapPoolRegistry public swapPoolRegistry;
     IPoolManager public poolManager;
     address public hook;
-    uint256 private _capitalLock;
 
     // ============ Errors ============
 
@@ -75,7 +75,6 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
     error TooManyAllocations();
     error HookAlreadySet();
     error InvalidHookAddress();
-    error CapitalOperationReentrant();
 
     // ============ Events ============
 
@@ -166,10 +165,7 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
     /// @dev Called by hook in beforeSwap NAV settlement to deploy USDC received from a buy swap.
     ///      Vault must already hold the stableAmount (hook takes from PM to vault).
     /// @param stableAmount Amount of stable to deploy across lending positions
-    function deployCapital(uint256 stableAmount) external onlyHook {
-        if (_capitalLock != 0) revert CapitalOperationReentrant();
-        _capitalLock = 1;
-
+    function deployCapital(uint256 stableAmount) external onlyHook nonReentrant {
         for (uint256 i = 0; i < allocations.length; i++) {
             uint256 amount = (stableAmount * allocations[i].weightBps) / BPS_DENOMINATOR;
             if (amount == 0) continue;
@@ -189,7 +185,6 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
             LendingExecutor.deposit(adapter, marketId, marketCurrency, depositAmount, address(this));
         }
 
-        _capitalLock = 0;
         emit Allocated(stableAmount);
     }
 
@@ -198,10 +193,7 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
     ///      Sends withdrawn stable to the hook for PM settlement.
     /// @param stableNeeded Approximate amount of stable needed
     /// @return stableOut Actual amount of stable sent to hook
-    function withdrawCapital(uint256 stableNeeded) external onlyHook returns (uint256 stableOut) {
-        if (_capitalLock != 0) revert CapitalOperationReentrant();
-        _capitalLock = 1;
-
+    function withdrawCapital(uint256 stableNeeded) external onlyHook nonReentrant returns (uint256 stableOut) {
         uint256 nav = totalAssets();
         if (nav == 0) return 0;
 
@@ -231,7 +223,6 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
         // Transfer stable to hook for PM settlement
         IERC20(Currency.unwrap(stable)).safeTransfer(hook, stableOut);
 
-        _capitalLock = 0;
         emit Deallocated(stableOut);
     }
 
@@ -389,11 +380,12 @@ contract PortfolioVault is Initializable, ERC20Upgradeable, OwnableUpgradeable, 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     // ============ Storage Gap ============
-    // Direct state variables: stable, allocations, instrumentRegistry, swapPoolRegistry, poolManager, hook, _capitalLock = 7
-    // Gap: 50 - 7 = 43. Verify with: forge inspect PortfolioVault storage-layout
+    // Direct state variables: stable, allocations, instrumentRegistry, swapPoolRegistry, poolManager, hook = 6
+    // ReentrancyGuardUpgradeable uses ERC-7201 namespaced storage (no slot here).
+    // Gap: 50 - 6 = 44. Verify with: forge inspect PortfolioVault storage-layout
     // If adding a new state variable, DECREMENT the gap size by the slots consumed.
 
-    uint256[43] private __gap;
+    uint256[44] private __gap;
 }
 
 /// @dev Minimal interface for ERC4626 convertToAssets
