@@ -21,8 +21,10 @@ library LendingExecutor {
     function deposit(address adapter, bytes32 marketId, Currency marketCurrency, uint256 amount, address onBehalfOf)
         internal
     {
-        IERC20(Currency.unwrap(marketCurrency)).forceApprove(adapter, amount);
+        IERC20 token = IERC20(Currency.unwrap(marketCurrency));
+        token.forceApprove(adapter, amount);
         ILendingAdapter(adapter).deposit(marketId, amount, onBehalfOf);
+        token.forceApprove(adapter, 0);
     }
 
     /// @notice Withdraw from a lending protocol via an adapter

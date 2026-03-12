@@ -10,6 +10,8 @@ import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {Currency, CurrencyLibrary} from "@uniswap/v4-core/src/types/Currency.sol";
 
+import {IUnlockCallback} from "@uniswap/v4-core/src/interfaces/callback/IUnlockCallback.sol";
+
 import {InstrumentRegistry} from "./registries/InstrumentRegistry.sol";
 import {SwapPoolRegistry} from "./registries/SwapPoolRegistry.sol";
 import {ILendingAdapter} from "./interfaces/ILendingAdapter.sol";
@@ -22,7 +24,7 @@ import {LendingExecutor} from "./libraries/LendingExecutor.sol";
 /// @notice Router for buying/selling lending protocol instruments with automatic token swapping
 /// @dev Uses Uniswap V4 PoolManager for swaps and lending adapters via InstrumentRegistry for deposits/withdrawals.
 ///      Always operates in the configured stable currency (e.g. USDC). Yield tokens go to / come from msg.sender.
-contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable {
+contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable, IUnlockCallback {
     using SafeERC20 for IERC20;
     using CurrencyLibrary for Currency;
 
@@ -40,6 +42,9 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
     error CallerNotPoolManager();
     error InvalidAmount();
     error InvalidAddress();
+    error InvalidPoolManager();
+    error InvalidRegistry();
+    error InvalidStable();
     error CrossChainBridgeNotConfigured();
     error CrossChainSellNotSupported();
     error UnauthorizedBuyForCaller();
@@ -47,8 +52,8 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
 
     // ============ Events ============
 
-    event Buy(bytes32 indexed instrumentId, address indexed sender, uint256 inputAmount, uint256 depositedAmount);
-    event Sell(bytes32 indexed instrumentId, address indexed sender, uint256 yieldTokenAmount, uint256 outputAmount);
+    event Buy(bytes32 indexed instrumentId, address indexed recipient, uint256 inputAmount, uint256 depositedAmount);
+    event Sell(bytes32 indexed instrumentId, address indexed recipient, uint256 yieldTokenAmount, uint256 outputAmount);
     event CCTPBridgeUpdated(address indexed cctpBridge);
     event CCTPReceiverUpdated(address indexed cctpReceiver);
     event CCTPBridgeInitiated(
@@ -85,11 +90,33 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
         SwapPoolRegistry _swapPoolRegistry,
         Currency _stable
     ) external initializer {
+        if (address(_poolManager) == address(0)) revert InvalidPoolManager();
+        if (address(_instrumentRegistry) == address(0)) revert InvalidRegistry();
+        if (address(_swapPoolRegistry) == address(0)) revert InvalidRegistry();
+        if (Currency.unwrap(_stable) == address(0)) revert InvalidStable();
+
         __Ownable_init(initialOwner);
         poolManager = _poolManager;
         instrumentRegistry = _instrumentRegistry;
         swapPoolRegistry = _swapPoolRegistry;
         stable = _stable;
+    }
+
+    // ============ Admin Functions ============
+
+    function setPoolManager(IPoolManager _poolManager) external onlyOwner {
+        if (address(_poolManager) == address(0)) revert InvalidPoolManager();
+        poolManager = _poolManager;
+    }
+
+    function setInstrumentRegistry(InstrumentRegistry _instrumentRegistry) external onlyOwner {
+        if (address(_instrumentRegistry) == address(0)) revert InvalidRegistry();
+        instrumentRegistry = _instrumentRegistry;
+    }
+
+    function setSwapPoolRegistry(SwapPoolRegistry _swapPoolRegistry) external onlyOwner {
+        if (address(_swapPoolRegistry) == address(0)) revert InvalidRegistry();
+        swapPoolRegistry = _swapPoolRegistry;
     }
 
     /// @notice Sets Circle CCTP TokenMessengerV2 contract used for bridging stable funds
@@ -106,6 +133,12 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
         emit CCTPReceiverUpdated(_cctpReceiver);
     }
 
+    /// @notice Rescue tokens accidentally sent to the contract
+    function rescueTokens(address token, address to, uint256 amount) external onlyOwner {
+        if (to == address(0)) revert InvalidAddress();
+        IERC20(token).safeTransfer(to, amount);
+    }
+
     // ============ External Functions ============
 
     /// @notice Buy an instrument, bridging cross-chain if needed
@@ -114,6 +147,7 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
     /// @param minDepositedAmount Minimum amount deposited into lending (slippage protection, ignored for cross-chain)
     /// @param fastTransfer Whether to use fast CCTP transfer (cross-chain only)
     /// @param maxFee Maximum fee for fast transfer (cross-chain only)
+    /// @return depositedAmount The amount deposited (0 for cross-chain, actual amount for local)
     function buy(bytes32 instrumentId, uint256 amount, uint256 minDepositedAmount, bool fastTransfer, uint256 maxFee)
         external
         returns (uint256 depositedAmount)
@@ -121,9 +155,9 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
         if (amount == 0) revert InvalidAmount();
 
         uint32 targetChain = InstrumentIdLib.getInstrumentChainId(instrumentId);
-        if (targetChain != uint32(block.chainid)) {
+        if (targetChain != _safeChainId()) {
             _bridgeForCrossChainInstrument(instrumentId, amount, targetChain, fastTransfer, maxFee);
-            return 0;
+            return 0; // Cross-chain: deposit happens on destination chain
         }
 
         depositedAmount = _buyLocal(instrumentId, amount, msg.sender, msg.sender);
@@ -173,7 +207,7 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
     /// @param minOutputAmount Minimum stable currency to receive (slippage protection)
     /// @return outputAmount The actual amount of stable currency returned to the caller
     function sell(bytes32 instrumentId, uint256 yieldTokenAmount, uint256 minOutputAmount) external returns (uint256 outputAmount) {
-        if (InstrumentIdLib.getInstrumentChainId(instrumentId) != uint32(block.chainid)) {
+        if (InstrumentIdLib.getInstrumentChainId(instrumentId) != _safeChainId()) {
             revert CrossChainSellNotSupported();
         }
         if (yieldTokenAmount == 0) revert InvalidAmount();
@@ -183,6 +217,7 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
         address yieldToken = ILendingAdapter(adapter).getYieldToken(marketId);
 
         // Withdraw from lending protocol — yield tokens transferred from user to adapter
+        // NOTE: For Compound V3, user must call comet.allow(router, true) instead of ERC20 approve
         uint256 withdrawnAmount =
             LendingExecutor.withdraw(adapter, marketId, yieldToken, yieldTokenAmount, msg.sender, address(this));
 
@@ -205,7 +240,7 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
     // ============ Callback ============
 
     /// @notice Called by PoolManager during unlock to execute the swap
-    function unlockCallback(bytes calldata rawData) external returns (bytes memory) {
+    function unlockCallback(bytes calldata rawData) external override returns (bytes memory) {
         if (msg.sender != address(poolManager)) revert CallerNotPoolManager();
 
         SwapCallbackData memory data = abi.decode(rawData, (SwapCallbackData));
@@ -235,6 +270,12 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
         outputAmount = abi.decode(result, (uint256));
     }
 
+    /// @dev Safely cast block.chainid to uint32, reverts on overflow
+    function _safeChainId() internal view returns (uint32) {
+        if (block.chainid > type(uint32).max) revert InvalidAmount(); // chainId overflow
+        return uint32(block.chainid);
+    }
+
     function _bridgeForCrossChainInstrument(
         bytes32 instrumentId,
         uint256 amount,
@@ -246,6 +287,8 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
 
         address stableToken = Currency.unwrap(stable);
 
+        // NOTE: Uses push-transfer pattern — the bridge adapter must handle tokens
+        // already in its balance (not transferFrom). Verify bridge adapter compatibility.
         IERC20(stableToken).safeTransferFrom(msg.sender, address(this), amount);
         IERC20(stableToken).safeTransfer(cctpBridge, amount);
 

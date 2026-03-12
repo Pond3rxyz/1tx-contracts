@@ -192,6 +192,8 @@ contract SwapDepositRouterFuzzTest is Test {
     }
 
     function testFuzz_buy_invalidInstrumentId_reverts(bytes32 randomId) public {
+        // Force local chainId prefix so the ID routes locally (not cross-chain)
+        randomId = bytes32((uint256(block.chainid) << 224) | (uint256(randomId) & ((1 << 224) - 1)));
         vm.assume(randomId != usdcInstrumentId);
         vm.assume(randomId != usdtInstrumentId);
 
@@ -251,6 +253,8 @@ contract SwapDepositRouterFuzzTest is Test {
     }
 
     function testFuzz_sell_invalidInstrumentId_reverts(bytes32 randomId) public {
+        // Force local chainId prefix so the ID routes locally (not cross-chain)
+        randomId = bytes32((uint256(block.chainid) << 224) | (uint256(randomId) & ((1 << 224) - 1)));
         vm.assume(randomId != usdcInstrumentId);
         vm.assume(randomId != usdtInstrumentId);
 
