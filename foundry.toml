@@ -1,85 +1,69 @@
-# Default profile: optimized for fast compilation (Local Development)
+# Default profile: fast compilation for local development
 [profile.default]
-bytecode_hash = "none"
-evm_version = "cancun"
-ffi = true
-fs_permissions = [{access = "read-write", path = ".forge-snapshots/"}, {access = "read", path = "out/"}, {access = "read", path = "script/config/"}]
-libs = ["lib"]
-out = "out"
-solc_version = "0.8.26"
 src = "src"
-optimizer = true
-optimizer_runs = 200       # Low runs = faster compile
-via_ir = false              # Optimization enabled by SwapLogic refactor
-# Use local fork for maximum speed (start with: anvil --fork-url https://mainnet.base.org)
-# For fork tests, use --fork-url http://localhost:8545 flag
-# eth_rpc_url = "${RPC_URL}"
-
-# CI/Production profile: optimized for gas efficiency (Deployment)
-# Use with: FOUNDRY_PROFILE=ci forge build
-[profile.ci]
-bytecode_hash = "none"
-evm_version = "cancun"
-ffi = true
-fs_permissions = [{access = "read-write", path = ".forge-snapshots/"}, {access = "read", path = "out/"}, {access = "read", path = "script/config/"}]
-libs = ["lib"]
+test = "test"
 out = "out"
+libs = ["lib"]
 solc_version = "0.8.26"
-src = "src"
+evm_version = "cancun"
+bytecode_hash = "none"
 optimizer = true
-optimizer_runs = 10_000    # High runs = slower compile, cheaper gas
-via_ir = true              # Slow compile, better optimization for deployment
-eth_rpc_url = "https://rpc.buildbear.io/respectable-loki-bc440256"
+optimizer_runs = 200
+via_ir = false
+ffi = true
+fs_permissions = [
+  {access = "read-write", path = ".forge-snapshots/"},
+  {access = "read", path = "out/"},
+  {access = "read", path = "script/config/"},
+]
+gas_snapshot_check = false
+dynamic_test_linking = true
 
-# RPC endpoints for forking
-[rpc_endpoints]
-base = "${BASE_RPC_URL}"
-baseSepolia = "${BASE_SEPOLIA_RPC_URL}"
-sandbox = "${RPC_URL}"
-arbitrum = "${ARBITRUM_RPC_URL}"
+[profile.default.fuzz]
+runs = 256
+seed = "0x0000000000000000000000000000000000000000000000000000000000001140"
 
-# Arbitrum fork profile
+# CI profile: thorough testing
+[profile.ci.fuzz]
+runs = 10_000
+
+# PR profile: moderate fuzz runs for pull request checks
+[profile.pr.fuzz]
+runs = 1_000
+
+# Deployment profile: optimized for gas efficiency
+# Use with: FOUNDRY_PROFILE=deploy forge build
+[profile.deploy]
+optimizer = true
+optimizer_runs = 10_000
+via_ir = true
+
+# Fork profiles
 [profile.fork-arbitrum]
 eth_rpc_url = "${ARBITRUM_RPC_URL}"
-optimizer = true
-optimizer_runs = 200
-via_ir = false
 
-# Fork testing configuration
-# Local fork profile for fast testing (recommended)
-# Use with: FOUNDRY_PROFILE=local-fork ./scripts/test-fork-fast.sh
 [profile.local-fork]
-eth_rpc_url = "${RPC_URL}"  # Defaults to http://localhost:8545 (Anvil)
-fork_block_number = 40334340  # Base mainnet block - update as needed
-# Cache fork state for faster subsequent runs
+eth_rpc_url = "${RPC_URL}"
+fork_block_number = 40334340
 no_storage_caching = false
-optimizer = true
-optimizer_runs = 200
-via_ir = false
 
 [profile.local-fork.fuzz]
 runs = 100
 
-# Remote fork profile (BuildBear sandbox)
-# Use with: FOUNDRY_PROFILE=fork forge test
 [profile.fork]
 eth_rpc_url = "${RPC_URL}"
-# Note: BuildBear sandbox is already a fork, no block_number needed
 
+# Coverage profile
 [profile.coverage]
-via_ir = true
 optimizer = true
-optimizer_runs = 1000
-bytecode_hash = "none"
-evm_version = "cancun"
-src = "src"
-test = "test"
-# Use BuildBear sandbox for fork tests in coverage
-eth_rpc_url = "${RPC_URL}"
-# Exclude script directory from coverage - it contains deployment code with complex JSON parsing
-# that causes "stack too deep" and "array copy not supported" errors without IR
+optimizer_runs = 200
+via_ir = false
 no_match_coverage = "(script/.*)"
 
+[profile.coverage.fuzz]
+runs = 50
+
+# Formatting
 [fmt]
 line_length = 120
 tab_width = 4
@@ -89,5 +73,18 @@ number_underscore = "preserve"
 single_line_statement_blocks = "preserve"
 sort_imports = false
 
+# Linting
 [lint]
-exclude = ["screaming-snake-case-immutable", "screaming-snake-case-const"]
+ignore = ["test/**/*"]
+lint_on_build = false
+
+# RPC endpoints
+[rpc_endpoints]
+base = "${BASE_RPC_URL}"
+baseSepolia = "${BASE_SEPOLIA_RPC_URL}"
+arbitrum = "${ARBITRUM_RPC_URL}"
+
+# Block explorer verification
+[etherscan]
+base = {key = "${ETHERSCAN_API_KEY_BASE}", chainId = 8453}
+arbitrum = {key = "${ETHERSCAN_API_KEY_ARBITRUM}", chainId = 42161}
