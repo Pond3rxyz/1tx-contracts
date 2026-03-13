@@ -43,6 +43,7 @@ contract CCTPBridge is Initializable, UUPSUpgradeable, OwnableUpgradeable, ICCTP
     error DestinationCallerNotConfigured(uint32 chainId);
     error MintRecipientNotConfigured(uint32 chainId);
     error DomainNotConfigured(uint32 chainId);
+    error CannotBridgeToSelf();
 
     event TokenMessengerUpdated(address indexed tokenMessenger);
     event DestinationDomainUpdated(uint32 indexed chainId, uint32 indexed cctpDomain);
@@ -135,6 +136,7 @@ contract CCTPBridge is Initializable, UUPSUpgradeable, OwnableUpgradeable, ICCTP
         if (p.sender == address(0)) revert InvalidAddress();
         if (tokenMessenger == address(0)) revert TokenMessengerNotConfigured();
         if (!configuredDomains[p.targetChain]) revert DestinationDomainNotConfigured(p.targetChain);
+        if (p.targetChain == block.chainid) revert CannotBridgeToSelf();
 
         destinationDomain = chainIdToCCTPDomain[p.targetChain];
 

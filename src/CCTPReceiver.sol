@@ -28,6 +28,7 @@ contract CCTPReceiver is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     error InvalidRecipient();
     error InvalidHookData();
     error AmountMismatch();
+    error InsufficientOutput(uint256 actual, uint256 minimum);
 
     event RouterUpdated(address indexed oldRouter, address indexed newRouter);
     event MessageTransmitterUpdated(address indexed oldTransmitter, address indexed newTransmitter);
@@ -105,15 +106,17 @@ contract CCTPReceiver is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         if (actualMinted > messageAmount) revert AmountMismatch();
         if (hookData.length == 0) return true;
-        if (hookData.length != 64) revert InvalidHookData();
+        if (hookData.length != 96) revert InvalidHookData();
 
-        (bytes32 instrumentId, address recipient) = abi.decode(hookData, (bytes32, address));
+        (bytes32 instrumentId, address recipient, uint256 minDepositedAmount) =
+            abi.decode(hookData, (bytes32, address, uint256));
 
         if (recipient == address(0)) revert InvalidRecipient();
 
         IERC20(stableToken).forceApprove(router, actualMinted);
 
         try ISwapDepositRouter(router).buyFor(instrumentId, actualMinted, recipient) returns (uint256 depositedAmount) {
+            if (depositedAmount < minDepositedAmount) revert InsufficientOutput(depositedAmount, minDepositedAmount);
             emit CrossChainBuyExecuted(instrumentId, recipient, actualMinted, depositedAmount);
         } catch (bytes memory reason) {
             IERC20(stableToken).forceApprove(router, 0);
