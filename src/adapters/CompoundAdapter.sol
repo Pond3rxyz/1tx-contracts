@@ -130,14 +130,15 @@ contract CompoundAdapter is AdapterBase {
         address tokenAddress = Currency.unwrap(config.currency);
         ICompoundV3 comet = ICompoundV3(config.yieldToken);
 
-        // Comet tokens have already been transferred to this adapter by the hook
+        // Comet tokens have already been transferred to this adapter by the hook.
+        // Use balanceOf (not amount) because Comet's interest accrual can cause
+        // slight differences. Cap to amount to avoid sweeping unrelated tokens.
         uint256 adapterBalance = comet.balanceOf(address(this));
+        uint256 withdrawAmount = adapterBalance < amount ? adapterBalance : amount;
 
-        // Withdraw underlying tokens (Comet balance will be burned)
-        comet.withdraw(tokenAddress, adapterBalance);
+        comet.withdraw(tokenAddress, withdrawAmount);
 
         // Transfer the withdrawn underlying tokens to the recipient
-        // The amount withdrawn may be slightly different from requested due to Comet exchange rate
         uint256 actualAmount = IERC20(tokenAddress).balanceOf(address(this));
         IERC20(tokenAddress).safeTransfer(to, actualAmount);
 

@@ -246,7 +246,7 @@ contract CCTPReceiverTest is Test {
     function test_redeem_success_executesBuyFor() public {
         uint256 amount = 500e6;
         bytes32 instrumentId = bytes32(uint256(42));
-        bytes memory hookData = abi.encode(instrumentId, user);
+        bytes memory hookData = abi.encode(instrumentId, user, uint256(0));
         bytes memory message = _buildMessage(amount, hookData);
 
         vm.expectEmit(true, true, false, true);
@@ -280,7 +280,7 @@ contract CCTPReceiverTest is Test {
     function test_redeem_buyForFails_sendsFundsToRecipient() public {
         uint256 amount = 200e6;
         bytes32 instrumentId = bytes32(uint256(99));
-        bytes memory hookData = abi.encode(instrumentId, user);
+        bytes memory hookData = abi.encode(instrumentId, user, uint256(0));
         bytes memory message = _buildMessage(amount, hookData);
 
         mockRouter.setShouldRevert(true);
@@ -335,7 +335,7 @@ contract CCTPReceiverTest is Test {
 
     function test_redeem_revertsOnInvalidRecipient() public {
         uint256 amount = 100e6;
-        bytes memory hookData = abi.encode(bytes32(uint256(42)), address(0));
+        bytes memory hookData = abi.encode(bytes32(uint256(42)), address(0), uint256(0));
         bytes memory message = _buildMessage(amount, hookData);
 
         vm.expectRevert(CCTPReceiver.InvalidRecipient.selector);
@@ -361,7 +361,7 @@ contract CCTPReceiverTest is Test {
 
     function test_redeem_revertsOnInvalidHookDataLength() public {
         uint256 amount = 100e6;
-        bytes memory hookData = abi.encode(bytes32(uint256(42))); // 32 bytes, not 64
+        bytes memory hookData = abi.encode(bytes32(uint256(42)), user); // 64 bytes, not 96
         bytes memory message = _buildMessage(amount, hookData);
 
         vm.expectRevert(CCTPReceiver.InvalidHookData.selector);
@@ -373,7 +373,7 @@ contract CCTPReceiverTest is Test {
     function test_redeem_callableByAnyone() public {
         uint256 amount = 100e6;
         bytes32 instrumentId = bytes32(uint256(7));
-        bytes memory hookData = abi.encode(instrumentId, user);
+        bytes memory hookData = abi.encode(instrumentId, user, uint256(0));
         bytes memory message = _buildMessage(amount, hookData);
 
         address randomCaller = makeAddr("randomCaller");

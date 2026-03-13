@@ -144,7 +144,7 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
     /// @notice Buy an instrument, bridging cross-chain if needed
     /// @param instrumentId The globally unique instrument identifier
     /// @param amount The amount of stable currency to spend
-    /// @param minDepositedAmount Minimum amount deposited into lending (slippage protection, ignored for cross-chain)
+    /// @param minDepositedAmount Minimum amount deposited into lending (slippage protection)
     /// @param fastTransfer Whether to use fast CCTP transfer (cross-chain only)
     /// @param maxFee Maximum fee for fast transfer (cross-chain only)
     /// @return depositedAmount The amount deposited (0 for cross-chain, actual amount for local)
@@ -156,7 +156,7 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
 
         uint32 targetChain = InstrumentIdLib.getInstrumentChainId(instrumentId);
         if (targetChain != _safeChainId()) {
-            _bridgeForCrossChainInstrument(instrumentId, amount, targetChain, fastTransfer, maxFee);
+            _bridgeForCrossChainInstrument(instrumentId, amount, targetChain, fastTransfer, maxFee, minDepositedAmount);
             return 0; // Cross-chain: deposit happens on destination chain
         }
 
@@ -284,7 +284,8 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
         uint256 amount,
         uint32 targetChain,
         bool fastTransfer,
-        uint256 maxFee
+        uint256 maxFee,
+        uint256 minDepositedAmount
     ) internal {
         if (cctpBridge == address(0)) revert CrossChainBridgeNotConfigured();
 
@@ -295,7 +296,7 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
         IERC20(stableToken).safeTransferFrom(msg.sender, address(this), amount);
         IERC20(stableToken).safeTransfer(cctpBridge, amount);
 
-        bytes memory hookData = abi.encode(instrumentId, msg.sender);
+        bytes memory hookData = abi.encode(instrumentId, msg.sender, minDepositedAmount);
 
         (uint32 destinationDomain, bytes32 resolvedMintRecipient, uint32 minFinalityThreshold) =
             ICCTPBridge(cctpBridge).bridge(stableToken, msg.sender, amount, targetChain, fastTransfer, maxFee, hookData);
