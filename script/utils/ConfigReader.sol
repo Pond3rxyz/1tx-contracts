@@ -97,6 +97,20 @@ struct FluidFTokens {
     address fGHO;
 }
 
+struct CCTPConfig {
+    address tokenMessenger;
+    address messageTransmitter;
+    uint32 domain;
+    CCTPDestination[] destinations;
+}
+
+struct CCTPDestination {
+    string name;
+    uint32 chainId;
+    uint32 domain;
+    address receiver;
+}
+
 struct DeployedConfig {
     address instrumentRegistry;
     address swapPoolRegistry;
@@ -104,6 +118,7 @@ struct DeployedConfig {
     address swapDepositorRouter;
     address instrumentToken;
     DeployedAdapters adapters;
+    DeployedCCTP cctp;
 }
 
 struct DeployedAdapters {
@@ -111,6 +126,11 @@ struct DeployedAdapters {
     address compound;
     address morpho;
     address fluid;
+}
+
+struct DeployedCCTP {
+    address cctpBridge;
+    address cctpReceiver;
 }
 
 abstract contract ConfigReader is Script {
@@ -147,6 +167,15 @@ abstract contract ConfigReader is Script {
         deployed.swapPoolRegistry = json.readAddress(string.concat(deployedPath, ".swapPoolRegistry"));
         deployed.swapDepositorHook = json.readAddress(string.concat(deployedPath, ".swapDepositorHook"));
         deployed.swapDepositorRouter = json.readAddress(string.concat(deployedPath, ".swapDepositorRouter"));
+
+        string memory cctpBridgePath = string.concat(deployedPath, ".cctpBridge");
+        if (vm.keyExistsJson(json, cctpBridgePath)) {
+            deployed.cctp.cctpBridge = json.readAddress(cctpBridgePath);
+        }
+        string memory cctpReceiverPath = string.concat(deployedPath, ".cctpReceiver");
+        if (vm.keyExistsJson(json, cctpReceiverPath)) {
+            deployed.cctp.cctpReceiver = json.readAddress(cctpReceiverPath);
+        }
         deployed.instrumentToken = json.readAddress(string.concat(deployedPath, ".instrumentToken"));
         deployed.adapters.aave = json.readAddress(string.concat(deployedPath, ".adapters.aave"));
         deployed.adapters.compound = json.readAddress(string.concat(deployedPath, ".adapters.compound"));
@@ -413,6 +442,35 @@ abstract contract ConfigReader is Script {
         }
     }
 
+    function getCCTPConfig(string memory networkName) internal view returns (CCTPConfig memory cctp) {
+        string memory json = vm.readFile(CONFIG_PATH);
+        string memory cctpPath = string.concat(".networks.", networkName, ".cctp");
+        if (!vm.keyExistsJson(json, cctpPath)) return cctp;
+
+        cctp.tokenMessenger = json.readAddress(string.concat(cctpPath, ".tokenMessenger"));
+        cctp.domain = uint32(json.readUint(string.concat(cctpPath, ".domain")));
+
+        string memory transmitterPath = string.concat(cctpPath, ".messageTransmitter");
+        if (vm.keyExistsJson(json, transmitterPath)) {
+            cctp.messageTransmitter = json.readAddress(transmitterPath);
+        }
+
+        string memory destPath = string.concat(cctpPath, ".destinations");
+        if (!vm.keyExistsJson(json, destPath)) return cctp;
+
+        string[] memory destKeys = vm.parseJsonKeys(json, destPath);
+        cctp.destinations = new CCTPDestination[](destKeys.length);
+        for (uint256 i = 0; i < destKeys.length; i++) {
+            string memory dp = string.concat(destPath, ".", destKeys[i]);
+            cctp.destinations[i] = CCTPDestination({
+                name: destKeys[i],
+                chainId: uint32(json.readUint(string.concat(dp, ".chainId"))),
+                domain: uint32(json.readUint(string.concat(dp, ".domain"))),
+                receiver: json.readAddress(string.concat(dp, ".receiver"))
+            });
+        }
+    }
+
     function isNetworkSupported(string memory networkName) internal view returns (bool) {
         string memory json = vm.readFile(CONFIG_PATH);
         string memory networkPath = string.concat(".networks.", networkName);
@@ -435,8 +493,6 @@ abstract contract ConfigReader is Script {
         if (chainId == 421614) return "arbitrumSepolia";
         if (chainId == 42161) return "arbitrumMainnet";
         if (chainId == 1) return "ethereum";
-        if (chainId == 31337) return "sandbox";
-
         revert("Unsupported network");
     }
 }

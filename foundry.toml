@@ -83,8 +83,11 @@ lint_on_build = false
 base = "${BASE_RPC_URL}"
 baseSepolia = "${BASE_SEPOLIA_RPC_URL}"
 arbitrum = "${ARBITRUM_RPC_URL}"
+arbitrumSepolia = "${ARBITRUM_SEPOLIA_RPC_URL}"
 
 # Block explorer verification
 [etherscan]
 base = {key = "${ETHERSCAN_API_KEY_BASE}", chainId = 8453}
+baseSepolia = {key = "${ETHERSCAN_API_KEY_BASE}", chainId = 84532}
 arbitrum = {key = "${ETHERSCAN_API_KEY_ARBITRUM}", chainId = 42161}
+arbitrumSepolia = {key = "${ETHERSCAN_API_KEY_ARBITRUM}", chainId = 421614}
