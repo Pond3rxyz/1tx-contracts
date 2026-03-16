@@ -16,12 +16,7 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {IPermit2} from "permit2/src/interfaces/IPermit2.sol";
 
 import {IUniswapV4Router04} from "hookmate/interfaces/router/IUniswapV4Router04.sol";
-import {AddressConstants} from "hookmate/constants/AddressConstants.sol";
-import {Permit2Deployer} from "hookmate/artifacts/Permit2.sol";
-import {V4PoolManagerDeployer} from "hookmate/artifacts/V4PoolManager.sol";
-import {V4PositionManagerDeployer} from "hookmate/artifacts/V4PositionManager.sol";
 import {V4RouterDeployer} from "hookmate/artifacts/V4Router.sol";
-import {IPositionManager} from "@uniswap/v4-periphery/src/interfaces/IPositionManager.sol";
 import {Constants} from "@uniswap/v4-core/test/utils/Constants.sol";
 
 import {PortfolioHook} from "../../../src/hooks/PortfolioHook.sol";
@@ -51,10 +46,9 @@ contract PortfolioHookE2EForkTest is Test {
     string internal json;
     string internal networkPath;
 
-    // Infrastructure
+    // Infrastructure (real deployed contracts on Base mainnet)
     IPermit2 public permit2;
     IPoolManager public poolManager;
-    IPositionManager public positionManager;
     IUniswapV4Router04 public swapRouter;
 
     // Portfolio contracts
@@ -116,7 +110,7 @@ contract PortfolioHookE2EForkTest is Test {
         usdc = json.readAddress(string.concat(networkPath, ".tokens.USDC"));
         usdcCurrency = Currency.wrap(usdc);
 
-        _deployV4Infrastructure();
+        _loadV4Infrastructure();
         _deployRegistries();
         _setupAdapters();
         _deployVaultAndHook();
@@ -124,17 +118,11 @@ contract PortfolioHookE2EForkTest is Test {
 
     // ============ Infrastructure Setup ============
 
-    function _deployV4Infrastructure() internal {
-        address permit2Address = AddressConstants.getPermit2Address();
-        if (permit2Address.code.length == 0) {
-            vm.etch(permit2Address, Permit2Deployer.deploy().code);
-        }
-        permit2 = IPermit2(permit2Address);
-
-        poolManager = IPoolManager(V4PoolManagerDeployer.deploy(address(0x4444)));
-        positionManager = IPositionManager(
-            V4PositionManagerDeployer.deploy(address(poolManager), address(permit2), 300_000, address(0), address(0))
-        );
+    function _loadV4Infrastructure() internal {
+        string memory v4Path = string.concat(networkPath, ".uniswapV4");
+        permit2 = IPermit2(json.readAddress(string.concat(v4Path, ".permit2")));
+        poolManager = IPoolManager(json.readAddress(string.concat(v4Path, ".poolManager")));
+        // Deploy hookmate router pointing to the real PM — the on-chain router has a different interface
         swapRouter = IUniswapV4Router04(payable(V4RouterDeployer.deploy(address(poolManager), address(permit2))));
     }
 
@@ -250,9 +238,6 @@ contract PortfolioHookE2EForkTest is Test {
         portfolioPoolId = portfolioPoolKey.toId();
 
         poolManager.initialize(portfolioPoolKey, Constants.SQRT_PRICE_1_1);
-
-        // Seed PM with USDC (in production, PM holds reserves from other pools)
-        deal(usdc, address(poolManager), 10_000_000e6);
     }
 
     modifier onlyFork() {
