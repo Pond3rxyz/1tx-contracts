@@ -137,6 +137,7 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
         _tryRegisterAaveMarketWithSwap("Aave-USDT", "USDT");
         _tryRegisterAaveMarketWithSwap("Aave-USDS", "USDS");
         _tryRegisterAaveMarketWithSwap("Aave-USDbC", "USDbC");
+        _tryRegisterAaveMarketWithSwap("Aave-EURC", "EURC");
     }
 
     function _tryRegisterAaveMarket(string memory name, address token, bool requiresSwap) internal {
