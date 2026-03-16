@@ -69,7 +69,7 @@ contract PortfolioVault is
     uint256 internal constant VIRTUAL_SHARES = 1e6;
     uint256 internal constant VIRTUAL_ASSETS = 1;
     uint16 internal constant DEFAULT_MAX_SLIPPAGE_BPS = 100; // 1%
-    uint256 internal constant DUST_THRESHOLD = 100; // skip deposits below this (avoids protocol min-amount reverts)
+    uint256 internal constant DUST_THRESHOLD = 100; // min deposit amount — Aave reverts on tiny supplies
 
     // ============ State ============
 
@@ -159,13 +159,13 @@ contract PortfolioVault is
         return Currency.unwrap(stable);
     }
 
-    /// @notice Total NAV of all underlying positions + idle stable, denominated in stable
+    /// @notice Total NAV: lending positions + any undeployed stable in vault
     function totalAssets() public view returns (uint256 totalNav) {
         totalNav = IERC20(Currency.unwrap(stable)).balanceOf(address(this));
         totalNav += _lendingPositionsValue();
     }
 
-    /// @notice Sum of all lending position values (yield tokens only, excludes idle stable)
+    /// @notice Sum of all lending position values (yield tokens only, excludes undeployed stable)
     function _lendingPositionsValue() internal view returns (uint256 value) {
         for (uint256 i = 0; i < allocations.length; i++) {
             value += _getAllocationValue(i);
@@ -234,24 +234,14 @@ contract PortfolioVault is
     }
 
     /// @notice Withdraw stable tokens from lending positions to cover a sell
-    /// @dev Uses idle stable first, then withdraws proportionally from lending (rounded up).
-    ///      Guarantees returning at least stableNeeded if sufficient NAV exists.
+    /// @dev Withdraws proportionally from lending positions using round-up division
+    ///      to guarantee the vault can cover stableNeeded. Transfers exactly stableNeeded.
     /// @param stableNeeded Exact amount of stable the hook needs for settlement
-    /// @return stableOut Actual amount of stable sent to hook (>= stableNeeded if NAV sufficient)
+    /// @return stableOut Actual amount of stable sent to hook
     function withdrawCapital(uint256 stableNeeded) external onlyHook nonReentrant returns (uint256 stableOut) {
         address stableAddr = Currency.unwrap(stable);
 
-        // Use idle stable held in vault first (e.g. excess from previous buffered withdrawals)
-        uint256 idleStable = IERC20(stableAddr).balanceOf(address(this));
-        if (idleStable >= stableNeeded) {
-            IERC20(stableAddr).safeTransfer(hook, stableNeeded);
-            emit Deallocated(stableNeeded);
-            return stableNeeded;
-        }
-
-        uint256 remaining = stableNeeded - idleStable;
-
-        // Withdraw proportionally from lending positions for the remainder
+        // Withdraw proportionally from lending positions (rounded up to avoid shortfall)
         uint256 lendingNav = _lendingPositionsValue();
         if (lendingNav > 0) {
             for (uint256 i = 0; i < allocations.length; i++) {
@@ -261,15 +251,13 @@ contract PortfolioVault is
                 address yieldToken = ILendingAdapter(adapter).getYieldToken(marketId);
 
                 uint256 yieldBalance = IERC20(yieldToken).balanceOf(address(this));
-                // Round up so withdrawal covers rounding dust
-                uint256 yieldAmount = (yieldBalance * remaining + lendingNav - 1) / lendingNav;
+                uint256 yieldAmount = (yieldBalance * stableNeeded + lendingNav - 1) / lendingNav;
                 if (yieldAmount > yieldBalance) yieldAmount = yieldBalance;
                 if (yieldAmount == 0) continue;
 
                 uint256 withdrawn =
                     LendingExecutor.withdraw(adapter, marketId, yieldToken, yieldAmount, address(this), address(this));
 
-                // Swap marketCurrency -> stable if needed
                 if (Currency.unwrap(marketCurrency) != Currency.unwrap(stable)) {
                     PoolKey memory swapPool = swapPoolRegistry.getDefaultSwapPool(marketCurrency, stable);
                     uint256 minOutput = _getMinSwapOutput(swapPool, marketCurrency, withdrawn);
@@ -282,17 +270,14 @@ contract PortfolioVault is
             }
         }
 
-        // Total output includes idle stable + lending withdrawals
-        stableOut += idleStable;
-
-        // Transfer to hook — use actual balance in case of rounding
-        uint256 toTransfer = stableOut < stableNeeded ? stableOut : stableNeeded;
-        if (toTransfer > 0) {
-            IERC20(stableAddr).safeTransfer(hook, toTransfer);
+        // Transfer exactly what's needed (vault balance covers it due to round-up)
+        uint256 available = IERC20(stableAddr).balanceOf(address(this));
+        stableOut = available < stableNeeded ? available : stableNeeded;
+        if (stableOut > 0) {
+            IERC20(stableAddr).safeTransfer(hook, stableOut);
         }
 
-        emit Deallocated(toTransfer);
-        return toTransfer;
+        emit Deallocated(stableOut);
     }
 
     /// @notice Mint shares to an address (for hook delta settlement)
@@ -327,7 +312,7 @@ contract PortfolioVault is
         if (nav == 0) return "";
 
         // First pass: withdraw from over-allocated positions, accumulate stable
-        // Start with any idle stable already in vault (e.g. from buffered withdrawal excess)
+        // Seed with any undeployed stable in vault (e.g. dust from DUST_THRESHOLD skips)
         uint256 stableAccumulated = IERC20(Currency.unwrap(stable)).balanceOf(address(this));
         for (uint256 i = 0; i < allocations.length; i++) {
             uint256 currentValue = _getAllocationValue(i);
