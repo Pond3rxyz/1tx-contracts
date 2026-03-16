@@ -148,6 +148,9 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
         _tryRegisterMorphoVault("Morpho-gauntletUSDCCore", "gauntletUSDCCore");
         _tryRegisterMorphoVault("Morpho-steakhousePrimeUSDC", "steakhousePrimeUSDC");
         _tryRegisterMorphoVault("Morpho-steakhouseHighYieldUSDC", "steakhouseHighYieldUSDC");
+        _tryRegisterMorphoVault("Morpho-yearnDegenUSDC", "yearnDegenUSDC");
+        _tryRegisterMorphoVault("Morpho-hyperithmUSDC", "hyperithmUSDC");
+        _tryRegisterMorphoVault("Morpho-clearstarUSDCReactor", "clearstarUSDCReactor");
     }
 
     function _tryRegisterMorphoVault(string memory name, string memory vaultName) internal {
