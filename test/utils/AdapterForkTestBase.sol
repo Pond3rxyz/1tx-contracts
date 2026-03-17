@@ -56,7 +56,9 @@ abstract contract AdapterForkTestBase is Test {
 
     /// @notice Get Aave pool address
     function getAavePool() internal view returns (address) {
-        return json.readAddress(string.concat(networkPath, ".protocols.aave.pool"));
+        string memory path = string.concat(networkPath, ".protocols.aave.pool");
+        if (!vm.keyExistsJson(json, path)) return address(0);
+        return json.readAddress(path);
     }
 
     /// @notice Get Compound comet address by name (usdcComet, usdbcComet, usdsComet)
@@ -104,6 +106,8 @@ abstract contract AdapterForkTestBase is Test {
             rpcEnvVar = "BASE_RPC_URL";
         } else if (networkHash == keccak256("arbitrumMainnet")) {
             rpcEnvVar = "ARBITRUM_RPC_URL";
+        } else if (networkHash == keccak256("unichainMainnet")) {
+            rpcEnvVar = "UNICHAIN_RPC_URL";
         } else {
             revert("Unsupported network for fork");
         }
