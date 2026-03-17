@@ -64,7 +64,6 @@ contract AdapterFuzzTest is Test {
         mockPool.setReserveData(address(usdc), address(aUsdc));
         usdc.mint(address(mockPool), INITIAL_BALANCE);
 
-        vm.prank(owner);
         aaveAdapter = new AaveAdapter(address(mockPool), owner);
         vm.startPrank(owner);
         aaveAdapter.registerMarket(usdcCurrency);
@@ -75,7 +74,6 @@ contract AdapterFuzzTest is Test {
         mockComet = new MockCompoundComet(address(usdc));
         usdc.mint(address(mockComet), INITIAL_BALANCE);
 
-        vm.prank(owner);
         compoundAdapter = new CompoundAdapter(owner);
         vm.startPrank(owner);
         compoundAdapter.registerMarket(usdcCurrency, address(mockComet));
@@ -86,7 +84,6 @@ contract AdapterFuzzTest is Test {
         mockMorphoVault = new MockERC4626Vault(address(usdc), "Morpho USDC", "mvUSDC");
         morphoMarketId = bytes32(uint256(uint160(address(mockMorphoVault))));
 
-        vm.prank(owner);
         morphoAdapter = new MorphoAdapter(owner);
         vm.startPrank(owner);
         morphoAdapter.registerVault(usdcCurrency, address(mockMorphoVault));
@@ -97,7 +94,6 @@ contract AdapterFuzzTest is Test {
         mockFToken = new MockERC4626Vault(address(usdc), "Fluid USDC", "fUSDC");
         fluidMarketId = bytes32(uint256(uint160(address(mockFToken))));
 
-        vm.prank(owner);
         fluidAdapter = new FluidAdapter(owner);
         vm.startPrank(owner);
         fluidAdapter.registerFToken(usdcCurrency, address(mockFToken));

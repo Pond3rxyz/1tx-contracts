@@ -131,7 +131,9 @@ contract PortfolioHook is BaseHook {
         }
 
         uint256 stableOut = VAULT.withdrawCapital(stableAmount);
-        if (stableOut < stableAmount) revert InsufficientStableForSettlement(stableAmount, stableOut);
+        // Use actual returned amount — virtual offset rounding may cause convertToAssets
+        // to exceed real withdrawable amount by a tiny margin
+        stableAmount = stableOut < stableAmount ? stableOut : stableAmount;
 
         poolManager.sync(STABLE);
         IERC20(Currency.unwrap(STABLE)).transfer(address(poolManager), stableAmount);

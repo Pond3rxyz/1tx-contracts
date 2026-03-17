@@ -33,7 +33,6 @@ contract CompoundAdapterTest is AdapterTestBase {
         usdc.mint(address(mockComet), INITIAL_BALANCE);
 
         // Deploy adapter
-        vm.prank(owner);
         adapter = new CompoundAdapter(owner);
 
         // Pre-compute market ID
@@ -82,8 +81,8 @@ contract CompoundAdapterTest is AdapterTestBase {
         vm.prank(owner);
         adapter.registerMarket(usdcCurrency, address(mockComet));
 
-        vm.prank(owner);
         vm.expectRevert(AdapterBase.MarketAlreadyRegistered.selector);
+        vm.prank(owner);
         adapter.registerMarket(usdcCurrency, address(mockComet));
     }
 
@@ -104,8 +103,8 @@ contract CompoundAdapterTest is AdapterTestBase {
     }
 
     function test_deactivateMarket_revertsIfNotActive() public {
-        vm.prank(owner);
         vm.expectRevert(AdapterBase.MarketNotActive.selector);
+        vm.prank(owner);
         adapter.deactivateMarket(usdcMarketId);
     }
 

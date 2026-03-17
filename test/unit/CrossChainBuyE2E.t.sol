@@ -176,7 +176,7 @@ contract CrossChainBuyE2ETest is Test {
             address(destinationReceiver),
             AMOUNT,
             bytes32(uint256(uint160(user))),
-            abi.encode(destinationInstrumentId, user)
+            abi.encode(destinationInstrumentId, user, uint256(0))
         );
 
         vm.prank(user);

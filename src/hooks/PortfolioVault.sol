@@ -3,13 +3,11 @@ pragma solidity ^0.8.26;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {
     ReentrancyGuardTransient
 } from "openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/utils/ReentrancyGuardTransient.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {IUnlockCallback} from "@uniswap/v4-core/src/interfaces/callback/IUnlockCallback.sol";
@@ -21,23 +19,14 @@ import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
 import {InstrumentRegistry} from "../registries/InstrumentRegistry.sol";
 import {SwapPoolRegistry} from "../registries/SwapPoolRegistry.sol";
 import {ILendingAdapter} from "../interfaces/ILendingAdapter.sol";
-import {SwapExecutor} from "../libraries/SwapExecutor.sol";
-import {LendingExecutor} from "../libraries/LendingExecutor.sol";
+import {IPortfolioStrategy} from "../interfaces/IPortfolioStrategy.sol";
 
 /// @title PortfolioVault
-/// @notice ERC-4626-like vault that holds diversified lending positions
-/// @dev Upgradeable strategy layer. Only the authorized hook can trigger capital deployment,
-///      withdrawal, and share minting. The hook settles swaps at NAV price via V4's
-///      beforeSwapReturnDelta custom curve pattern and calls these functions to deploy
-///      or withdraw capital during each swap.
-contract PortfolioVault is
-    Initializable,
-    ERC20Upgradeable,
-    OwnableUpgradeable,
-    ReentrancyGuardTransient,
-    UUPSUpgradeable,
-    IUnlockCallback
-{
+/// @notice Non-upgradeable ERC20 vault that holds diversified lending positions
+/// @dev Fund custodian + accounting layer. Strategy logic (deploy, withdraw, rebalance)
+///      is delegated to an upgradeable PortfolioStrategy contract shared across vaults.
+///      Only the authorized hook can trigger capital deployment, withdrawal, and share minting.
+contract PortfolioVault is ERC20, Ownable, ReentrancyGuardTransient, IUnlockCallback {
     using SafeERC20 for IERC20;
     using CurrencyLibrary for Currency;
     using Math for uint256;
@@ -59,6 +48,7 @@ contract PortfolioVault is
         IPoolManager poolManager;
         InstrumentRegistry instrumentRegistry;
         SwapPoolRegistry swapPoolRegistry;
+        IPortfolioStrategy strategy;
         Allocation[] allocations;
     }
 
@@ -67,23 +57,27 @@ contract PortfolioVault is
     uint16 public constant MAX_ALLOCATIONS = 10;
     uint16 public constant BPS_DENOMINATOR = 10000;
     uint256 internal constant VIRTUAL_SHARES = 1e6;
-    uint256 internal constant VIRTUAL_ASSETS = 1;
+    uint256 internal constant VIRTUAL_ASSETS = 1e6;
     uint16 internal constant DEFAULT_MAX_SLIPPAGE_BPS = 100; // 1%
-    uint256 internal constant DUST_THRESHOLD = 100; // min deposit amount — Aave reverts on tiny supplies
+
+    // ============ Immutables ============
+
+    Currency public immutable stable;
+    IPoolManager public immutable poolManager;
+    InstrumentRegistry public immutable instrumentRegistry;
+    SwapPoolRegistry public immutable swapPoolRegistry;
+    IPortfolioStrategy public immutable strategy;
 
     // ============ State ============
 
-    Currency public stable;
     Allocation[] public allocations;
-    InstrumentRegistry public instrumentRegistry;
-    SwapPoolRegistry public swapPoolRegistry;
-    IPoolManager public poolManager;
     address public hook;
     uint16 public maxSlippageBps;
 
     // ============ Errors ============
 
     error OnlyHook();
+    error OnlyStrategy();
     error CallerNotPoolManager();
     error InvalidAllocationsLength();
     error WeightsMustSumTo10000();
@@ -111,20 +105,19 @@ contract PortfolioVault is
         _;
     }
 
-    // ============ Constructor / Initializer ============
-
-    /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
-        _disableInitializers();
+    modifier onlyStrategy() {
+        if (msg.sender != address(strategy)) revert OnlyStrategy();
+        _;
     }
 
-    function initialize(InitParams calldata params) external initializer {
-        __ERC20_init(params.name, params.symbol);
-        __Ownable_init(params.initialOwner);
+    // ============ Constructor ============
+
+    constructor(InitParams memory params) ERC20(params.name, params.symbol) Ownable(params.initialOwner) {
         stable = params.stable;
         poolManager = params.poolManager;
         instrumentRegistry = params.instrumentRegistry;
         swapPoolRegistry = params.swapPoolRegistry;
+        strategy = params.strategy;
         maxSlippageBps = DEFAULT_MAX_SLIPPAGE_BPS;
         _setAllocations(params.allocations);
     }
@@ -155,6 +148,11 @@ contract PortfolioVault is
 
     // ============ ERC-4626 View Functions ============
 
+    /// @notice Share token decimals match the stable token (6 for USDC)
+    function decimals() public pure override returns (uint8) {
+        return 6;
+    }
+
     function asset() public view returns (address) {
         return Currency.unwrap(stable);
     }
@@ -162,13 +160,13 @@ contract PortfolioVault is
     /// @notice Total NAV: lending positions + any undeployed stable in vault
     function totalAssets() public view returns (uint256 totalNav) {
         totalNav = IERC20(Currency.unwrap(stable)).balanceOf(address(this));
-        totalNav += _lendingPositionsValue();
+        totalNav += lendingPositionsValue();
     }
 
     /// @notice Sum of all lending position values (yield tokens only, excludes undeployed stable)
-    function _lendingPositionsValue() internal view returns (uint256 value) {
+    function lendingPositionsValue() public view returns (uint256 value) {
         for (uint256 i = 0; i < allocations.length; i++) {
-            value += _getAllocationValue(i);
+            value += getAllocationValue(i);
         }
     }
 
@@ -204,73 +202,25 @@ contract PortfolioVault is
 
     // ============ Hook-Only Functions ============
 
-    /// @notice Deploy stable tokens to lending positions according to allocation weights
+    /// @notice Deploy stable tokens to lending positions via strategy
     /// @dev Called by hook in beforeSwap NAV settlement to deploy USDC received from a buy swap.
     ///      Vault must already hold the stableAmount (hook takes from PM to vault).
     /// @param stableAmount Amount of stable to deploy across lending positions
     function deployCapital(uint256 stableAmount) external onlyHook nonReentrant {
-        for (uint256 i = 0; i < allocations.length; i++) {
-            uint256 amount = (stableAmount * allocations[i].weightBps) / BPS_DENOMINATOR;
-            if (amount < DUST_THRESHOLD) continue;
-
-            (address adapter, bytes32 marketId) = instrumentRegistry.getInstrumentDirect(allocations[i].instrumentId);
-            Currency marketCurrency = ILendingAdapter(adapter).getMarketCurrency(marketId);
-
-            uint256 depositAmount = amount;
-
-            // Swap stable -> marketCurrency if needed
-            if (Currency.unwrap(stable) != Currency.unwrap(marketCurrency)) {
-                PoolKey memory swapPool = swapPoolRegistry.getDefaultSwapPool(stable, marketCurrency);
-                uint256 minOutput = _getMinSwapOutput(swapPool, stable, amount);
-                depositAmount =
-                    SwapExecutor.executeSwap(poolManager, swapPool, stable, marketCurrency, amount, minOutput);
-            }
-
-            // Deposit into lending protocol — yield tokens stay in this vault
-            LendingExecutor.deposit(adapter, marketId, marketCurrency, depositAmount, address(this));
-        }
-
+        IERC20(Currency.unwrap(stable)).safeTransfer(address(strategy), stableAmount);
+        strategy.executeDeployCapital(stableAmount);
         emit Allocated(stableAmount);
     }
 
-    /// @notice Withdraw stable tokens from lending positions to cover a sell
-    /// @dev Withdraws proportionally from lending positions using round-up division
-    ///      to guarantee the vault can cover stableNeeded. Transfers exactly stableNeeded.
+    /// @notice Withdraw stable tokens from lending positions via strategy
+    /// @dev Strategy withdraws from lending and sends stables back to vault.
+    ///      Vault then transfers exactly stableNeeded to the hook.
     /// @param stableNeeded Exact amount of stable the hook needs for settlement
     /// @return stableOut Actual amount of stable sent to hook
     function withdrawCapital(uint256 stableNeeded) external onlyHook nonReentrant returns (uint256 stableOut) {
+        strategy.executeWithdrawCapital(stableNeeded);
+
         address stableAddr = Currency.unwrap(stable);
-
-        // Withdraw proportionally from lending positions (rounded up to avoid shortfall)
-        uint256 lendingNav = _lendingPositionsValue();
-        if (lendingNav > 0) {
-            for (uint256 i = 0; i < allocations.length; i++) {
-                (address adapter, bytes32 marketId) =
-                    instrumentRegistry.getInstrumentDirect(allocations[i].instrumentId);
-                Currency marketCurrency = ILendingAdapter(adapter).getMarketCurrency(marketId);
-                address yieldToken = ILendingAdapter(adapter).getYieldToken(marketId);
-
-                uint256 yieldBalance = IERC20(yieldToken).balanceOf(address(this));
-                uint256 yieldAmount = (yieldBalance * stableNeeded + lendingNav - 1) / lendingNav;
-                if (yieldAmount > yieldBalance) yieldAmount = yieldBalance;
-                if (yieldAmount == 0) continue;
-
-                uint256 withdrawn =
-                    LendingExecutor.withdraw(adapter, marketId, yieldToken, yieldAmount, address(this), address(this));
-
-                if (Currency.unwrap(marketCurrency) != Currency.unwrap(stable)) {
-                    PoolKey memory swapPool = swapPoolRegistry.getDefaultSwapPool(marketCurrency, stable);
-                    uint256 minOutput = _getMinSwapOutput(swapPool, marketCurrency, withdrawn);
-                    withdrawn = SwapExecutor.executeSwap(
-                        poolManager, swapPool, marketCurrency, stable, withdrawn, minOutput
-                    );
-                }
-
-                stableOut += withdrawn;
-            }
-        }
-
-        // Transfer exactly what's needed (vault balance covers it due to round-up)
         uint256 available = IERC20(stableAddr).balanceOf(address(this));
         stableOut = available < stableNeeded ? available : stableNeeded;
         if (stableOut > 0) {
@@ -291,6 +241,14 @@ contract PortfolioVault is
         emit SharesBurned(from, amount);
     }
 
+    // ============ Strategy Callback ============
+
+    /// @notice Transfer tokens from vault to a destination (only callable by strategy)
+    /// @dev Used by strategy to pull yield tokens during withdraw/rebalance operations
+    function strategyTransfer(address token, address to, uint256 amount) external onlyStrategy {
+        IERC20(token).safeTransfer(to, amount);
+    }
+
     // ============ Admin Functions ============
 
     /// @notice Set portfolio allocation weights
@@ -307,72 +265,7 @@ contract PortfolioVault is
 
     function unlockCallback(bytes calldata) external returns (bytes memory) {
         if (msg.sender != address(poolManager)) revert CallerNotPoolManager();
-
-        uint256 nav = totalAssets();
-        if (nav == 0) return "";
-
-        // First pass: withdraw from over-allocated positions, accumulate stable
-        // Seed with any undeployed stable in vault (e.g. dust from DUST_THRESHOLD skips)
-        uint256 stableAccumulated = IERC20(Currency.unwrap(stable)).balanceOf(address(this));
-        for (uint256 i = 0; i < allocations.length; i++) {
-            uint256 currentValue = _getAllocationValue(i);
-            uint256 targetValue = (nav * allocations[i].weightBps) / BPS_DENOMINATOR;
-
-            if (currentValue > targetValue) {
-                uint256 excess = currentValue - targetValue;
-                (address adapter, bytes32 marketId) =
-                    instrumentRegistry.getInstrumentDirect(allocations[i].instrumentId);
-                Currency marketCurrency = ILendingAdapter(adapter).getMarketCurrency(marketId);
-                address yieldToken = ILendingAdapter(adapter).getYieldToken(marketId);
-
-                uint256 yieldBalance = IERC20(yieldToken).balanceOf(address(this));
-                uint256 allocationValue = currentValue;
-                uint256 yieldToWithdraw = allocationValue > 0 ? (yieldBalance * excess) / allocationValue : 0;
-                if (yieldToWithdraw == 0) continue;
-
-                uint256 withdrawn = LendingExecutor.withdraw(
-                    adapter, marketId, yieldToken, yieldToWithdraw, address(this), address(this)
-                );
-
-                if (Currency.unwrap(marketCurrency) != Currency.unwrap(stable)) {
-                    PoolKey memory swapPool = swapPoolRegistry.getDefaultSwapPool(marketCurrency, stable);
-                    uint256 minOutput = _getMinSwapOutput(swapPool, marketCurrency, withdrawn);
-                    withdrawn =
-                        SwapExecutor.executeSwap(poolManager, swapPool, marketCurrency, stable, withdrawn, minOutput);
-                }
-
-                stableAccumulated += withdrawn;
-            }
-        }
-
-        // Second pass: deposit into under-allocated positions
-        for (uint256 i = 0; i < allocations.length; i++) {
-            uint256 currentValue = _getAllocationValue(i);
-            uint256 targetValue = (nav * allocations[i].weightBps) / BPS_DENOMINATOR;
-
-            if (currentValue < targetValue) {
-                uint256 deficit = targetValue - currentValue;
-                uint256 depositAmount = deficit < stableAccumulated ? deficit : stableAccumulated;
-                if (depositAmount < DUST_THRESHOLD) continue;
-
-                (address adapter, bytes32 marketId) =
-                    instrumentRegistry.getInstrumentDirect(allocations[i].instrumentId);
-                Currency marketCurrency = ILendingAdapter(adapter).getMarketCurrency(marketId);
-
-                uint256 actualDeposit = depositAmount;
-                if (Currency.unwrap(stable) != Currency.unwrap(marketCurrency)) {
-                    PoolKey memory swapPool = swapPoolRegistry.getDefaultSwapPool(stable, marketCurrency);
-                    uint256 minOutput = _getMinSwapOutput(swapPool, stable, depositAmount);
-                    actualDeposit = SwapExecutor.executeSwap(
-                        poolManager, swapPool, stable, marketCurrency, depositAmount, minOutput
-                    );
-                }
-
-                LendingExecutor.deposit(adapter, marketId, marketCurrency, actualDeposit, address(this));
-                stableAccumulated -= depositAmount;
-            }
-        }
-
+        strategy.executeRebalance();
         emit Rebalanced();
         return "";
     }
@@ -387,9 +280,21 @@ contract PortfolioVault is
         return allocations.length;
     }
 
+    /// @notice Get the value of a single allocation in stable terms
+    function getAllocationValue(uint256 index) public view returns (uint256) {
+        (address adapter, bytes32 marketId) = instrumentRegistry.getInstrumentDirect(allocations[index].instrumentId);
+        address yieldToken = ILendingAdapter(adapter).getYieldToken(marketId);
+        uint256 yieldBalance = IERC20(yieldToken).balanceOf(address(this));
+        if (yieldBalance == 0) return 0;
+
+        uint256 underlyingValue = ILendingAdapter(adapter).convertToUnderlying(marketId, yieldBalance);
+        Currency marketCurrency = ILendingAdapter(adapter).getMarketCurrency(marketId);
+        return _convertToStable(marketCurrency, underlyingValue);
+    }
+
     // ============ Internal ============
 
-    function _setAllocations(Allocation[] calldata newAllocations) internal {
+    function _setAllocations(Allocation[] memory newAllocations) internal {
         if (newAllocations.length == 0) revert InvalidAllocationsLength();
         if (newAllocations.length > MAX_ALLOCATIONS) revert TooManyAllocations();
 
@@ -418,18 +323,6 @@ contract PortfolioVault is
         return pmBalance >= supply ? 0 : supply - pmBalance;
     }
 
-    /// @notice Get the value of a single allocation in stable terms
-    function _getAllocationValue(uint256 index) internal view returns (uint256) {
-        (address adapter, bytes32 marketId) = instrumentRegistry.getInstrumentDirect(allocations[index].instrumentId);
-        address yieldToken = ILendingAdapter(adapter).getYieldToken(marketId);
-        uint256 yieldBalance = IERC20(yieldToken).balanceOf(address(this));
-        if (yieldBalance == 0) return 0;
-
-        uint256 underlyingValue = ILendingAdapter(adapter).convertToUnderlying(marketId, yieldBalance);
-        Currency marketCurrency = ILendingAdapter(adapter).getMarketCurrency(marketId);
-        return _convertToStable(marketCurrency, underlyingValue);
-    }
-
     /// @notice Convert an amount denominated in marketCurrency to stable terms using pool spot price
     /// @dev Uses Uniswap V4 pool's sqrtPriceX96 for conversion. No-op if currencies match.
     function _convertToStable(Currency marketCurrency, uint256 amount) internal view returns (uint256) {
@@ -453,36 +346,4 @@ contract PortfolioVault is
             return Math.mulDiv(Math.mulDiv(amount, sqrtPriceX96, 2 ** 96), sqrtPriceX96, 2 ** 96);
         }
     }
-
-    /// @notice Compute minimum acceptable output for a swap based on pool spot price and slippage tolerance
-    function _getMinSwapOutput(PoolKey memory swapPool, Currency inputCurrency, uint256 inputAmount)
-        internal
-        view
-        returns (uint256)
-    {
-        if (maxSlippageBps == 0) return 0;
-
-        PoolId poolId = swapPool.toId();
-        (uint160 sqrtPriceX96,,,) = poolManager.getSlot0(poolId);
-
-        bool zeroForOne = Currency.unwrap(swapPool.currency0) == Currency.unwrap(inputCurrency);
-        uint256 expectedOutput;
-        if (zeroForOne) {
-            // Selling token0 for token1: output = input * price
-            expectedOutput = Math.mulDiv(Math.mulDiv(inputAmount, sqrtPriceX96, 2 ** 96), sqrtPriceX96, 2 ** 96);
-        } else {
-            // Selling token1 for token0: output = input / price
-            expectedOutput = Math.mulDiv(Math.mulDiv(inputAmount, 2 ** 96, sqrtPriceX96), 2 ** 96, sqrtPriceX96);
-        }
-        return (expectedOutput * (BPS_DENOMINATOR - maxSlippageBps)) / BPS_DENOMINATOR;
-    }
-
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
-
-    // ============ Storage Gap ============
-    // Direct state variables: stable, allocations, instrumentRegistry, swapPoolRegistry, poolManager, hook, maxSlippageBps = 7
-    // ReentrancyGuardTransient uses transient storage (no slot here).
-    // Gap: 50 - 7 = 43. Verify with: forge inspect PortfolioVault storage-layout
-
-    uint256[43] private __gap;
 }

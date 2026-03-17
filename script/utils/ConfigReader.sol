@@ -47,6 +47,7 @@ struct ProtocolConfig {
     MorphoConfig morpho;
     CompoundConfig compound;
     FluidConfig fluid;
+    EulerEarnConfig eulerEarn;
 }
 
 struct AaveConfig {
@@ -97,6 +98,14 @@ struct FluidFTokens {
     address fGHO;
 }
 
+struct EulerEarnConfig {
+    EulerEarnVaults vaults;
+}
+
+struct EulerEarnVaults {
+    address eeUSDC;
+}
+
 struct CCTPConfig {
     address tokenMessenger;
     address messageTransmitter;
@@ -126,6 +135,7 @@ struct DeployedAdapters {
     address compound;
     address morpho;
     address fluid;
+    address euler;
 }
 
 struct DeployedCCTP {
@@ -181,6 +191,11 @@ abstract contract ConfigReader is Script {
         deployed.adapters.compound = json.readAddress(string.concat(deployedPath, ".adapters.compound"));
         deployed.adapters.morpho = json.readAddress(string.concat(deployedPath, ".adapters.morpho"));
         deployed.adapters.fluid = json.readAddress(string.concat(deployedPath, ".adapters.fluid"));
+
+        string memory eulerPath = string.concat(deployedPath, ".adapters.euler");
+        if (vm.keyExistsJson(json, eulerPath)) {
+            deployed.adapters.euler = json.readAddress(eulerPath);
+        }
     }
 
     function _readUniswapV4Config(string memory json, string memory networkPath)
@@ -261,6 +276,9 @@ abstract contract ConfigReader is Script {
 
         // Optional Fluid config
         protocols.fluid = _readFluidConfig(json, networkPath);
+
+        // Optional EulerEarn config
+        protocols.eulerEarn = _readEulerEarnConfig(json, networkPath);
     }
 
     function _readMorphoConfig(string memory json, string memory networkPath)
@@ -386,6 +404,22 @@ abstract contract ConfigReader is Script {
         string memory fGHOPath = string.concat(networkPath, ".protocols.fluid.fTokens.fGHO");
         if (vm.keyExistsJson(json, fGHOPath)) {
             fluid.fTokens.fGHO = json.readAddress(fGHOPath);
+        }
+    }
+
+    function _readEulerEarnConfig(string memory json, string memory networkPath)
+        private
+        view
+        returns (EulerEarnConfig memory eulerEarn)
+    {
+        string memory vaultsPath = string.concat(networkPath, ".protocols.eulerEarn.vaults");
+        if (!vm.keyExistsJson(json, vaultsPath)) {
+            return eulerEarn;
+        }
+
+        string memory eeUSDCPath = string.concat(vaultsPath, ".eeUSDC");
+        if (vm.keyExistsJson(json, eeUSDCPath)) {
+            eulerEarn.vaults.eeUSDC = json.readAddress(eeUSDCPath);
         }
     }
 

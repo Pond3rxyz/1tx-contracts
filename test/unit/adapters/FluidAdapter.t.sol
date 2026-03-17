@@ -30,7 +30,6 @@ contract FluidAdapterTest is AdapterTestBase {
         mockFToken = new MockERC4626Vault(address(usdc), "Fluid USDC", "fUSDC");
 
         // Deploy adapter
-        vm.prank(owner);
         adapter = new FluidAdapter(owner);
 
         // Pre-compute market ID (fToken address based)
@@ -79,8 +78,8 @@ contract FluidAdapterTest is AdapterTestBase {
         // Create fToken for USDT but try to register with USDC currency
         MockERC4626Vault usdtFToken = new MockERC4626Vault(address(usdt), "Fluid USDT", "fUSDT");
 
-        vm.prank(owner);
         vm.expectRevert(AdapterBase.AssetMismatch.selector);
+        vm.prank(owner);
         adapter.registerFToken(usdcCurrency, address(usdtFToken));
     }
 
@@ -88,8 +87,8 @@ contract FluidAdapterTest is AdapterTestBase {
         vm.prank(owner);
         adapter.registerFToken(usdcCurrency, address(mockFToken));
 
-        vm.prank(owner);
         vm.expectRevert(AdapterBase.MarketAlreadyRegistered.selector);
+        vm.prank(owner);
         adapter.registerFToken(usdcCurrency, address(mockFToken));
     }
 
@@ -141,8 +140,8 @@ contract FluidAdapterTest is AdapterTestBase {
     }
 
     function test_deactivateMarket_revertsIfNotActive() public {
-        vm.prank(owner);
         vm.expectRevert(AdapterBase.MarketNotActive.selector);
+        vm.prank(owner);
         adapter.deactivateMarket(fTokenMarketId);
     }
 
