@@ -217,7 +217,8 @@ contract Deploy is ConfigReader {
             || config.protocols.morpho.vaults.hyperithmUSDC != address(0)
             || config.protocols.morpho.vaults.clearstarUSDCReactor != address(0)
             || config.protocols.morpho.vaults.gauntletUSDCCore != address(0)
-            || config.protocols.morpho.vaults.steakhouseHighYieldUSDC != address(0);
+            || config.protocols.morpho.vaults.steakhouseHighYieldUSDC != address(0)
+            || config.protocols.morpho.vaults.gauntletUSDCC != address(0);
 
         if (!hasVaults) return;
 
@@ -346,6 +347,9 @@ contract Deploy is ConfigReader {
         _registerMorphoVault(
             "Steakhouse High Yield USDC", config.tokens.USDC, config.protocols.morpho.vaults.steakhouseHighYieldUSDC
         );
+
+        // Unichain vaults
+        _registerMorphoVault("Gauntlet USDC-C", config.tokens.USDC, config.protocols.morpho.vaults.gauntletUSDCC);
     }
 
     function _registerMorphoVault(string memory name, address asset, address vault) internal {

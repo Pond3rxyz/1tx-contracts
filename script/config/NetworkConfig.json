@@ -131,6 +131,11 @@
                         "chainId": 42161,
                         "domain": 3,
                         "receiver": "0xFCc3e94Eb1A6942a462Be9ADB657076AcD8954cB"
+                    },
+                    "unichain": {
+                        "chainId": 130,
+                        "domain": 10,
+                        "receiver": "0xD0043081c45E50F2F35260bd4c2E006F6854F510"
                     }
                 }
             }
@@ -225,6 +230,11 @@
                         "chainId": 8453,
                         "domain": 6,
                         "receiver": "0xAA4a2CFd29734dA2041a56A716e408F1A610f85E"
+                    },
+                    "unichain": {
+                        "chainId": 130,
+                        "domain": 10,
+                        "receiver": "0xD0043081c45E50F2F35260bd4c2E006F6854F510"
                     }
                 }
             }
@@ -273,6 +283,69 @@
                         "chainId": 421614,
                         "domain": 3,
                         "receiver": "0xd8f3fe8658Beca9dB7CB78B06beC3d92C7e3cBAa"
+                    }
+                }
+            }
+        },
+        "unichainMainnet": {
+            "chainId": 130,
+            "explorer": "https://uniscan.xyz",
+            "uniswapV4": {
+                "poolManager": "0x1f98400000000000000000000000000000000004",
+                "positionManager": "0x4529a01c7a0410167c5740c487a8de60232617bf",
+                "swapRouter": "0xef740bf23acae26f6492b10de645d6b98dc8eaf3",
+                "create2Deployer": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+                "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            },
+            "tokens": {
+                "USDC": "0x078D782b760474a361dDA0AF3839290b0EF57AD6"
+            },
+            "protocols": {
+                "morpho": {
+                    "vaults": {
+                        "gauntletUSDCC": "0x38f4f3B6533de0023b9DCd04b02F93d36ad1F9f9"
+                    }
+                },
+                "eulerEarn": {
+                    "vaults": {
+                        "eeUSDC": "0x6eAe95ee783e4D862867C4e0E4c3f4B95AA682Ba"
+                    }
+                }
+            },
+            "swapPools": [],
+            "deployed": {
+                "instrumentRegistry": "0x94CC7106f7741FA2d374Ca7b808645fF43b6d2a3",
+                "swapPoolRegistry": "0xe6C6e82970b5f320B8E3a97fA1aDa5e06fb168b4",
+                "swapDepositorHook": "0x0000000000000000000000000000000000000000",
+                "swapDepositorRouter": "0xde80Ed3CeBdbf688fE12792BDC5d16f4401cC4f2",
+                "instrumentToken": "0x0000000000000000000000000000000000000000",
+                "adapters": {
+                    "aave": "0x0000000000000000000000000000000000000000",
+                    "compound": "0x0000000000000000000000000000000000000000",
+                    "morpho": "0xBACC8882E2a9f5a67570E1BC10d87062dB68dfDd",
+                    "euler": "0x24fe3D7a9aAdD40033F0C19Ad10D1dF2ea6F7c1B",
+                    "fluid": "0x0000000000000000000000000000000000000000"
+                },
+                "cctpBridge": "0xAdE2f30c17821e26f58922abcB28bC8E1C7b7E0e",
+                "cctpReceiver": "0xD0043081c45E50F2F35260bd4c2E006F6854F510",
+                "portfolioStrategy": "0xdD154cc48CC81D074630A695F8651762d05e4103",
+                "portfolioFactory": "0x6F29586cAE2Eb38fE8b77f6FdaF15e2c532C44a5",
+                "portfolioFactoryHelper": "0x3E79DdA2971633c69563976f1F3fd8F04CeC26d3"
+            },
+            "cctp": {
+                "tokenMessenger": "0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d",
+                "messageTransmitter": "0x81D40F21F12A8F0E3252Bccb954D722d4c464B64",
+                "domain": 10,
+                "destinations": {
+                    "base": {
+                        "chainId": 8453,
+                        "domain": 6,
+                        "receiver": "0xAA4a2CFd29734dA2041a56A716e408F1A610f85E"
+                    },
+                    "arbitrum": {
+                        "chainId": 42161,
+                        "domain": 3,
+                        "receiver": "0xFCc3e94Eb1A6942a462Be9ADB657076AcD8954cB"
                     }
                 }
             }

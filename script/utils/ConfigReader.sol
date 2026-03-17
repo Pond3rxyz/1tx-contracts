@@ -69,6 +69,8 @@ struct MorphoVaults {
     address mevFrontierUSDC;
     // Arbitrum vaults
     address clearstarHighYieldUSDC;
+    // Unichain vaults
+    address gauntletUSDCC;
     address kpkUSDCYield;
     address yearnDegenUSDC;
     address hyperithmUSDC;
@@ -253,7 +255,10 @@ abstract contract ConfigReader is Script {
             tokens.eUSD = json.readAddress(eusdPath);
         }
 
-        tokens.WETH = json.readAddress(string.concat(networkPath, ".tokens.WETH"));
+        string memory wethPath = string.concat(networkPath, ".tokens.WETH");
+        if (vm.keyExistsJson(json, wethPath)) {
+            tokens.WETH = json.readAddress(wethPath);
+        }
 
         string memory cbBTCPath = string.concat(networkPath, ".tokens.cbBTC");
         if (vm.keyExistsJson(json, cbBTCPath)) {
@@ -266,7 +271,10 @@ abstract contract ConfigReader is Script {
         view
         returns (ProtocolConfig memory protocols)
     {
-        protocols.aave.pool = json.readAddress(string.concat(networkPath, ".protocols.aave.pool"));
+        string memory aavePoolPath = string.concat(networkPath, ".protocols.aave.pool");
+        if (vm.keyExistsJson(json, aavePoolPath)) {
+            protocols.aave.pool = json.readAddress(aavePoolPath);
+        }
 
         // Optional Morpho config
         protocols.morpho = _readMorphoConfig(json, networkPath);
@@ -308,6 +316,9 @@ abstract contract ConfigReader is Script {
         morpho.vaults.clearstarUSDCReactor = _readVaultAddress(json, vaultsPath, ".clearstarUSDCReactor");
         morpho.vaults.gauntletUSDCCore = _readVaultAddress(json, vaultsPath, ".gauntletUSDCCore");
         morpho.vaults.steakhouseHighYieldUSDC = _readVaultAddress(json, vaultsPath, ".steakhouseHighYieldUSDC");
+
+        // Read Unichain vaults
+        morpho.vaults.gauntletUSDCC = _readVaultAddress(json, vaultsPath, ".gauntletUSDCC");
     }
 
     /// @notice Helper to read a vault address if it exists
@@ -527,6 +538,7 @@ abstract contract ConfigReader is Script {
         if (chainId == 421614) return "arbitrumSepolia";
         if (chainId == 42161) return "arbitrumMainnet";
         if (chainId == 1) return "ethereum";
+        if (chainId == 130) return "unichainMainnet";
         revert("Unsupported network");
     }
 }
