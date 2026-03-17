@@ -38,7 +38,6 @@ contract AaveAdapterTest is AdapterTestBase {
         usdc.mint(address(mockPool), INITIAL_BALANCE);
 
         // Deploy adapter
-        vm.prank(owner);
         adapter = new AaveAdapter(address(mockPool), owner);
 
         // Pre-compute market ID
@@ -56,7 +55,6 @@ contract AaveAdapterTest is AdapterTestBase {
     }
 
     function test_constructor_revertsOnZeroPoolAddress() public {
-        vm.prank(owner);
         vm.expectRevert(AaveAdapter.InvalidPoolAddress.selector);
         new AaveAdapter(address(0), owner);
     }
@@ -92,8 +90,8 @@ contract AaveAdapterTest is AdapterTestBase {
         MockERC20 unknownToken = new MockERC20("Unknown", "UNK", 18);
         Currency unknownCurrency = Currency.wrap(address(unknownToken));
 
-        vm.prank(owner);
         vm.expectRevert(AaveAdapter.ReserveNotFound.selector);
+        vm.prank(owner);
         adapter.registerMarket(unknownCurrency);
     }
 
@@ -101,8 +99,8 @@ contract AaveAdapterTest is AdapterTestBase {
         vm.prank(owner);
         adapter.registerMarket(usdcCurrency);
 
-        vm.prank(owner);
         vm.expectRevert(AdapterBase.MarketAlreadyRegistered.selector);
+        vm.prank(owner);
         adapter.registerMarket(usdcCurrency);
     }
 
@@ -123,8 +121,8 @@ contract AaveAdapterTest is AdapterTestBase {
     }
 
     function test_deactivateMarket_revertsIfNotActive() public {
-        vm.prank(owner);
         vm.expectRevert(AdapterBase.MarketNotActive.selector);
+        vm.prank(owner);
         adapter.deactivateMarket(usdcMarketId);
     }
 

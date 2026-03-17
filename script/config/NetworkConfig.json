@@ -104,17 +104,23 @@
                 }
             ],
             "deployed": {
-                "instrumentRegistry": "0xFcB232D8E47556aeA7eEd9c1F3081A8Dc9ECbd33",
-                "swapPoolRegistry": "0x336E67c1B2BCBFadB0aa5a0C5969c8034B7c0Bb2",
-                "swapDepositorHook": "0x49424aD02722A38F74E5F1a84c91e7072122cA88",
-                "swapDepositorRouter": "0x0a5f1906f77b39A9eDFB4d3AA7542C31A257dbd7",
-                "instrumentToken": "0x1b5E87CC35B06804B0c68f73F4D9edced83f93b4",
+                "instrumentRegistry": "0x94CC7106f7741FA2d374Ca7b808645fF43b6d2a3",
+                "swapPoolRegistry": "0xe6C6e82970b5f320B8E3a97fA1aDa5e06fb168b4",
+                "swapDepositorHook": "0x0000000000000000000000000000000000000000",
+                "swapDepositorRouter": "0xbFdd5bEdC0cB9B8795A93C2a1fB634012C8F99bC",
+                "instrumentToken": "0x0000000000000000000000000000000000000000",
                 "adapters": {
-                    "aave": "0x6c6c74Fb37f6cCF8BFa210FA5B03c21B5EC1C292",
-                    "compound": "0xD7928616b541003f7f5c07CC21e8b38d106C9E3A",
-                    "morpho": "0x9ec026F444D0D54CACe77B706fddf2c4Dd454adb",
-                    "fluid": "0x113c0e55Fa376D29a412eDC5C7641EAdcE7bA059"
-                }
+                    "aave": "0xBACC8882E2a9f5a67570E1BC10d87062dB68dfDd",
+                    "compound": "0x24fe3D7a9aAdD40033F0C19Ad10D1dF2ea6F7c1B",
+                    "morpho": "0x12A41B400ca8f81FD09DCcf83Be4632e681Ed2B5",
+                    "euler": "0x873C9fFCc888622EF322746F653Bce12450E0Fd8",
+                    "fluid": "0x5fD5b1EF0a8FE892e5bdBFbd35CeEc7B3B950372"
+                },
+                "cctpBridge": "0x76332AE6F24597cf37d38E5deB9f2f4172003E64",
+                "cctpReceiver": "0xAA4a2CFd29734dA2041a56A716e408F1A610f85E",
+                "portfolioStrategy": "0x51A0971b514ab02c7F03A03e8831f1f1552dc30E",
+                "portfolioFactory": "0x90CA0f74342a6399E3469a53373627a26dB3f368",
+                "portfolioFactoryHelper": "0x9bbF8d3C4057E9516C9c8AD3EB049e667AaddE09"
             },
             "cctp": {
                 "tokenMessenger": "0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d",
@@ -124,7 +130,7 @@
                     "arbitrum": {
                         "chainId": 42161,
                         "domain": 3,
-                        "receiver": "0x785063c43Fa8989fa25eE59f3e5F50ce7b6Bf94c"
+                        "receiver": "0xFCc3e94Eb1A6942a462Be9ADB657076AcD8954cB"
                     }
                 }
             }
@@ -191,6 +197,25 @@
                     "hooks": "0x0000000000000000000000000000000000000000"
                 }
             ],
+            "deployed": {
+                "instrumentRegistry": "0x6d116ad5571BC8F2fd3839Fb18c351F58eaBdd97",
+                "swapPoolRegistry": "0x0744B56Bdf1e1F56FF4ed764F9b0787f4de44bAE",
+                "swapDepositorHook": "0x0000000000000000000000000000000000000000",
+                "swapDepositorRouter": "0xC46C6b9260F3BD3735637AaEd4fBD1B1dE6D84AE",
+                "instrumentToken": "0x0000000000000000000000000000000000000000",
+                "adapters": {
+                    "aave": "0xA734BdbBde76B8de92F2955c44583b1A851BA892",
+                    "compound": "0x0000000000000000000000000000000000000000",
+                    "morpho": "0x61040AdE942611008c9Bc4da89735bE536eafFCe",
+                    "euler": "0x2173c2E7A5DEb830392f4809c69577031eb757A0",
+                    "fluid": "0x0000000000000000000000000000000000000000"
+                },
+                "cctpBridge": "0x29DD1294052D317b6F142be2d4e7E9d9Eb178431",
+                "cctpReceiver": "0xFCc3e94Eb1A6942a462Be9ADB657076AcD8954cB",
+                "portfolioStrategy": "0x66dC3F5f87493a9F568bD3314625F79dbd242fbA",
+                "portfolioFactory": "0xAeb653cEEC02bdAEDcD732e123580bEcB53f4F58",
+                "portfolioFactoryHelper": "0xA27bCc651497DEdd0835C0A5aC2FD4275a5f498b"
+            },
             "cctp": {
                 "tokenMessenger": "0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d",
                 "messageTransmitter": "0x81D40F21F12A8F0E3252Bccb954D722d4c464B64",
@@ -199,7 +224,7 @@
                     "base": {
                         "chainId": 8453,
                         "domain": 6,
-                        "receiver": "0x7EDcB3cC46140927D0441F0c4e48580AfB98fe75"
+                        "receiver": "0xAA4a2CFd29734dA2041a56A716e408F1A610f85E"
                     }
                 }
             }

@@ -30,7 +30,6 @@ contract MorphoAdapterTest is AdapterTestBase {
         mockVault = new MockERC4626Vault(address(usdc), "Morpho USDC Vault", "mvUSDC");
 
         // Deploy adapter
-        vm.prank(owner);
         adapter = new MorphoAdapter(owner);
 
         // Pre-compute market ID (vault address based)
@@ -79,8 +78,8 @@ contract MorphoAdapterTest is AdapterTestBase {
         // Create vault for USDT but try to register with USDC currency
         MockERC4626Vault usdtVault = new MockERC4626Vault(address(usdt), "Morpho USDT Vault", "mvUSDT");
 
-        vm.prank(owner);
         vm.expectRevert(AdapterBase.AssetMismatch.selector);
+        vm.prank(owner);
         adapter.registerVault(usdcCurrency, address(usdtVault));
     }
 
@@ -88,8 +87,8 @@ contract MorphoAdapterTest is AdapterTestBase {
         vm.prank(owner);
         adapter.registerVault(usdcCurrency, address(mockVault));
 
-        vm.prank(owner);
         vm.expectRevert(AdapterBase.MarketAlreadyRegistered.selector);
+        vm.prank(owner);
         adapter.registerVault(usdcCurrency, address(mockVault));
     }
 
@@ -141,8 +140,8 @@ contract MorphoAdapterTest is AdapterTestBase {
     }
 
     function test_deactivateMarket_revertsIfNotActive() public {
-        vm.prank(owner);
         vm.expectRevert(AdapterBase.MarketNotActive.selector);
+        vm.prank(owner);
         adapter.deactivateMarket(vaultMarketId);
     }
 

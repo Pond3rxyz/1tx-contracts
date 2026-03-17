@@ -7,10 +7,12 @@ import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {PortfolioVault} from "../../../src/hooks/PortfolioVault.sol";
+import {PortfolioStrategy} from "../../../src/hooks/PortfolioStrategy.sol";
+import {IPortfolioStrategy} from "../../../src/interfaces/IPortfolioStrategy.sol";
 import {InstrumentRegistry} from "../../../src/registries/InstrumentRegistry.sol";
 import {SwapPoolRegistry} from "../../../src/registries/SwapPoolRegistry.sol";
 import {InstrumentIdLib} from "../../../src/libraries/InstrumentIdLib.sol";
@@ -27,6 +29,7 @@ contract PortfolioVaultExtendedTest is Test {
     using CurrencyLibrary for Currency;
 
     PortfolioVault public vault;
+    PortfolioStrategy public strategy;
     InstrumentRegistry public instrumentRegistry;
     SwapPoolRegistry public swapPoolRegistry;
     MockPoolManager public mockPM;
@@ -119,6 +122,20 @@ contract PortfolioVaultExtendedTest is Test {
         usdt.mint(address(mockPM), INITIAL_BALANCE);
         usdc.mint(address(mockPM), INITIAL_BALANCE);
 
+        // Deploy shared strategy (UUPS proxy)
+        PortfolioStrategy strategyImpl = new PortfolioStrategy();
+        strategy = PortfolioStrategy(
+            address(
+                new ERC1967Proxy(
+                    address(strategyImpl), abi.encodeWithSelector(PortfolioStrategy.initialize.selector, owner)
+                )
+            )
+        );
+
+        // Authorize strategy on adapter
+        vm.prank(owner);
+        aaveAdapter.addAuthorizedCaller(address(strategy));
+
         _deployVault(_singleAllocation(usdcInstrumentId, 10000));
     }
 
@@ -151,30 +168,22 @@ contract PortfolioVaultExtendedTest is Test {
     }
 
     function _deployVault(PortfolioVault.Allocation[] memory allocs) internal {
-        PortfolioVault vaultImpl = new PortfolioVault();
-
-        PortfolioVault.InitParams memory params = PortfolioVault.InitParams({
-            initialOwner: owner,
-            name: "Test Portfolio",
-            symbol: "tPORT",
-            stable: usdcCurrency,
-            poolManager: IPoolManager(address(mockPM)),
-            instrumentRegistry: instrumentRegistry,
-            swapPoolRegistry: swapPoolRegistry,
-            allocations: allocs
-        });
-
-        vault = PortfolioVault(
-            address(
-                new ERC1967Proxy(address(vaultImpl), abi.encodeWithSelector(PortfolioVault.initialize.selector, params))
-            )
+        vault = new PortfolioVault(
+            PortfolioVault.InitParams({
+                initialOwner: owner,
+                name: "Test Portfolio",
+                symbol: "tPORT",
+                stable: usdcCurrency,
+                poolManager: IPoolManager(address(mockPM)),
+                instrumentRegistry: instrumentRegistry,
+                swapPoolRegistry: swapPoolRegistry,
+                strategy: IPortfolioStrategy(address(strategy)),
+                allocations: allocs
+            })
         );
 
         vm.prank(owner);
         vault.setHook(hookAddr);
-
-        vm.prank(owner);
-        aaveAdapter.addAuthorizedCaller(address(vault));
     }
 
     function _deployCapitalAsHook(uint256 amount) internal {
@@ -415,7 +424,7 @@ contract PortfolioVaultExtendedTest is Test {
 
     function test_rebalance_onlyOwner() public {
         vm.prank(user);
-        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, user));
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user));
         vault.rebalance();
     }
 
@@ -514,10 +523,9 @@ contract PortfolioVaultExtendedTest is Test {
         assertEq(stableOut, large, "should withdraw full 10M");
     }
 
-    // ============ Storage Gap Test ============
+    // ============ Contract Deployment Test ============
 
-    function test_storageGap_exists() public view {
-        // The vault has a __gap of 43 slots. We just verify the contract deploys and works.
+    function test_vaultDeployed() public view {
         assertGt(address(vault).code.length, 0, "vault should be deployed");
     }
 
@@ -639,32 +647,6 @@ contract PortfolioVaultExtendedTest is Test {
             vault.setMaxSlippageBps(bps);
             assertEq(vault.maxSlippageBps(), bps);
         }
-    }
-
-    // ============ Upgrade Preserves Allocations ============
-
-    function test_upgrade_preservesAllocations() public {
-        vm.prank(owner);
-        vault.setAllocations(_dualAllocation(usdcInstrumentId, 6000, usdtInstrumentId, 4000));
-
-        PortfolioVault newImpl = new PortfolioVault();
-        vm.prank(owner);
-        vault.upgradeToAndCall(address(newImpl), "");
-
-        PortfolioVault.Allocation[] memory allocs = vault.getAllocations();
-        assertEq(allocs.length, 2);
-        assertEq(allocs[0].weightBps, 6000);
-        assertEq(allocs[1].weightBps, 4000);
-    }
-
-    function test_upgrade_preservesCapital() public {
-        _deployCapitalAsHook(DEPOSIT_AMOUNT);
-
-        PortfolioVault newImpl = new PortfolioVault();
-        vm.prank(owner);
-        vault.upgradeToAndCall(address(newImpl), "");
-
-        assertEq(vault.totalAssets(), DEPOSIT_AMOUNT, "capital should survive upgrade");
     }
 
     // ============ Rebalance Edge Cases (Branch Coverage) ============

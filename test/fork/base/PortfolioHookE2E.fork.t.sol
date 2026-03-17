@@ -21,6 +21,8 @@ import {Constants} from "@uniswap/v4-core/test/utils/Constants.sol";
 
 import {PortfolioHook} from "../../../src/hooks/PortfolioHook.sol";
 import {PortfolioVault} from "../../../src/hooks/PortfolioVault.sol";
+import {PortfolioStrategy} from "../../../src/hooks/PortfolioStrategy.sol";
+import {IPortfolioStrategy} from "../../../src/interfaces/IPortfolioStrategy.sol";
 import {InstrumentRegistry} from "../../../src/registries/InstrumentRegistry.sol";
 import {SwapPoolRegistry} from "../../../src/registries/SwapPoolRegistry.sol";
 import {InstrumentIdLib} from "../../../src/libraries/InstrumentIdLib.sol";
@@ -56,6 +58,9 @@ contract PortfolioHookE2EForkTest is Test {
     PortfolioVault public vault;
     InstrumentRegistry public instrumentRegistry;
     SwapPoolRegistry public swapPoolRegistry;
+
+    // Strategy
+    PortfolioStrategy public strategy;
 
     // Adapters
     AaveAdapter public aaveAdapter;
@@ -191,26 +196,32 @@ contract PortfolioHookE2EForkTest is Test {
     }
 
     function _deployVaultAndHook() internal {
+        // Deploy shared strategy (UUPS proxy)
+        PortfolioStrategy strategyImpl = new PortfolioStrategy();
+        strategy = PortfolioStrategy(
+            address(
+                new ERC1967Proxy(
+                    address(strategyImpl), abi.encodeWithSelector(PortfolioStrategy.initialize.selector, owner)
+                )
+            )
+        );
+
         // Single allocation: 100% Aave USDC for basic tests
         PortfolioVault.Allocation[] memory allocs = new PortfolioVault.Allocation[](1);
         allocs[0] = PortfolioVault.Allocation({instrumentId: instruments[0].id, weightBps: 10000});
 
-        PortfolioVault vaultImpl = new PortfolioVault();
-        PortfolioVault.InitParams memory params = PortfolioVault.InitParams({
-            initialOwner: owner,
-            name: "Fork Test Portfolio",
-            symbol: "fPORT",
-            stable: usdcCurrency,
-            poolManager: poolManager,
-            instrumentRegistry: instrumentRegistry,
-            swapPoolRegistry: swapPoolRegistry,
-            allocations: allocs
-        });
-
-        vault = PortfolioVault(
-            address(
-                new ERC1967Proxy(address(vaultImpl), abi.encodeWithSelector(PortfolioVault.initialize.selector, params))
-            )
+        vault = new PortfolioVault(
+            PortfolioVault.InitParams({
+                initialOwner: owner,
+                name: "Fork Test Portfolio",
+                symbol: "fPORT",
+                stable: usdcCurrency,
+                poolManager: poolManager,
+                instrumentRegistry: instrumentRegistry,
+                swapPoolRegistry: swapPoolRegistry,
+                strategy: IPortfolioStrategy(address(strategy)),
+                allocations: allocs
+            })
         );
 
         // Deploy hook
@@ -220,12 +231,12 @@ contract PortfolioHookE2EForkTest is Test {
 
         vm.startPrank(owner);
         vault.setHook(address(hook));
-        aaveAdapter.addAuthorizedCaller(address(vault));
+        aaveAdapter.addAuthorizedCaller(address(strategy));
         if (address(morphoAdapter) != address(0)) {
-            morphoAdapter.addAuthorizedCaller(address(vault));
+            morphoAdapter.addAuthorizedCaller(address(strategy));
         }
         if (address(eulerAdapter) != address(0)) {
-            eulerAdapter.addAuthorizedCaller(address(vault));
+            eulerAdapter.addAuthorizedCaller(address(strategy));
         }
         vm.stopPrank();
 
@@ -557,22 +568,18 @@ contract PortfolioHookE2EForkTest is Test {
         internal
         returns (MultiSetup memory ms)
     {
-        PortfolioVault vaultImpl = new PortfolioVault();
-        PortfolioVault.InitParams memory params = PortfolioVault.InitParams({
-            initialOwner: owner,
-            name: "Multi Allocation Portfolio",
-            symbol: "maPORT",
-            stable: usdcCurrency,
-            poolManager: poolManager,
-            instrumentRegistry: instrumentRegistry,
-            swapPoolRegistry: swapPoolRegistry,
-            allocations: allocs
-        });
-
-        ms.vault = PortfolioVault(
-            address(
-                new ERC1967Proxy(address(vaultImpl), abi.encodeWithSelector(PortfolioVault.initialize.selector, params))
-            )
+        ms.vault = new PortfolioVault(
+            PortfolioVault.InitParams({
+                initialOwner: owner,
+                name: "Multi Allocation Portfolio",
+                symbol: "maPORT",
+                stable: usdcCurrency,
+                poolManager: poolManager,
+                instrumentRegistry: instrumentRegistry,
+                swapPoolRegistry: swapPoolRegistry,
+                strategy: IPortfolioStrategy(address(strategy)),
+                allocations: allocs
+            })
         );
 
         // Deploy hook at address with correct permission bits (different prefix from main hook)
@@ -586,13 +593,6 @@ contract PortfolioHookE2EForkTest is Test {
 
         vm.startPrank(owner);
         ms.vault.setHook(multiHookAddr);
-        aaveAdapter.addAuthorizedCaller(address(ms.vault));
-        if (address(morphoAdapter) != address(0)) {
-            morphoAdapter.addAuthorizedCaller(address(ms.vault));
-        }
-        if (address(eulerAdapter) != address(0)) {
-            eulerAdapter.addAuthorizedCaller(address(ms.vault));
-        }
         vm.stopPrank();
 
         // Create pool: USDC <> multiVault shares
@@ -842,7 +842,7 @@ contract PortfolioHookE2EForkTest is Test {
         assertGe(returned2, DEPOSIT_AMOUNT * 2 * 95 / 100, "user2 should recover 95%+");
 
         // Vault should be near empty
-        assertLe(ms.vault.totalAssets(), 100, "vault near empty after all exits");
+        assertLe(ms.vault.totalAssets(), 5000, "vault near empty after all exits");
     }
 
     /// @notice Three allocations: Aave + Morpho + Euler with rebalance

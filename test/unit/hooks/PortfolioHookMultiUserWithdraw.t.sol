@@ -17,6 +17,8 @@ import {IUniswapV4Router04} from "hookmate/interfaces/router/IUniswapV4Router04.
 import {BaseHookTest} from "../../utils/BaseHookTest.sol";
 import {PortfolioHook} from "../../../src/hooks/PortfolioHook.sol";
 import {PortfolioVault} from "../../../src/hooks/PortfolioVault.sol";
+import {PortfolioStrategy} from "../../../src/hooks/PortfolioStrategy.sol";
+import {IPortfolioStrategy} from "../../../src/interfaces/IPortfolioStrategy.sol";
 import {InstrumentRegistry} from "../../../src/registries/InstrumentRegistry.sol";
 import {SwapPoolRegistry} from "../../../src/registries/SwapPoolRegistry.sol";
 import {InstrumentIdLib} from "../../../src/libraries/InstrumentIdLib.sol";
@@ -29,6 +31,7 @@ contract PortfolioHookMultiUserWithdrawTest is BaseHookTest {
 
     PortfolioHook public hook;
     PortfolioVault public vault;
+    PortfolioStrategy public strategy;
     InstrumentRegistry public instrumentRegistry;
     SwapPoolRegistry public swapPoolRegistry;
     AaveAdapter public aaveAdapter;
@@ -94,25 +97,31 @@ contract PortfolioHookMultiUserWithdrawTest is BaseHookTest {
         vm.prank(owner);
         instrumentRegistry.registerInstrument(executionAddress, usdcMarketId, address(aaveAdapter));
 
-        PortfolioVault vaultImpl = new PortfolioVault();
+        // Deploy shared strategy (UUPS proxy)
+        PortfolioStrategy strategyImpl = new PortfolioStrategy();
+        strategy = PortfolioStrategy(
+            address(
+                new ERC1967Proxy(
+                    address(strategyImpl), abi.encodeWithSelector(PortfolioStrategy.initialize.selector, owner)
+                )
+            )
+        );
+
         PortfolioVault.Allocation[] memory allocs = new PortfolioVault.Allocation[](1);
         allocs[0] = PortfolioVault.Allocation({instrumentId: usdcInstrumentId, weightBps: 10000});
 
-        PortfolioVault.InitParams memory params = PortfolioVault.InitParams({
-            initialOwner: owner,
-            name: "Multi User Portfolio",
-            symbol: "mPORT",
-            stable: usdcCurrency,
-            poolManager: poolManager,
-            instrumentRegistry: instrumentRegistry,
-            swapPoolRegistry: swapPoolRegistry,
-            allocations: allocs
-        });
-
-        vault = PortfolioVault(
-            address(
-                new ERC1967Proxy(address(vaultImpl), abi.encodeWithSelector(PortfolioVault.initialize.selector, params))
-            )
+        vault = new PortfolioVault(
+            PortfolioVault.InitParams({
+                initialOwner: owner,
+                name: "Multi User Portfolio",
+                symbol: "mPORT",
+                stable: usdcCurrency,
+                poolManager: poolManager,
+                instrumentRegistry: instrumentRegistry,
+                swapPoolRegistry: swapPoolRegistry,
+                strategy: IPortfolioStrategy(address(strategy)),
+                allocations: allocs
+            })
         );
 
         address hookAddress = _computeHookAddress();
@@ -123,7 +132,7 @@ contract PortfolioHookMultiUserWithdrawTest is BaseHookTest {
         vault.setHook(address(hook));
 
         vm.prank(owner);
-        aaveAdapter.addAuthorizedCaller(address(vault));
+        aaveAdapter.addAuthorizedCaller(address(strategy));
 
         (Currency c0, Currency c1) = Currency.unwrap(usdcCurrency) < address(vault)
             ? (usdcCurrency, Currency.wrap(address(vault)))

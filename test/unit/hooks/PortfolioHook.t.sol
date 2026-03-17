@@ -23,6 +23,8 @@ import {IUniswapV4Router04} from "hookmate/interfaces/router/IUniswapV4Router04.
 import {BaseHookTest} from "../../utils/BaseHookTest.sol";
 import {PortfolioHook} from "../../../src/hooks/PortfolioHook.sol";
 import {PortfolioVault} from "../../../src/hooks/PortfolioVault.sol";
+import {PortfolioStrategy} from "../../../src/hooks/PortfolioStrategy.sol";
+import {IPortfolioStrategy} from "../../../src/interfaces/IPortfolioStrategy.sol";
 import {InstrumentRegistry} from "../../../src/registries/InstrumentRegistry.sol";
 import {SwapPoolRegistry} from "../../../src/registries/SwapPoolRegistry.sol";
 import {InstrumentIdLib} from "../../../src/libraries/InstrumentIdLib.sol";
@@ -37,6 +39,7 @@ contract PortfolioHookTest is BaseHookTest {
     // Contracts
     PortfolioHook public hook;
     PortfolioVault public vault;
+    PortfolioStrategy public strategy;
     InstrumentRegistry public instrumentRegistry;
     SwapPoolRegistry public swapPoolRegistry;
     AaveAdapter public aaveAdapter;
@@ -114,26 +117,36 @@ contract PortfolioHookTest is BaseHookTest {
         vm.prank(owner);
         instrumentRegistry.registerInstrument(executionAddress, usdcMarketId, address(aaveAdapter));
 
-        // Deploy vault (needs poolManager reference)
-        PortfolioVault vaultImpl = new PortfolioVault();
+        // Deploy strategy (UUPS proxy)
+        PortfolioStrategy strategyImpl = new PortfolioStrategy();
+        strategy = PortfolioStrategy(
+            address(
+                new ERC1967Proxy(
+                    address(strategyImpl), abi.encodeWithSelector(PortfolioStrategy.initialize.selector, owner)
+                )
+            )
+        );
+
+        // Authorize strategy on adapter
+        vm.prank(owner);
+        aaveAdapter.addAuthorizedCaller(address(strategy));
+
+        // Deploy vault (non-upgradeable)
         PortfolioVault.Allocation[] memory allocs = new PortfolioVault.Allocation[](1);
         allocs[0] = PortfolioVault.Allocation({instrumentId: usdcInstrumentId, weightBps: 10000});
 
-        PortfolioVault.InitParams memory params = PortfolioVault.InitParams({
-            initialOwner: owner,
-            name: "Test Portfolio",
-            symbol: "tPORT",
-            stable: usdcCurrency,
-            poolManager: poolManager,
-            instrumentRegistry: instrumentRegistry,
-            swapPoolRegistry: swapPoolRegistry,
-            allocations: allocs
-        });
-
-        vault = PortfolioVault(
-            address(
-                new ERC1967Proxy(address(vaultImpl), abi.encodeWithSelector(PortfolioVault.initialize.selector, params))
-            )
+        vault = new PortfolioVault(
+            PortfolioVault.InitParams({
+                initialOwner: owner,
+                name: "Test Portfolio",
+                symbol: "tPORT",
+                stable: usdcCurrency,
+                poolManager: poolManager,
+                instrumentRegistry: instrumentRegistry,
+                swapPoolRegistry: swapPoolRegistry,
+                strategy: IPortfolioStrategy(address(strategy)),
+                allocations: allocs
+            })
         );
 
         // Deploy hook at address with correct flag bits
@@ -144,10 +157,6 @@ contract PortfolioHookTest is BaseHookTest {
         // Set hook on vault
         vm.prank(owner);
         vault.setHook(address(hook));
-
-        // Authorize vault on adapter
-        vm.prank(owner);
-        aaveAdapter.addAuthorizedCaller(address(vault));
 
         // Build pool key: currency0 must be < currency1
         (Currency c0, Currency c1) = Currency.unwrap(usdcCurrency) < address(vault)
@@ -177,8 +186,6 @@ contract PortfolioHookTest is BaseHookTest {
     // ============ Helpers ============
 
     function _computeHookAddress() internal pure returns (address) {
-        // beforeAddLiquidity(1<<11) | beforeRemoveLiquidity(1<<9) | beforeSwap(1<<7)
-        // | afterSwap(1<<6) | beforeSwapReturnDelta(1<<3)
         return address(uint160(0x1000000000000000000000000000000000000aC8));
     }
 
@@ -269,8 +276,7 @@ contract PortfolioHookTest is BaseHookTest {
     function test_buy_allocatesToLending() public {
         _buyShares(DEPOSIT_AMOUNT, user);
 
-        // Vault should hold aTokens (most of the deposit, minus AMM rounding)
-        assertApproxEqRel(aUsdc.balanceOf(address(vault)), DEPOSIT_AMOUNT, 5e16); // within 5%
+        assertApproxEqRel(aUsdc.balanceOf(address(vault)), DEPOSIT_AMOUNT, 5e16);
     }
 
     function test_buy_keepsSqrtPriceStatic() public {
@@ -284,7 +290,6 @@ contract PortfolioHookTest is BaseHookTest {
     }
 
     function test_buy_emitsEvent() public {
-        // Just verify the swap doesn't revert and shares are minted
         uint256 shares = _buyShares(DEPOSIT_AMOUNT, user);
         assertGt(shares, 0);
     }
@@ -449,7 +454,6 @@ contract PortfolioHookTest is BaseHookTest {
         uint256 requestedOut = nav + 1;
 
         vm.prank(user);
-        // PoolManager wraps hook custom errors, so assert revert without matching raw selector.
         vm.expectRevert();
         swapRouter.swapTokensForExactTokens({
             amountOut: requestedOut,
@@ -484,7 +488,6 @@ contract PortfolioHookTest is BaseHookTest {
             assertLe(usdc.balanceOf(address(hook)), 1, "hook stable residue too large");
         }
 
-        // PM-held share balance should remain bounded (not explode with rounds)
         uint256 pmSharesFinal = vault.balanceOf(address(poolManager));
         uint256 maxGrowth = vault.totalSupply();
         assertLe(pmSharesFinal, maxGrowth, "PM share drift too high");
