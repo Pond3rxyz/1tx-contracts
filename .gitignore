@@ -57,3 +57,7 @@ ENV/
 *.log
 .cache/
 .claude
+
+logs
+broadcast
+*.drawio
