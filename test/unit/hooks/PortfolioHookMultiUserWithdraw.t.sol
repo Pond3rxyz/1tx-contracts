@@ -163,21 +163,19 @@ contract PortfolioHookMultiUserWithdrawTest is BaseHookTest {
         uint256 usdcAfterLast = usdc.balanceOf(last);
         assertGt(usdcAfterLast, usdcBeforeLast, "last user should receive withdrawal");
 
-        // Phase 2: everyone exits remaining balance with retries and tolerances.
+        // Phase 2: everyone exits the remaining balance completely.
         for (uint256 i = 0; i < N_USERS; i++) {
-            _withdrawRemainingBestEffort(users[i]);
+            _withdrawAll(users[i]);
         }
 
-        // Economic safety target: users recover full principal within 3% tolerance,
-        // counting both returned USDC and any residual share value.
+        // No user should be left with residual shares after a full exit.
         for (uint256 i = 0; i < N_USERS; i++) {
             address u = users[i];
-            uint256 principal = deposited[u];
-            uint256 residualShares = vault.balanceOf(u);
-            uint256 residualValue = vault.convertToAssets(residualShares);
-            uint256 recovered = usdc.balanceOf(u) + principal - usdcStart[u] + residualValue;
-            assertGe(recovered * 10_000, principal * 9_700, "user recovered below tolerance");
+            assertEq(vault.balanceOf(u), 0, "user should not keep residual shares");
+            assertGe(usdc.balanceOf(u), usdcStart[u], "user should not lose principal on exit");
         }
+
+        assertEq(vault.totalAssets(), 0, "vault should not retain residual assets after all users exit");
     }
 
     function _setupUsersAndDeposits() internal {
@@ -305,52 +303,6 @@ contract PortfolioHookMultiUserWithdrawTest is BaseHookTest {
                 receiver: user_,
                 deadline: block.timestamp + 1
             });
-        }
-    }
-
-    function _withdrawRemainingBestEffort(address user_) internal {
-        vm.startPrank(user_);
-        vault.approve(address(permit2), type(uint256).max);
-        vault.approve(address(swapRouter), type(uint256).max);
-        permit2.approve(address(vault), address(swapRouter), type(uint160).max, type(uint48).max);
-        vm.stopPrank();
-
-        for (uint256 i = 0; i < 24; i++) {
-            uint256 shares = vault.balanceOf(user_);
-            if (shares == 0) break;
-            uint256 targetOut = vault.convertToAssets(shares);
-            if (targetOut == 0) break;
-
-            usdc.mint(address(mockAavePool), 5_000_000e6);
-
-            vm.prank(user_);
-            try swapRouter.swapTokensForExactTokens({
-                amountOut: targetOut,
-                amountInMax: shares,
-                zeroForOne: !_buyZeroForOne(),
-                poolKey: portfolioPoolKey,
-                hookData: abi.encode(user_),
-                receiver: user_,
-                deadline: block.timestamp + 1
-            }) {}
-            catch {
-                uint256 discountedOut = (targetOut * 99) / 100;
-                if (discountedOut == 0) break;
-
-                vm.prank(user_);
-                try swapRouter.swapTokensForExactTokens({
-                    amountOut: discountedOut,
-                    amountInMax: shares,
-                    zeroForOne: !_buyZeroForOne(),
-                    poolKey: portfolioPoolKey,
-                    hookData: abi.encode(user_),
-                    receiver: user_,
-                    deadline: block.timestamp + 1
-                }) {}
-                catch {
-                    continue;
-                }
-            }
         }
     }
 
