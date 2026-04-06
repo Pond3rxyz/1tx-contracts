@@ -176,8 +176,14 @@ contract PortfolioVault is ERC20, Ownable, ReentrancyGuardTransient, IUnlockCall
     }
 
     function convertToAssets(uint256 shares) public view returns (uint256) {
-        return
-            shares.mulDiv(totalAssets() + VIRTUAL_ASSETS, _effectiveTotalSupply() + VIRTUAL_SHARES, Math.Rounding.Floor);
+        uint256 effectiveSupply = _effectiveTotalSupply();
+        uint256 totalNav = totalAssets();
+
+        // When the caller is redeeming the full live supply, return the full NAV.
+        // Applying the virtual offsets here strands residual assets on the final exit.
+        if (shares != 0 && shares == effectiveSupply) return totalNav;
+
+        return shares.mulDiv(totalNav + VIRTUAL_ASSETS, effectiveSupply + VIRTUAL_SHARES, Math.Rounding.Floor);
     }
 
     function previewDeposit(uint256 assets) public view returns (uint256) {
@@ -195,8 +201,13 @@ contract PortfolioVault is ERC20, Ownable, ReentrancyGuardTransient, IUnlockCall
     }
 
     function previewWithdraw(uint256 assets) public view returns (uint256) {
-        uint256 sharesNum = assets * (_effectiveTotalSupply() + VIRTUAL_SHARES);
-        uint256 sharesDen = totalAssets() + VIRTUAL_ASSETS;
+        uint256 effectiveSupply = _effectiveTotalSupply();
+        uint256 totalNav = totalAssets();
+
+        if (assets != 0 && assets == totalNav) return effectiveSupply;
+
+        uint256 sharesNum = assets * (effectiveSupply + VIRTUAL_SHARES);
+        uint256 sharesDen = totalNav + VIRTUAL_ASSETS;
         return sharesNum == 0 ? 0 : (sharesNum - 1) / sharesDen + 1;
     }
 

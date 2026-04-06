@@ -353,6 +353,31 @@ contract PortfolioVaultExtendedTest is Test {
         assertLt(sharesAfter, sharesBefore, "shares per USDC should decrease after yield");
     }
 
+    function test_convertToAssets_fullLiveSupplyAfterYield_returnsTotalAssets() public {
+        _deployCapitalAsHook(DEPOSIT_AMOUNT);
+        _mintSharesAsHook(user, 1000e6);
+
+        aUsdc.mint(address(vault), 123e6);
+
+        uint256 liveSupply = vault.totalSupply();
+        uint256 totalNav = vault.totalAssets();
+
+        assertEq(vault.convertToAssets(liveSupply), totalNav, "full live supply should redeem full NAV");
+        assertEq(vault.previewRedeem(liveSupply), totalNav, "previewRedeem should match full NAV on final exit");
+    }
+
+    function test_previewWithdraw_fullNavAfterYield_returnsLiveSupply() public {
+        _deployCapitalAsHook(DEPOSIT_AMOUNT);
+        _mintSharesAsHook(user, 1000e6);
+
+        aUsdc.mint(address(vault), 123e6);
+
+        uint256 liveSupply = vault.totalSupply();
+        uint256 totalNav = vault.totalAssets();
+
+        assertEq(vault.previewWithdraw(totalNav), liveSupply, "full NAV withdrawal should burn full live supply");
+    }
+
     // ============ Effective Total Supply Edge Cases ============
 
     function test_effectiveTotalSupply_pmHoldsMoreThanTotal_returnsZero() public {

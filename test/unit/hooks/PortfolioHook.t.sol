@@ -337,6 +337,20 @@ contract PortfolioHookTest is BaseHookTest {
         assertEq(vault.balanceOf(user), 0);
     }
 
+    function test_sellAll_afterYield_drainsFullVaultNav() public {
+        uint256 shares = _buyShares(DEPOSIT_AMOUNT, user);
+
+        aUsdc.mint(address(vault), 123e6);
+        uint256 totalNav = vault.totalAssets();
+        usdc.mint(address(mockAavePool), totalNav);
+
+        uint256 usdcReturned = _sellShares(shares, user);
+
+        assertEq(usdcReturned, totalNav, "full-share sell should return full NAV");
+        assertEq(vault.balanceOf(user), 0, "user should burn all shares");
+        assertEq(vault.totalAssets(), 0, "vault should not retain residual stable");
+    }
+
     function test_buySell_pmShareBalanceDoesNotGrowUnbounded() public {
         uint256 shares = _buyShares(DEPOSIT_AMOUNT, user);
         uint256 halfShares = shares / 2;
