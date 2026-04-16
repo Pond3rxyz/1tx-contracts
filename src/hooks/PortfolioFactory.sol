@@ -49,12 +49,7 @@ contract PortfolioFactory {
     // ============ Events ============
 
     event StrategyDeployed(
-        address indexed vault,
-        address indexed hook,
-        PoolId poolId,
-        address indexed owner,
-        string name,
-        string symbol
+        address indexed vault, address indexed hook, PoolId poolId, address indexed owner, string name, string symbol
     );
 
     // ============ Constructor ============
@@ -83,17 +78,12 @@ contract PortfolioFactory {
     /// @return vault The deployed vault address (also the ERC20 share token)
     /// @return hook The deployed hook address
     /// @return poolId The initialized Uniswap V4 pool ID
-    function deploy(DeployParams calldata params)
-        external
-        returns (address vault, address hook, PoolId poolId)
-    {
+    function deploy(DeployParams calldata params) external returns (address vault, address hook, PoolId poolId) {
         // 1. Deploy vault directly via CREATE2 (no proxy — it's a real ERC20)
         vault = _deployVault(params);
 
         // 2. Deploy hook via CREATE2 with caller-provided salt
-        hook = address(
-            new PortfolioHook{salt: params.hookSalt}(poolManager, PortfolioVault(vault), params.stable)
-        );
+        hook = address(new PortfolioHook{salt: params.hookSalt}(poolManager, PortfolioVault(vault), params.stable));
 
         // 3. Validate hook address has correct flag bits
         //    beforeAddLiquidity(1<<11) | beforeRemoveLiquidity(1<<9) | beforeSwap(1<<7)
@@ -134,12 +124,10 @@ contract PortfolioFactory {
         internal
         returns (PoolId poolId)
     {
-        (Currency c0, Currency c1) = Currency.unwrap(stable) < vault
-            ? (stable, Currency.wrap(vault))
-            : (Currency.wrap(vault), stable);
+        (Currency c0, Currency c1) =
+            Currency.unwrap(stable) < vault ? (stable, Currency.wrap(vault)) : (Currency.wrap(vault), stable);
 
-        PoolKey memory poolKey =
-            PoolKey({currency0: c0, currency1: c1, fee: 0, tickSpacing: 60, hooks: IHooks(hook)});
+        PoolKey memory poolKey = PoolKey({currency0: c0, currency1: c1, fee: 0, tickSpacing: 60, hooks: IHooks(hook)});
 
         poolManager.initialize(poolKey, SQRT_PRICE_1_1);
         poolId = poolKey.toId();

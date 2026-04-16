@@ -100,20 +100,24 @@ abstract contract AdapterForkTestBase is Test {
 
     function _selectFork(string memory network) internal {
         string memory rpcEnvVar;
+        uint256 forkBlockNumber;
         bytes32 networkHash = keccak256(bytes(network));
 
         if (networkHash == keccak256("baseMainnet") || networkHash == keccak256("sandbox")) {
             rpcEnvVar = "BASE_RPC_URL";
+            forkBlockNumber = 44730000;
         } else if (networkHash == keccak256("arbitrumMainnet")) {
             rpcEnvVar = "ARBITRUM_RPC_URL";
+            forkBlockNumber = 452780000;
         } else if (networkHash == keccak256("unichainMainnet")) {
             rpcEnvVar = "UNICHAIN_RPC_URL";
+            forkBlockNumber = 45510000;
         } else {
             revert("Unsupported network for fork");
         }
 
         string memory rpcUrl = vm.envString(rpcEnvVar);
-        vm.createSelectFork(rpcUrl);
+        vm.createSelectFork(rpcUrl, forkBlockNumber);
     }
 
     // ============ Test Helpers ============

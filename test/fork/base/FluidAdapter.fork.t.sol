@@ -17,7 +17,7 @@ contract FluidAdapterForkTest is AdapterForkTestBase {
         super.setUp();
 
         address deployedAdapter = getDeployedAdapter("fluid");
-        if (deployedAdapter != address(0)) {
+        if (deployedAdapter != address(0) && deployedAdapter.code.length > 0) {
             adapter = FluidAdapter(deployedAdapter);
         } else {
             adapter = new FluidAdapter(address(this));

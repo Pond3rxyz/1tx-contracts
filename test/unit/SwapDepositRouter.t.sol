@@ -934,4 +934,129 @@ contract SwapDepositRouterTest is Test {
         assertEq(deposited, DEPOSIT_AMOUNT);
         assertEq(aUsdt.balanceOf(user), DEPOSIT_AMOUNT);
     }
+    // ============ Fee Logic Tests ============
+
+    function test_setFeeConfig_success() public {
+        vm.prank(owner);
+        vm.expectEmit(false, false, false, true);
+        emit SwapDepositRouter.FeeConfigUpdated(100, user);
+        router.setFeeConfig(100, user);
+        assertEq(router.protocolFeeBps(), 100);
+        assertEq(router.feeRecipient(), user);
+    }
+
+    function test_setFeeConfig_revertsIfTooHigh() public {
+        vm.prank(owner);
+        vm.expectRevert(SwapDepositRouter.FeeTooHigh.selector);
+        router.setFeeConfig(501, user);
+    }
+
+    function test_setFeeConfig_revertsZeroAddress() public {
+        vm.prank(owner);
+        vm.expectRevert(SwapDepositRouter.InvalidAddress.selector);
+        router.setFeeConfig(100, address(0));
+    }
+
+    function test_setFeeConfig_onlyOwner() public {
+        vm.prank(user);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, user));
+        router.setFeeConfig(100, user);
+    }
+
+    function test_BuyChargesProtocolFee() public {
+        address feeRecipient = makeAddr("feeRecipient");
+        vm.prank(owner);
+        router.setFeeConfig(50, feeRecipient);
+
+        vm.startPrank(user);
+        usdc.approve(address(router), DEPOSIT_AMOUNT);
+
+        vm.expectEmit(true, false, false, true);
+        emit SwapDepositRouter.FeeCharged(feeRecipient, 5e6, "protocol");
+
+        uint256 deposited = router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+        vm.stopPrank();
+
+        assertEq(deposited, DEPOSIT_AMOUNT - 5e6);
+        assertEq(usdc.balanceOf(feeRecipient), 5e6);
+        assertEq(aUsdc.balanceOf(user), DEPOSIT_AMOUNT - 5e6);
+    }
+
+    function test_BuyWithReferralChargesBothFees() public {
+        address feeRecipient = makeAddr("feeRecipient");
+        address referralRecipient = makeAddr("referralRecipient");
+        vm.prank(owner);
+        router.setFeeConfig(50, feeRecipient); // 0.5%
+
+        vm.startPrank(user);
+        usdc.approve(address(router), DEPOSIT_AMOUNT);
+
+        uint256 deposited = router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 30, referralRecipient); // 0.3%
+        vm.stopPrank();
+
+        assertEq(deposited, DEPOSIT_AMOUNT - 8e6);
+        assertEq(usdc.balanceOf(feeRecipient), 5e6);
+        assertEq(usdc.balanceOf(referralRecipient), 3e6);
+        assertEq(aUsdc.balanceOf(user), DEPOSIT_AMOUNT - 8e6);
+    }
+
+    function test_BuyWithReferralRevertsIfFeeTooHigh() public {
+        vm.prank(owner);
+        router.setFeeConfig(500, makeAddr("feeRecipient"));
+
+        vm.startPrank(user);
+        usdc.approve(address(router), DEPOSIT_AMOUNT);
+
+        vm.expectRevert(SwapDepositRouter.FeeTooHigh.selector);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 501, makeAddr("referralRecipient"));
+
+        // Exceeds total (1000)
+        vm.expectRevert(SwapDepositRouter.FeeTooHigh.selector);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 501, makeAddr("referralRecipient"));
+        vm.stopPrank();
+    }
+
+    function test_BuyForSkipsFees() public {
+        address receiverAddr = makeAddr("receiver");
+        address feeRecipient = makeAddr("feeRecipient");
+
+        vm.startPrank(owner);
+        router.setCCTPReceiver(receiverAddr);
+        router.setFeeConfig(500, feeRecipient); // Even with max fee
+        vm.stopPrank();
+
+        usdc.mint(receiverAddr, DEPOSIT_AMOUNT);
+        vm.startPrank(receiverAddr);
+        usdc.approve(address(router), DEPOSIT_AMOUNT);
+
+        uint256 deposited = router.buyFor(usdcInstrumentId, DEPOSIT_AMOUNT, user);
+        vm.stopPrank();
+
+        // No fees taken
+        assertEq(deposited, DEPOSIT_AMOUNT);
+        assertEq(usdc.balanceOf(feeRecipient), 0);
+    }
+
+    function test_SellFeeOnNetOutput() public {
+        address feeRecipient = makeAddr("feeRecipient");
+        vm.prank(owner);
+        router.setFeeConfig(50, feeRecipient);
+
+        // First buy to get aTokens
+        vm.startPrank(user);
+        usdc.approve(address(router), DEPOSIT_AMOUNT);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0); // 50 bps fee taken here too
+
+        uint256 aTokenBalance = aUsdc.balanceOf(user);
+
+        aUsdc.approve(address(router), aTokenBalance);
+        uint256 output = router.sell(usdcInstrumentId, aTokenBalance, 0);
+        vm.stopPrank();
+
+        uint256 expectedFee = (aTokenBalance * 50) / 10_000;
+        assertEq(output, aTokenBalance - expectedFee);
+
+        // Fee recipient gets both buy and sell fees
+        assertEq(usdc.balanceOf(feeRecipient), 5e6 + expectedFee);
+    }
 }

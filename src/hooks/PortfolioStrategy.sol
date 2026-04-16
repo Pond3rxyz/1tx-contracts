@@ -122,8 +122,9 @@ contract PortfolioStrategy is Initializable, OwnableUpgradeable, UUPSUpgradeable
             uint256 targetValue = (nav * allocs[i].weightBps) / BPS_DENOMINATOR;
 
             if (currentValue > targetValue) {
-                stableAccumulated +=
-                    _rebalanceWithdraw(ctx, allocs[i].instrumentId, currentValue, currentValue - targetValue);
+                stableAccumulated += _rebalanceWithdraw(
+                    ctx, allocs[i].instrumentId, currentValue, currentValue - targetValue
+                );
             }
         }
 
@@ -181,12 +182,9 @@ contract PortfolioStrategy is Initializable, OwnableUpgradeable, UUPSUpgradeable
 
     // ============ Internal: Withdraw ============
 
-    function _withdrawOneAllocation(
-        VaultCtx memory ctx,
-        bytes32 instrumentId,
-        uint256 stableNeeded,
-        uint256 lendingNav
-    ) internal {
+    function _withdrawOneAllocation(VaultCtx memory ctx, bytes32 instrumentId, uint256 stableNeeded, uint256 lendingNav)
+        internal
+    {
         (address adapter, bytes32 marketId) = ctx.ir.getInstrumentDirect(instrumentId);
         address yieldToken = ILendingAdapter(adapter).getYieldToken(marketId);
 

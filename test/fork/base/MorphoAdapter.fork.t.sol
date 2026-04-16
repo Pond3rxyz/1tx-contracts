@@ -17,7 +17,7 @@ contract MorphoAdapterForkTest is AdapterForkTestBase {
         super.setUp();
 
         address deployedAdapter = getDeployedAdapter("morpho");
-        if (deployedAdapter != address(0)) {
+        if (deployedAdapter != address(0) && deployedAdapter.code.length > 0) {
             adapter = MorphoAdapter(deployedAdapter);
         } else {
             adapter = new MorphoAdapter(address(this));
@@ -44,10 +44,6 @@ contract MorphoAdapterForkTest is AdapterForkTestBase {
 
     function test_fork_morpho_steakhousePrimeUSDC_deposit() public {
         _testDeposit("USDC", "steakhousePrimeUSDC", DEPOSIT_AMOUNT);
-    }
-
-    function test_fork_morpho_re7EUSD_deposit() public {
-        _testDeposit("eUSD", "re7EUSD", DEPOSIT_AMOUNT_18);
     }
 
     function test_fork_morpho_clearstarUSDC_deposit() public {

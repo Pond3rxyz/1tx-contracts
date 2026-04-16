@@ -115,8 +115,7 @@ contract PortfolioUniversalRouterForkTest is Test {
         swapPoolRegistry = SwapPoolRegistry(
             address(
                 new ERC1967Proxy(
-                    address(new SwapPoolRegistry()),
-                    abi.encodeWithSelector(SwapPoolRegistry.initialize.selector, owner)
+                    address(new SwapPoolRegistry()), abi.encodeWithSelector(SwapPoolRegistry.initialize.selector, owner)
                 )
             )
         );
@@ -174,8 +173,7 @@ contract PortfolioUniversalRouterForkTest is Test {
             ? (usdcCurrency, Currency.wrap(address(vault)))
             : (Currency.wrap(address(vault)), usdcCurrency);
 
-        portfolioPoolKey =
-            PoolKey({currency0: c0, currency1: c1, fee: 0, tickSpacing: 60, hooks: IHooks(hookAddress)});
+        portfolioPoolKey = PoolKey({currency0: c0, currency1: c1, fee: 0, tickSpacing: 60, hooks: IHooks(hookAddress)});
         portfolioPoolId = portfolioPoolKey.toId();
 
         poolManager.initialize(portfolioPoolKey, Constants.SQRT_PRICE_1_1);
@@ -258,11 +256,8 @@ contract PortfolioUniversalRouterForkTest is Test {
         Currency inputCur = zeroForOne ? portfolioPoolKey.currency0 : portfolioPoolKey.currency1;
         Currency outputCur = zeroForOne ? portfolioPoolKey.currency1 : portfolioPoolKey.currency0;
 
-        bytes memory actions = abi.encodePacked(
-            uint8(Actions.SWAP_EXACT_IN_SINGLE),
-            uint8(Actions.SETTLE_ALL),
-            uint8(Actions.TAKE_ALL)
-        );
+        bytes memory actions =
+            abi.encodePacked(uint8(Actions.SWAP_EXACT_IN_SINGLE), uint8(Actions.SETTLE_ALL), uint8(Actions.TAKE_ALL));
 
         bytes[] memory actionParams = new bytes[](3);
         actionParams[0] = abi.encode(

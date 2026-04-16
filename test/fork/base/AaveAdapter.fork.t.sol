@@ -20,7 +20,7 @@ contract AaveAdapterForkTest is AdapterForkTestBase {
         address deployedAdapter = getDeployedAdapter("aave");
         address pool = getAavePool();
 
-        if (deployedAdapter != address(0)) {
+        if (deployedAdapter != address(0) && deployedAdapter.code.length > 0) {
             adapter = AaveAdapter(deployedAdapter);
         } else {
             adapter = new AaveAdapter(pool, address(this));
