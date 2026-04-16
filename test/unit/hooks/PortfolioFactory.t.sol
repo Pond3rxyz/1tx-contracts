@@ -107,7 +107,9 @@ contract PortfolioFactoryTest is BaseHookTest {
         aaveAdapter.addAuthorizedCaller(address(strategy));
 
         // Deploy factory
-        factory = new PortfolioFactory(poolManager, instrumentRegistry, swapPoolRegistry, IPortfolioStrategy(address(strategy)));
+        factory = new PortfolioFactory(
+            poolManager, instrumentRegistry, swapPoolRegistry, IPortfolioStrategy(address(strategy))
+        );
 
         // Deploy helper for address computation
         factoryHelper = new PortfolioFactoryHelper(
@@ -143,10 +145,7 @@ contract PortfolioFactoryTest is BaseHookTest {
         return factoryHelper.computeVaultAddress(address(this), name, symbol, usdcCurrency, _buildAllocations());
     }
 
-    function _deployStrategy()
-        internal
-        returns (address vault, address hook, PoolId poolId)
-    {
+    function _deployStrategy() internal returns (address vault, address hook, PoolId poolId) {
         string memory name = "Test Portfolio";
         string memory symbol = "tPORT";
 

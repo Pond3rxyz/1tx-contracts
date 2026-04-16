@@ -56,22 +56,16 @@ contract PortfolioFactoryHelper {
 
         bytes memory creationCode = abi.encodePacked(type(PortfolioVault).creationCode, abi.encode(initParams));
 
-        bytes32 hash =
-            keccak256(abi.encodePacked(bytes1(0xff), factory, vaultSalt, keccak256(creationCode)));
+        bytes32 hash = keccak256(abi.encodePacked(bytes1(0xff), factory, vaultSalt, keccak256(creationCode)));
         return address(uint160(uint256(hash)));
     }
 
     /// @notice Compute the deterministic hook address for a given vault and salt
-    function computeHookAddress(PortfolioVault vault, Currency stable, bytes32 salt)
-        external
-        view
-        returns (address)
-    {
+    function computeHookAddress(PortfolioVault vault, Currency stable, bytes32 salt) external view returns (address) {
         bytes memory hookCreationCode =
             abi.encodePacked(type(PortfolioHook).creationCode, abi.encode(poolManager, vault, stable));
 
-        bytes32 hash =
-            keccak256(abi.encodePacked(bytes1(0xff), factory, salt, keccak256(hookCreationCode)));
+        bytes32 hash = keccak256(abi.encodePacked(bytes1(0xff), factory, salt, keccak256(hookCreationCode)));
         return address(uint160(uint256(hash)));
     }
 

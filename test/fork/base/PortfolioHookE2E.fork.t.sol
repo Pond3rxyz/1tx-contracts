@@ -143,8 +143,7 @@ contract PortfolioHookE2EForkTest is Test {
         swapPoolRegistry = SwapPoolRegistry(
             address(
                 new ERC1967Proxy(
-                    address(new SwapPoolRegistry()),
-                    abi.encodeWithSelector(SwapPoolRegistry.initialize.selector, owner)
+                    address(new SwapPoolRegistry()), abi.encodeWithSelector(SwapPoolRegistry.initialize.selector, owner)
                 )
             )
         );
@@ -188,9 +187,7 @@ contract PortfolioHookE2EForkTest is Test {
             bytes32 eulerInstrumentId =
                 InstrumentIdLib.generateInstrumentId(block.chainid, executionAddress, eulerMarketId);
             instrumentRegistry.registerInstrument(executionAddress, eulerMarketId, address(eulerAdapter));
-            instruments.push(
-                Instrument({id: eulerInstrumentId, name: "Euler-eeUSDC", adapter: address(eulerAdapter)})
-            );
+            instruments.push(Instrument({id: eulerInstrumentId, name: "Euler-eeUSDC", adapter: address(eulerAdapter)}));
         }
         vm.stopPrank();
     }
@@ -423,11 +420,7 @@ contract PortfolioHookE2EForkTest is Test {
         for (uint256 i = 5; i > 0; i--) {
             uint256 idx = i - 1;
             uint256 returned = _sellShares(shares_[idx], users_[idx]);
-            assertGe(
-                returned,
-                deposits[idx] * 99 / 100,
-                "each user should recover at least 99% of deposit"
-            );
+            assertGe(returned, deposits[idx] * 99 / 100, "each user should recover at least 99% of deposit");
         }
 
         // Vault should be nearly empty
@@ -584,11 +577,7 @@ contract PortfolioHookE2EForkTest is Test {
 
         // Deploy hook at address with correct permission bits (different prefix from main hook)
         address multiHookAddr = address(uint160(0x2000000000000000000000000000000000000Ac8));
-        deployCodeTo(
-            "PortfolioHook.sol:PortfolioHook",
-            abi.encode(poolManager, ms.vault, usdcCurrency),
-            multiHookAddr
-        );
+        deployCodeTo("PortfolioHook.sol:PortfolioHook", abi.encode(poolManager, ms.vault, usdcCurrency), multiHookAddr);
         ms.hook = PortfolioHook(multiHookAddr);
 
         vm.startPrank(owner);
