@@ -28,10 +28,8 @@ import {SwapPoolRegistry} from "../../../src/registries/SwapPoolRegistry.sol";
 import {InstrumentIdLib} from "../../../src/libraries/InstrumentIdLib.sol";
 import {ILendingAdapter} from "../../../src/interfaces/ILendingAdapter.sol";
 import {AaveAdapter} from "../../../src/adapters/AaveAdapter.sol";
-import {MorphoAdapter} from "../../../src/adapters/MorphoAdapter.sol";
 import {CompoundAdapter} from "../../../src/adapters/CompoundAdapter.sol";
-import {FluidAdapter} from "../../../src/adapters/FluidAdapter.sol";
-import {EulerAdapter} from "../../../src/adapters/EulerAdapter.sol";
+import {ERC4626Adapter} from "../../../src/adapters/ERC4626Adapter.sol";
 import {IAavePool} from "../../../src/interfaces/IAavePool.sol";
 
 /// @title PortfolioHookE2EForkTest
@@ -64,8 +62,8 @@ contract PortfolioHookE2EForkTest is Test {
 
     // Adapters
     AaveAdapter public aaveAdapter;
-    MorphoAdapter public morphoAdapter;
-    EulerAdapter public eulerAdapter;
+    ERC4626Adapter public morphoAdapter;
+    ERC4626Adapter public eulerAdapter;
 
     // Tokens
     address public usdc;
@@ -166,8 +164,8 @@ contract PortfolioHookE2EForkTest is Test {
         string memory morphoPath = string.concat(networkPath, ".protocols.morpho.vaults.steakhouseUSDC");
         if (vm.keyExistsJson(json, morphoPath)) {
             address morphoVault = json.readAddress(morphoPath);
-            morphoAdapter = new MorphoAdapter(owner);
-            morphoAdapter.registerVault(usdcCurrency, morphoVault);
+            morphoAdapter = new ERC4626Adapter(owner, "Morpho Vaults V2");
+            morphoAdapter.registerMarket(usdcCurrency, morphoVault);
             bytes32 morphoMarketId = bytes32(uint256(uint160(morphoVault)));
             bytes32 morphoInstrumentId =
                 InstrumentIdLib.generateInstrumentId(block.chainid, executionAddress, morphoMarketId);
@@ -181,8 +179,8 @@ contract PortfolioHookE2EForkTest is Test {
         string memory eulerPath = string.concat(networkPath, ".protocols.eulerEarn.vaults.eeUSDC");
         if (vm.keyExistsJson(json, eulerPath)) {
             address eulerVault = json.readAddress(eulerPath);
-            eulerAdapter = new EulerAdapter(owner);
-            eulerAdapter.registerVault(usdcCurrency, eulerVault);
+            eulerAdapter = new ERC4626Adapter(owner, "Euler Earn");
+            eulerAdapter.registerMarket(usdcCurrency, eulerVault);
             bytes32 eulerMarketId = bytes32(uint256(uint160(eulerVault)));
             bytes32 eulerInstrumentId =
                 InstrumentIdLib.generateInstrumentId(block.chainid, executionAddress, eulerMarketId);

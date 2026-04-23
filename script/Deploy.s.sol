@@ -17,9 +17,7 @@ import {InstrumentRegistry} from "../src/registries/InstrumentRegistry.sol";
 import {SwapPoolRegistry} from "../src/registries/SwapPoolRegistry.sol";
 import {AaveAdapter} from "../src/adapters/AaveAdapter.sol";
 import {CompoundAdapter} from "../src/adapters/CompoundAdapter.sol";
-import {MorphoAdapter} from "../src/adapters/MorphoAdapter.sol";
-import {EulerAdapter} from "../src/adapters/EulerAdapter.sol";
-import {FluidAdapter} from "../src/adapters/FluidAdapter.sol";
+import {ERC4626Adapter} from "../src/adapters/ERC4626Adapter.sol";
 import {InstrumentIdLib} from "../src/libraries/InstrumentIdLib.sol";
 import {IAavePool} from "../src/interfaces/IAavePool.sol";
 
@@ -66,9 +64,9 @@ contract Deploy is ConfigReader {
     SwapPoolRegistry public swapPoolRegistry;
     AaveAdapter public aaveAdapter;
     CompoundAdapter public compoundAdapter;
-    MorphoAdapter public morphoAdapter;
-    EulerAdapter public eulerAdapter;
-    FluidAdapter public fluidAdapter;
+    ERC4626Adapter public morphoAdapter;
+    ERC4626Adapter public eulerAdapter;
+    ERC4626Adapter public fluidAdapter;
     SwapDepositRouter public router;
     CCTPBridge public bridge;
     CCTPReceiver public receiver;
@@ -224,7 +222,7 @@ contract Deploy is ConfigReader {
 
         console.log("\n[2/8] Deploying Morpho Adapter");
         console.log("-----------------------------------------------");
-        morphoAdapter = new MorphoAdapter(deployer);
+        morphoAdapter = new ERC4626Adapter(deployer, "Morpho Vaults V2");
         console.log("  MorphoAdapter:", address(morphoAdapter));
     }
 
@@ -233,7 +231,7 @@ contract Deploy is ConfigReader {
 
         console.log("\n[2/8] Deploying Euler Earn Adapter");
         console.log("-----------------------------------------------");
-        eulerAdapter = new EulerAdapter(deployer);
+        eulerAdapter = new ERC4626Adapter(deployer, "Euler Earn");
         console.log("  EulerAdapter:", address(eulerAdapter));
     }
 
@@ -242,7 +240,7 @@ contract Deploy is ConfigReader {
 
         console.log("\n[2/8] Deploying Fluid Adapter");
         console.log("-----------------------------------------------");
-        fluidAdapter = new FluidAdapter(deployer);
+        fluidAdapter = new ERC4626Adapter(deployer, "Fluid Lending");
         console.log("  FluidAdapter:", address(fluidAdapter));
     }
 
@@ -356,7 +354,7 @@ contract Deploy is ConfigReader {
         if (asset == address(0) || vault == address(0)) return;
 
         Currency currency = Currency.wrap(asset);
-        morphoAdapter.registerVault(currency, vault);
+        morphoAdapter.registerMarket(currency, vault);
 
         bytes32 marketId = bytes32(uint256(uint160(vault)));
         registry.registerInstrument(vault, marketId, address(morphoAdapter));
@@ -380,7 +378,7 @@ contract Deploy is ConfigReader {
         if (asset == address(0) || vault == address(0)) return;
 
         Currency currency = Currency.wrap(asset);
-        eulerAdapter.registerVault(currency, vault);
+        eulerAdapter.registerMarket(currency, vault);
 
         bytes32 marketId = bytes32(uint256(uint160(vault)));
         registry.registerInstrument(vault, marketId, address(eulerAdapter));
@@ -406,7 +404,7 @@ contract Deploy is ConfigReader {
         if (asset == address(0) || fToken == address(0)) return;
 
         Currency currency = Currency.wrap(asset);
-        fluidAdapter.registerFToken(currency, fToken);
+        fluidAdapter.registerMarket(currency, fToken);
 
         bytes32 marketId = bytes32(uint256(uint160(fToken)));
         registry.registerInstrument(fToken, marketId, address(fluidAdapter));
@@ -545,9 +543,8 @@ contract Deploy is ConfigReader {
         // CCTPBridge
         if (cctpTokenMessenger != address(0)) {
             CCTPBridge bridgeImpl = new CCTPBridge();
-            ERC1967Proxy bridgeProxy = new ERC1967Proxy(
-                address(bridgeImpl), abi.encodeWithSelector(CCTPBridge.initialize.selector, deployer)
-            );
+            ERC1967Proxy bridgeProxy =
+                new ERC1967Proxy(address(bridgeImpl), abi.encodeWithSelector(CCTPBridge.initialize.selector, deployer));
             bridge = CCTPBridge(address(bridgeProxy));
             console.log("  CCTPBridge (proxy):", address(bridge));
             console.log("  CCTPBridge (impl):", address(bridgeImpl));

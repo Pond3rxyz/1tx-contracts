@@ -17,10 +17,9 @@ import {SwapPoolRegistry} from "../../../src/registries/SwapPoolRegistry.sol";
 import {InstrumentIdLib} from "../../../src/libraries/InstrumentIdLib.sol";
 import {ILendingAdapter} from "../../../src/interfaces/ILendingAdapter.sol";
 import {AaveAdapter} from "../../../src/adapters/AaveAdapter.sol";
-import {MorphoAdapter} from "../../../src/adapters/MorphoAdapter.sol";
 import {CompoundAdapter} from "../../../src/adapters/CompoundAdapter.sol";
-import {FluidAdapter} from "../../../src/adapters/FluidAdapter.sol";
-import {EulerAdapter} from "../../../src/adapters/EulerAdapter.sol";
+import {ERC4626Adapter} from "../../../src/adapters/ERC4626Adapter.sol";
+import {MorphoAdapter} from "../../../src/adapters/MorphoAdapter.sol";
 import {IAavePool} from "../../../src/interfaces/IAavePool.sol";
 import {ICompoundV3} from "../../../src/interfaces/ICompoundV3.sol";
 
@@ -46,10 +45,10 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
 
     // Adapters
     AaveAdapter public aaveAdapter;
-    MorphoAdapter public morphoAdapter;
+    ERC4626Adapter public morphoAdapter;
     CompoundAdapter public compoundAdapter;
-    FluidAdapter public fluidAdapter;
-    EulerAdapter public eulerAdapter;
+    ERC4626Adapter public fluidAdapter;
+    ERC4626Adapter public eulerAdapter;
 
     // Registered instruments (populated in setUp)
     struct Instrument {
@@ -166,7 +165,7 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
     }
 
     function _setupMorpho() internal {
-        morphoAdapter = new MorphoAdapter(address(this));
+        morphoAdapter = new ERC4626Adapter(address(this), "Morpho Vaults V2");
         morphoAdapter.addAuthorizedCaller(address(router));
 
         _tryRegisterMorphoVault("Morpho-steakhouseUSDC", "steakhouseUSDC");
@@ -182,7 +181,7 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
         if (vault == address(0)) return;
 
         Currency currency = Currency.wrap(usdc);
-        try morphoAdapter.registerVault(currency, vault) {
+        try morphoAdapter.registerMarket(currency, vault) {
             _registerInstrument(name, address(morphoAdapter), _computeVaultMarketId(vault), false, morphoExecAddr);
         } catch {}
     }
@@ -215,7 +214,7 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
     }
 
     function _setupFluid() internal {
-        fluidAdapter = new FluidAdapter(address(this));
+        fluidAdapter = new ERC4626Adapter(address(this), "Fluid Lending");
         fluidAdapter.addAuthorizedCaller(address(router));
 
         _tryRegisterFluidToken("Fluid-fUSDC", "fUSDC", usdc, false);
@@ -231,14 +230,14 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
         if (fToken == address(0)) return;
 
         Currency currency = Currency.wrap(token);
-        try fluidAdapter.registerFToken(currency, fToken) {
+        try fluidAdapter.registerMarket(currency, fToken) {
             _registerInstrument(name, address(fluidAdapter), _computeVaultMarketId(fToken), requiresSwap, fluidExecAddr);
             if (requiresSwap) _registerSwapPool(token);
         } catch {}
     }
 
     function _setupEuler() internal {
-        eulerAdapter = new EulerAdapter(address(this));
+        eulerAdapter = new ERC4626Adapter(address(this), "Euler Earn");
         eulerAdapter.addAuthorizedCaller(address(router));
 
         _tryRegisterEulerVault("Euler-eeUSDC", "eeUSDC");
@@ -249,7 +248,7 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
         if (vault == address(0)) return;
 
         Currency currency = Currency.wrap(usdc);
-        try eulerAdapter.registerVault(currency, vault) {
+        try eulerAdapter.registerMarket(currency, vault) {
             _registerInstrument(name, address(eulerAdapter), _computeVaultMarketId(vault), false, eulerExecAddr);
         } catch {}
     }
@@ -386,6 +385,49 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
             tested++;
         }
         assertGt(tested, 0, "Should test at least one with-swap roundtrip");
+    }
+
+    function test_fork_e2e_migrateMorphoInstrument_keepsInstrumentId() public {
+        address vault = getMorphoVault("steakhouseUSDC");
+        if (vault == address(0)) return;
+
+        bytes32 marketId = _computeVaultMarketId(vault);
+        address executionAddress = makeAddr("morphoMigrationExec");
+        bytes32 instrumentId = InstrumentIdLib.generateInstrumentId(block.chainid, executionAddress, marketId);
+
+        MorphoAdapter oldAdapter = new MorphoAdapter(address(this));
+        oldAdapter.addAuthorizedCaller(address(router));
+        oldAdapter.registerVault(usdcCurrency, vault);
+
+        instrumentRegistry.registerInstrument(executionAddress, marketId, address(oldAdapter));
+
+        _dealTokens(usdc, user, DEPOSIT_AMOUNT);
+        _approveTokens(usdc, user, address(router), DEPOSIT_AMOUNT);
+        vm.prank(user);
+        uint256 deposited = router.buy(instrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+
+        address yieldToken = ILendingAdapter(address(oldAdapter)).getYieldToken(marketId);
+        uint256 yieldBalance = _getBalance(yieldToken, user);
+        assertGt(yieldBalance, 0, "User should receive vault shares before migration");
+
+        instrumentRegistry.unregisterInstrument(instrumentId);
+
+        ERC4626Adapter newAdapter = new ERC4626Adapter(address(this), "Morpho Vaults V2");
+        newAdapter.addAuthorizedCaller(address(router));
+        newAdapter.registerMarket(usdcCurrency, vault);
+
+        instrumentRegistry.registerInstrument(executionAddress, marketId, address(newAdapter));
+
+        (address migratedAdapter, bytes32 migratedMarketId) = instrumentRegistry.getInstrumentDirect(instrumentId);
+        assertEq(migratedAdapter, address(newAdapter));
+        assertEq(migratedMarketId, marketId);
+        assertEq(instrumentId, InstrumentIdLib.generateInstrumentId(block.chainid, executionAddress, marketId));
+
+        _approveYieldTokens(address(newAdapter), yieldToken, user, address(router), yieldBalance);
+        vm.prank(user);
+        uint256 output = router.sell(instrumentId, yieldBalance, 0);
+
+        assertGe(output, deposited - 3, "Migrated instrument should preserve value on sell");
     }
 
     // ============ E2E Tests: Multiple Users ============
