@@ -7,13 +7,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SwapDepositRouter} from "../src/SwapDepositRouter.sol";
 import {InstrumentIdLib} from "../src/libraries/InstrumentIdLib.sol";
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
-import {
-    ConfigReader,
-    NetworkConfig,
-    DeployedConfig,
-    CCTPConfig,
-    CCTPDestination
-} from "./utils/ConfigReader.sol";
+import {ConfigReader, NetworkConfig, DeployedConfig, CCTPConfig, CCTPDestination} from "./utils/ConfigReader.sol";
 
 /// @notice Tests the cross-chain bridge flow by calling buy() with a remote-chain instrumentId
 /// @dev This triggers: SwapDepositRouter.buy() -> _bridgeForCrossChainInstrument() -> CCTPBridge.bridge()

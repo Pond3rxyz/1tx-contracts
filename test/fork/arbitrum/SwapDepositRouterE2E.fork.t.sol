@@ -16,8 +16,7 @@ import {SwapPoolRegistry} from "../../../src/registries/SwapPoolRegistry.sol";
 import {InstrumentIdLib} from "../../../src/libraries/InstrumentIdLib.sol";
 import {ILendingAdapter} from "../../../src/interfaces/ILendingAdapter.sol";
 import {AaveAdapter} from "../../../src/adapters/AaveAdapter.sol";
-import {MorphoAdapter} from "../../../src/adapters/MorphoAdapter.sol";
-import {EulerAdapter} from "../../../src/adapters/EulerAdapter.sol";
+import {ERC4626Adapter} from "../../../src/adapters/ERC4626Adapter.sol";
 import {IAavePool} from "../../../src/interfaces/IAavePool.sol";
 
 /// @title SwapDepositRouterE2EArbitrumForkTest
@@ -37,8 +36,8 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
     address public eulerExecAddr;
 
     AaveAdapter public aaveAdapter;
-    MorphoAdapter public morphoAdapter;
-    EulerAdapter public eulerAdapter;
+    ERC4626Adapter public morphoAdapter;
+    ERC4626Adapter public eulerAdapter;
 
     struct Instrument {
         bytes32 id;
@@ -140,7 +139,7 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
     }
 
     function _setupMorpho() internal {
-        morphoAdapter = new MorphoAdapter(address(this));
+        morphoAdapter = new ERC4626Adapter(address(this), "Morpho Vaults V2");
         morphoAdapter.addAuthorizedCaller(address(router));
 
         _tryRegisterMorphoVault("Morpho-clearstarHighYieldUSDC", "clearstarHighYieldUSDC");
@@ -158,20 +157,20 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
         if (vault == address(0)) return;
 
         Currency currency = Currency.wrap(usdc);
-        try morphoAdapter.registerVault(currency, vault) {
+        try morphoAdapter.registerMarket(currency, vault) {
             _registerInstrument(name, address(morphoAdapter), _computeVaultMarketId(vault), false, morphoExecAddr);
         } catch {}
     }
 
     function _setupEuler() internal {
-        eulerAdapter = new EulerAdapter(address(this));
+        eulerAdapter = new ERC4626Adapter(address(this), "Euler Earn");
         eulerAdapter.addAuthorizedCaller(address(router));
 
         address vault = getEulerVault("eeUSDC");
         if (vault == address(0)) return;
 
         Currency currency = Currency.wrap(usdc);
-        try eulerAdapter.registerVault(currency, vault) {
+        try eulerAdapter.registerMarket(currency, vault) {
             _registerInstrument(
                 "Euler-eeUSDC", address(eulerAdapter), _computeVaultMarketId(vault), false, eulerExecAddr
             );

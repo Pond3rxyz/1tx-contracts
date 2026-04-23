@@ -55,9 +55,7 @@ contract DeployAll is ConfigReader {
         if (cctp.tokenMessenger != address(0)) {
             CCTPBridge bridgeImpl = new CCTPBridge();
             bridgeProxy = address(
-                new ERC1967Proxy(
-                    address(bridgeImpl), abi.encodeWithSelector(CCTPBridge.initialize.selector, deployer)
-                )
+                new ERC1967Proxy(address(bridgeImpl), abi.encodeWithSelector(CCTPBridge.initialize.selector, deployer))
             );
             console.log("CCTPBridge:", bridgeProxy);
         } else {
@@ -72,7 +70,11 @@ contract DeployAll is ConfigReader {
                 new ERC1967Proxy(
                     address(receiverImpl),
                     abi.encodeWithSelector(
-                        CCTPReceiver.initialize.selector, deployer, routerProxy, config.tokens.USDC, cctp.messageTransmitter
+                        CCTPReceiver.initialize.selector,
+                        deployer,
+                        routerProxy,
+                        config.tokens.USDC,
+                        cctp.messageTransmitter
                     )
                 )
             );

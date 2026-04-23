@@ -5,13 +5,7 @@ import {Script, console} from "forge-std/Script.sol";
 
 import {SwapDepositRouter} from "../src/SwapDepositRouter.sol";
 import {CCTPBridge} from "../src/CCTPBridge.sol";
-import {
-    ConfigReader,
-    NetworkConfig,
-    DeployedConfig,
-    CCTPConfig,
-    CCTPDestination
-} from "./utils/ConfigReader.sol";
+import {ConfigReader, NetworkConfig, DeployedConfig, CCTPConfig, CCTPDestination} from "./utils/ConfigReader.sol";
 
 /// @notice Wires SwapDepositRouter, CCTPBridge, and CCTPReceiver using addresses from NetworkConfig.json
 /// @dev Run this AFTER deploying all three contracts on all chains and updating the JSON with their addresses.
