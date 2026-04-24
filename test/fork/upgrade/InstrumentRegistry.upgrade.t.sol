@@ -37,7 +37,9 @@ contract InstrumentRegistryUpgradeTest is Test {
 
         InstrumentRegistryV1 impl = new InstrumentRegistryV1();
         proxy = InstrumentRegistryV1(
-            address(new ERC1967Proxy(address(impl), abi.encodeWithSelector(InstrumentRegistryV1.initialize.selector, owner)))
+            address(
+                new ERC1967Proxy(address(impl), abi.encodeWithSelector(InstrumentRegistryV1.initialize.selector, owner))
+            )
         );
 
         vm.prank(owner);
@@ -45,7 +47,8 @@ contract InstrumentRegistryUpgradeTest is Test {
     }
 
     function test_upgrade_preservesStateAndRegistrationGuards() public {
-        InstrumentRegistry.InstrumentInfo memory infoBefore = InstrumentRegistry(address(proxy)).getInstrument(instrumentId);
+        InstrumentRegistry.InstrumentInfo memory infoBefore =
+            InstrumentRegistry(address(proxy)).getInstrument(instrumentId);
 
         InstrumentRegistry newImpl = new InstrumentRegistry();
 
