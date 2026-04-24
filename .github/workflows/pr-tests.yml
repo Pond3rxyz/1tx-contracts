@@ -50,15 +50,51 @@ jobs:
       - name: Run unit & fuzz tests
         run: forge test -vvv --no-match-path "test/fork/*"
 
-  test-fork:
-    name: Fork Tests
+  test-fork-base:
+    name: Fork Tests (Base)
     runs-on: ubuntu-latest
     needs: build
     env:
       BASE_RPC_URL: ${{ secrets.BASE_RPC_URL }}
-      BASE_SEPOLIA_RPC_URL: ${{ secrets.BASE_SEPOLIA_RPC_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Run Base fork tests
+        run: forge test -vvv --match-path "test/fork/base/*" --jobs 1
+
+  test-fork-arbitrum:
+    name: Fork Tests (Arbitrum)
+    runs-on: ubuntu-latest
+    needs: build
+    env:
       ARBITRUM_RPC_URL: ${{ secrets.ARBITRUM_RPC_URL }}
-      ARBITRUM_SEPOLIA_RPC_URL: ${{ secrets.ARBITRUM_SEPOLIA_RPC_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Run Arbitrum fork tests
+        run: forge test -vvv --match-path "test/fork/arbitrum/*" --jobs 1
+
+  test-fork-unichain:
+    name: Fork Tests (Unichain)
+    runs-on: ubuntu-latest
+    needs: build
+    env:
       UNICHAIN_RPC_URL: ${{ secrets.UNICHAIN_RPC_URL }}
     steps:
       - name: Checkout
@@ -71,5 +107,35 @@ jobs:
         with:
           version: stable
 
-      - name: Run fork tests
-        run: forge test -vvv --match-path "test/fork/*"
+      - name: Run Unichain fork tests
+        run: forge test -vvv --match-path "test/fork/unichain/*" --jobs 1
+
+  test-fork-upgrade:
+    name: Fork Tests (Upgrade)
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      ARBITRUM_RPC_URL: ${{ secrets.ARBITRUM_RPC_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Install Node.js (openzeppelin-upgrades-core uses FFI → npx)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # openzeppelin-upgrades-core validates against build-info JSON and
+      # requires a full compilation — forge's incremental cache breaks it.
+      - name: Full rebuild for upgrade validation
+        run: forge build --force
+
+      - name: Run Upgrade fork tests
+        run: forge test -vvv --match-path "test/fork/upgrade/*" --jobs 1
