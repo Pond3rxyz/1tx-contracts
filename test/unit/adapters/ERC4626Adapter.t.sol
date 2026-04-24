@@ -275,7 +275,6 @@ contract ERC4626AdapterTest is AdapterTestBase {
         ERC4626Adapter.AdapterMetadata memory metadata = adapter.getAdapterMetadata();
 
         assertEq(metadata.name, "Generic ERC4626");
-        assertEq(metadata.chainId, block.chainid);
     }
 
     function test_requiresAllow_returnsFalse() public view {

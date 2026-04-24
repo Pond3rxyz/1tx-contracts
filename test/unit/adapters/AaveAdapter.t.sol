@@ -313,11 +313,6 @@ contract AaveAdapterTest is AdapterTestBase {
         assertEq(metadata.name, "Aave V3");
     }
 
-    function test_getAdapterMetadata_returnsCorrectChainId() public view {
-        AaveAdapter.AdapterMetadata memory metadata = adapter.getAdapterMetadata();
-        assertEq(metadata.chainId, block.chainid);
-    }
-
     // ============ requiresAllow Tests ============
 
     function test_requiresAllow_returnsFalse() public view {

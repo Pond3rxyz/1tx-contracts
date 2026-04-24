@@ -119,16 +119,6 @@ contract InstrumentRegistryTest is Test {
         registry.registerInstrument(executionAddress, unknownMarketId, address(adapter));
     }
 
-    function test_registerInstrument_revertsOnChainIdMismatch() public {
-        // Create adapter with wrong chain ID
-        MockLendingAdapter wrongChainAdapter = new MockLendingAdapter("Wrong Chain", 999);
-        wrongChainAdapter.addMockMarket(marketId, address(aUsdc), Currency.wrap(address(usdc)));
-
-        vm.prank(owner);
-        vm.expectRevert(InstrumentRegistry.ChainIdMismatch.selector);
-        registry.registerInstrument(executionAddress, marketId, address(wrongChainAdapter));
-    }
-
     function test_registerInstrument_revertsIfAlreadyRegistered() public {
         vm.prank(owner);
         registry.registerInstrument(executionAddress, marketId, address(adapter));

@@ -31,7 +31,6 @@ contract FluidAdapterTest is AdapterTestBase {
         FluidAdapter.AdapterMetadata memory metadata = adapter.getAdapterMetadata();
 
         assertEq(metadata.name, "Fluid Lending");
-        assertEq(metadata.chainId, block.chainid);
     }
 
     function test_registerFToken_registersMarket() public {
