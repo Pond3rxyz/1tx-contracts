@@ -16,7 +16,7 @@ interface ILendingAdapter {
     }
 
     /// @notice Returns the metadata for this lending adapter
-    /// @dev This should be used to identify the protocol and validate registrations
+    /// @dev Informational metadata for off-chain consumers
     /// @return metadata The adapter metadata containing name and chainId
     function getAdapterMetadata() external view returns (AdapterMetadata memory metadata);
 

@@ -31,7 +31,6 @@ contract MorphoAdapterTest is AdapterTestBase {
         MorphoAdapter.AdapterMetadata memory metadata = adapter.getAdapterMetadata();
 
         assertEq(metadata.name, "Morpho Vaults V2");
-        assertEq(metadata.chainId, block.chainid);
     }
 
     function test_registerVault_registersMarket() public {

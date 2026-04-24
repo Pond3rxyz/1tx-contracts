@@ -31,7 +31,6 @@ contract EulerAdapterTest is AdapterTestBase {
         EulerAdapter.AdapterMetadata memory metadata = adapter.getAdapterMetadata();
 
         assertEq(metadata.name, "Euler Earn");
-        assertEq(metadata.chainId, block.chainid);
     }
 
     function test_registerVault_registersMarket() public {

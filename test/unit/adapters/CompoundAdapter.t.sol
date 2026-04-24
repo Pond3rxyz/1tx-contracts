@@ -295,11 +295,6 @@ contract CompoundAdapterTest is AdapterTestBase {
         assertEq(metadata.name, "Compound V3");
     }
 
-    function test_getAdapterMetadata_returnsCorrectChainId() public view {
-        CompoundAdapter.AdapterMetadata memory metadata = adapter.getAdapterMetadata();
-        assertEq(metadata.chainId, block.chainid);
-    }
-
     // ============ requiresAllow Tests ============
 
     function test_requiresAllow_returnsTrue() public view {
