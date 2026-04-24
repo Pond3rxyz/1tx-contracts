@@ -58,8 +58,8 @@ contract ApiInstrumentsArbitrumForkTest is Test {
         SwapDepositRouter newImpl = new SwapDepositRouter();
         vm.prank(owner);
         ROUTER.upgradeToAndCall(address(newImpl), "");
-        
-        // Enable fee to ensure it doesn't break cross-chain buyFor 
+
+        // Enable fee to ensure it doesn't break cross-chain buyFor
         vm.prank(owner);
         ROUTER.setFeeConfig(50, makeAddr("feeRecipient")); // 0.5% fee
 

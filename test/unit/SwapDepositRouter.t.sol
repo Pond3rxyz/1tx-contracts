@@ -345,20 +345,20 @@ contract SwapDepositRouterTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(SwapDepositRouter.InsufficientOutput.selector, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT + 1)
         );
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT + 1, false, 0);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT + 1, false, 0, 0, address(0));
         vm.stopPrank();
     }
 
     function test_sell_revertsOnInsufficientOutputAmount() public {
         vm.startPrank(user);
         usdc.approve(address(router), DEPOSIT_AMOUNT);
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
 
         aUsdc.approve(address(router), DEPOSIT_AMOUNT);
         vm.expectRevert(
             abi.encodeWithSelector(SwapDepositRouter.InsufficientOutput.selector, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT + 1)
         );
-        router.sell(usdcInstrumentId, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT + 1);
+        router.sell(usdcInstrumentId, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT + 1, 0, address(0));
         vm.stopPrank();
     }
 
@@ -369,7 +369,7 @@ contract SwapDepositRouterTest is Test {
         usdc.approve(address(router), DEPOSIT_AMOUNT);
 
         vm.prank(user);
-        uint256 deposited = router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+        uint256 deposited = router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
 
         assertEq(deposited, DEPOSIT_AMOUNT);
         assertEq(aUsdc.balanceOf(user), DEPOSIT_AMOUNT);
@@ -384,16 +384,28 @@ contract SwapDepositRouterTest is Test {
         emit Buy(usdcInstrumentId, user, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT);
 
         vm.prank(user);
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
+    }
+
+    function test_buy_zeroReferralArgs_matchLegacyNoReferralBehavior() public {
+        vm.startPrank(user);
+        usdc.approve(address(router), DEPOSIT_AMOUNT);
+
+        uint256 deposited = router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
+        vm.stopPrank();
+
+        assertEq(deposited, DEPOSIT_AMOUNT);
+        assertEq(aUsdc.balanceOf(user), DEPOSIT_AMOUNT);
+        assertEq(usdc.balanceOf(user), INITIAL_BALANCE - DEPOSIT_AMOUNT);
     }
 
     function test_buy_noSwap_multipleDeposits() public {
         vm.startPrank(user);
         usdc.approve(address(router), DEPOSIT_AMOUNT * 3);
 
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
         vm.stopPrank();
 
         assertEq(aUsdc.balanceOf(user), DEPOSIT_AMOUNT * 3);
@@ -407,7 +419,7 @@ contract SwapDepositRouterTest is Test {
         usdc.approve(address(router), DEPOSIT_AMOUNT);
 
         vm.prank(user);
-        uint256 deposited = router.buy(usdtInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+        uint256 deposited = router.buy(usdtInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
 
         // Mock PM does 1:1 swap
         assertEq(deposited, DEPOSIT_AMOUNT);
@@ -422,7 +434,7 @@ contract SwapDepositRouterTest is Test {
         emit Buy(usdtInstrumentId, user, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT);
 
         vm.prank(user);
-        router.buy(usdtInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+        router.buy(usdtInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
     }
 
     // ============ Buy Tests — Revert Cases ============
@@ -430,7 +442,7 @@ contract SwapDepositRouterTest is Test {
     function test_buy_revertsOnZeroAmount() public {
         vm.prank(user);
         vm.expectRevert(SwapDepositRouter.InvalidAmount.selector);
-        router.buy(usdcInstrumentId, 0, 0, false, 0);
+        router.buy(usdcInstrumentId, 0, 0, false, 0, 0, address(0));
     }
 
     function test_buy_revertsOnUnregisteredInstrument() public {
@@ -442,7 +454,7 @@ contract SwapDepositRouterTest is Test {
 
         vm.prank(user);
         vm.expectRevert(InstrumentRegistry.InstrumentNotRegistered.selector);
-        router.buy(fakeId, DEPOSIT_AMOUNT, 0, false, 0);
+        router.buy(fakeId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
     }
 
     function test_buy_revertsOnInsufficientBalance() public {
@@ -453,13 +465,13 @@ contract SwapDepositRouterTest is Test {
 
         vm.prank(poorUser);
         vm.expectRevert();
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
     }
 
     function test_buy_revertsOnNoApproval() public {
         vm.prank(user);
         vm.expectRevert();
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
     }
 
     // ============ Sell Tests — No Swap (USDC market) ============
@@ -468,11 +480,11 @@ contract SwapDepositRouterTest is Test {
         // First buy to get aTokens
         vm.startPrank(user);
         usdc.approve(address(router), DEPOSIT_AMOUNT);
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
 
         // Now sell
         aUsdc.approve(address(router), DEPOSIT_AMOUNT);
-        uint256 output = router.sell(usdcInstrumentId, DEPOSIT_AMOUNT, 0);
+        uint256 output = router.sell(usdcInstrumentId, DEPOSIT_AMOUNT, 0, 0, address(0));
         vm.stopPrank();
 
         assertEq(output, DEPOSIT_AMOUNT);
@@ -484,25 +496,39 @@ contract SwapDepositRouterTest is Test {
     function test_sell_noSwap_emitsEvent() public {
         vm.startPrank(user);
         usdc.approve(address(router), DEPOSIT_AMOUNT);
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
 
         aUsdc.approve(address(router), DEPOSIT_AMOUNT);
 
         vm.expectEmit(true, true, false, true);
         emit Sell(usdcInstrumentId, user, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT);
 
-        router.sell(usdcInstrumentId, DEPOSIT_AMOUNT, 0);
+        router.sell(usdcInstrumentId, DEPOSIT_AMOUNT, 0, 0, address(0));
         vm.stopPrank();
+    }
+
+    function test_sell_zeroReferralArgs_matchLegacyNoReferralBehavior() public {
+        vm.startPrank(user);
+        usdc.approve(address(router), DEPOSIT_AMOUNT);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
+
+        aUsdc.approve(address(router), DEPOSIT_AMOUNT);
+        uint256 output = router.sell(usdcInstrumentId, DEPOSIT_AMOUNT, 0, 0, address(0));
+        vm.stopPrank();
+
+        assertEq(output, DEPOSIT_AMOUNT);
+        assertEq(aUsdc.balanceOf(user), 0);
+        assertEq(usdc.balanceOf(user), INITIAL_BALANCE);
     }
 
     function test_sell_noSwap_partialSell() public {
         vm.startPrank(user);
         usdc.approve(address(router), DEPOSIT_AMOUNT);
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
 
         uint256 halfAmount = DEPOSIT_AMOUNT / 2;
         aUsdc.approve(address(router), halfAmount);
-        uint256 output = router.sell(usdcInstrumentId, halfAmount, 0);
+        uint256 output = router.sell(usdcInstrumentId, halfAmount, 0, 0, address(0));
         vm.stopPrank();
 
         assertEq(output, halfAmount);
@@ -515,11 +541,11 @@ contract SwapDepositRouterTest is Test {
         // Buy USDT instrument first
         vm.startPrank(user);
         usdc.approve(address(router), DEPOSIT_AMOUNT);
-        router.buy(usdtInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+        router.buy(usdtInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
 
         // Sell USDT instrument → withdraw USDT → swap to USDC
         aUsdt.approve(address(router), DEPOSIT_AMOUNT);
-        uint256 output = router.sell(usdtInstrumentId, DEPOSIT_AMOUNT, 0);
+        uint256 output = router.sell(usdtInstrumentId, DEPOSIT_AMOUNT, 0, 0, address(0));
         vm.stopPrank();
 
         // Mock PM does 1:1 swap
@@ -565,7 +591,7 @@ contract SwapDepositRouterTest is Test {
         emit CCTPBridgeInitiated(user, remoteInstrumentId, amount, destinationDomain, mintRecipient, maxFee, 2000);
 
         vm.prank(user);
-        uint256 deposited = router.buy(remoteInstrumentId, amount, 0, false, 0);
+        uint256 deposited = router.buy(remoteInstrumentId, amount, 0, false, 0, 0, address(0));
 
         assertEq(deposited, 0);
 
@@ -611,7 +637,7 @@ contract SwapDepositRouterTest is Test {
         usdc.approve(address(router), amount);
 
         vm.prank(user);
-        uint256 deposited = router.buy(remoteInstrumentId, amount, 0, true, maxFee);
+        uint256 deposited = router.buy(remoteInstrumentId, amount, 0, true, maxFee, 0, address(0));
 
         assertEq(deposited, 0);
 
@@ -624,11 +650,11 @@ contract SwapDepositRouterTest is Test {
         assertEq(mockTokenMessenger.lastMinFinalityThreshold(), 1000);
     }
 
-    function test_buy_crossChain_bridgesWithFastMode_overload() public {
+    function test_buy_crossChain_bridgesWithFastMode_zeroReferralArgs() public {
         uint256 amount = 100e6;
         uint32 targetChainId = 8453;
         uint32 destinationDomain = 6;
-        bytes32 marketId = keccak256("remote-market-fast-overload");
+        bytes32 marketId = keccak256("remote-market-fast-zero-referral");
         bytes32 remoteInstrumentId =
             InstrumentIdLib.generateInstrumentId(targetChainId, makeAddr("remoteExecutionFastOverload"), marketId);
         bytes32 mintRecipient = bytes32(uint256(uint160(makeAddr("destRecipientFastOverload"))));
@@ -657,7 +683,7 @@ contract SwapDepositRouterTest is Test {
         usdc.approve(address(router), amount);
 
         vm.prank(user);
-        uint256 deposited = router.buy(remoteInstrumentId, amount, 0, true, maxFee);
+        uint256 deposited = router.buy(remoteInstrumentId, amount, 0, true, maxFee, 0, address(0));
 
         assertEq(deposited, 0);
         assertEq(mockTokenMessenger.lastAmount(), amount);
@@ -677,7 +703,7 @@ contract SwapDepositRouterTest is Test {
 
         vm.prank(user);
         vm.expectRevert(SwapDepositRouter.CrossChainBridgeNotConfigured.selector);
-        router.buy(remoteInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+        router.buy(remoteInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
     }
 
     function test_buy_crossChain_revertsWhenDomainNotConfigured() public {
@@ -698,7 +724,7 @@ contract SwapDepositRouterTest is Test {
 
         vm.prank(user);
         vm.expectRevert(abi.encodeWithSelector(CCTPBridge.DestinationDomainNotConfigured.selector, uint32(8453)));
-        router.buy(remoteInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+        router.buy(remoteInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
     }
 
     function test_buy_crossChain_fastMode_revertsOnZeroFee() public {
@@ -729,7 +755,7 @@ contract SwapDepositRouterTest is Test {
 
         vm.prank(user);
         vm.expectRevert(CCTPBridge.FastTransferRequiresFee.selector);
-        router.buy(remoteInstrumentId, DEPOSIT_AMOUNT, 0, true, 0);
+        router.buy(remoteInstrumentId, DEPOSIT_AMOUNT, 0, true, 0, 0, address(0));
     }
 
     // ============ Sell Tests — Revert Cases ============
@@ -737,7 +763,7 @@ contract SwapDepositRouterTest is Test {
     function test_sell_revertsOnZeroAmount() public {
         vm.prank(user);
         vm.expectRevert(SwapDepositRouter.InvalidAmount.selector);
-        router.sell(usdcInstrumentId, 0, 0);
+        router.sell(usdcInstrumentId, 0, 0, 0, address(0));
     }
 
     function test_sell_revertsOnUnregisteredInstrument() public {
@@ -747,7 +773,7 @@ contract SwapDepositRouterTest is Test {
 
         vm.prank(user);
         vm.expectRevert(InstrumentRegistry.InstrumentNotRegistered.selector);
-        router.sell(fakeId, DEPOSIT_AMOUNT, 0);
+        router.sell(fakeId, DEPOSIT_AMOUNT, 0, 0, address(0));
     }
 
     function test_sell_revertsOnCrossChainInstrument() public {
@@ -756,20 +782,20 @@ contract SwapDepositRouterTest is Test {
 
         vm.prank(user);
         vm.expectRevert(SwapDepositRouter.CrossChainSellNotSupported.selector);
-        router.sell(remoteInstrumentId, DEPOSIT_AMOUNT, 0);
+        router.sell(remoteInstrumentId, DEPOSIT_AMOUNT, 0, 0, address(0));
     }
 
     function test_sell_revertsOnNoApproval() public {
         // Buy first
         vm.startPrank(user);
         usdc.approve(address(router), DEPOSIT_AMOUNT);
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
         vm.stopPrank();
 
         // Try sell without approving aTokens
         vm.prank(user);
         vm.expectRevert();
-        router.sell(usdcInstrumentId, DEPOSIT_AMOUNT, 0);
+        router.sell(usdcInstrumentId, DEPOSIT_AMOUNT, 0, 0, address(0));
     }
 
     // ============ Callback Tests ============
@@ -787,10 +813,10 @@ contract SwapDepositRouterTest is Test {
 
         vm.startPrank(user);
         usdc.approve(address(router), DEPOSIT_AMOUNT);
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
 
         aUsdc.approve(address(router), DEPOSIT_AMOUNT);
-        router.sell(usdcInstrumentId, DEPOSIT_AMOUNT, 0);
+        router.sell(usdcInstrumentId, DEPOSIT_AMOUNT, 0, 0, address(0));
         vm.stopPrank();
 
         assertEq(usdc.balanceOf(user), balanceBefore);
@@ -802,10 +828,10 @@ contract SwapDepositRouterTest is Test {
 
         vm.startPrank(user);
         usdc.approve(address(router), DEPOSIT_AMOUNT);
-        router.buy(usdtInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+        router.buy(usdtInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
 
         aUsdt.approve(address(router), DEPOSIT_AMOUNT);
-        router.sell(usdtInstrumentId, DEPOSIT_AMOUNT, 0);
+        router.sell(usdtInstrumentId, DEPOSIT_AMOUNT, 0, 0, address(0));
         vm.stopPrank();
 
         // With 1:1 mock swap, should get exact amount back
@@ -974,7 +1000,7 @@ contract SwapDepositRouterTest is Test {
         vm.expectEmit(true, false, false, true);
         emit SwapDepositRouter.FeeCharged(feeRecipient, 5e6, "protocol");
 
-        uint256 deposited = router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+        uint256 deposited = router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
         vm.stopPrank();
 
         assertEq(deposited, DEPOSIT_AMOUNT - 5e6);
@@ -1045,12 +1071,12 @@ contract SwapDepositRouterTest is Test {
         // First buy to get aTokens
         vm.startPrank(user);
         usdc.approve(address(router), DEPOSIT_AMOUNT);
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0); // 50 bps fee taken here too
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0)); // 50 bps fee taken here too
 
         uint256 aTokenBalance = aUsdc.balanceOf(user);
 
         aUsdc.approve(address(router), aTokenBalance);
-        uint256 output = router.sell(usdcInstrumentId, aTokenBalance, 0);
+        uint256 output = router.sell(usdcInstrumentId, aTokenBalance, 0, 0, address(0));
         vm.stopPrank();
 
         uint256 expectedFee = (aTokenBalance * 50) / 10_000;

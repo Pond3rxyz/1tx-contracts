@@ -159,7 +159,7 @@ contract CrossChainBuyE2ETest is Test {
         emit CCTPBridgeInitiated(user, sourceRemoteInstrumentId, AMOUNT, DESTINATION_DOMAIN, mintRecipient, 0, 2000);
 
         vm.prank(user);
-        uint256 sourceResult = sourceRouter.buy(sourceRemoteInstrumentId, AMOUNT, 0, false, 0);
+        uint256 sourceResult = sourceRouter.buy(sourceRemoteInstrumentId, AMOUNT, 0, false, 0, 0, address(0));
         assertEq(sourceResult, 0);
 
         assertEq(sourceMessenger.lastAmount(), AMOUNT);

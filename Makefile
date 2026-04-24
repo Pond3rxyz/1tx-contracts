@@ -10,12 +10,21 @@ build      :; forge build --sizes
 build-deploy :; FOUNDRY_PROFILE=deploy forge build --sizes
 
 # Test
-test      :; forge test -vvv
-test-unit :; forge test -vvv --no-match-path "test/fork/*"
-test-fork :; forge test -vvv --match-path "test/fork/*"
-test-fuzz :; forge test -vvv --match-path "test/fuzz/*"
-test-pr   :; FOUNDRY_PROFILE=pr forge test -vvv
-test-ci   :; FOUNDRY_PROFILE=ci forge test -vvv
+# Fork tests use --jobs 1 to avoid RPC rate-limits
+# Running `forge test` directly parallelizes across CPU cores and will hit
+# rate limits; use these targets instead.
+test         :
+	$(MAKE) test-unit
+	$(MAKE) test-fork
+	$(MAKE) test-upgrade
+test-unit    :; forge test -vvv --no-match-path "test/fork/*"
+test-fork    :; forge test -vvv --match-path "test/fork/*" --no-match-path "test/fork/upgrade/*" --jobs 1
+test-fuzz    :; forge test -vvv --match-path "test/fuzz/*"
+# Upgrade tests invoke @openzeppelin/upgrades-core via FFI; it requires a
+# full (non-incremental) build-info JSON, so we force a full rebuild first.
+test-upgrade :; forge build --force && forge test -vvv --match-path "test/fork/upgrade/*" --jobs 1
+test-pr      :; FOUNDRY_PROFILE=pr $(MAKE) test
+test-ci      :; FOUNDRY_PROFILE=ci $(MAKE) test
 
 # Formatting & linting
 fmt       :; forge fmt
@@ -38,4 +47,4 @@ snapshot :; forge snapshot
 gas-report :; forge test --gas-report
 clean :; forge clean && rm -rf report lcov.info lcov.info.p
 
-.PHONY: update build build-deploy test test-unit test-fork test-fuzz test-pr test-ci fmt fmt-check lint lint-fix check coverage-base coverage-clean coverage-report coverage snapshot gas-report clean
+.PHONY: update build build-deploy test test-unit test-fork test-fuzz test-upgrade test-pr test-ci fmt fmt-check lint lint-fix check coverage-base coverage-clean coverage-report coverage snapshot gas-report clean

@@ -6,9 +6,11 @@
     "lint": "solhint 'src/**/*.sol'",
     "lint:fix": "solhint 'src/**/*.sol' --fix",
     "fmt": "forge fmt",
-    "fmt:check": "forge fmt --check"
+    "fmt:check": "forge fmt --check",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "husky": "^9.1.7",
     "solhint": "^5.0.0"
   },
   "dependencies": {

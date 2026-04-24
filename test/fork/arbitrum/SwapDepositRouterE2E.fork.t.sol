@@ -297,12 +297,12 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
         _dealTokens(usdc, alice, 500e6);
         _approveTokens(usdc, alice, address(router), 500e6);
         vm.prank(alice);
-        router.buy(inst.id, 500e6, 0, false, 0);
+        router.buy(inst.id, 500e6, 0, false, 0, 0, address(0));
 
         _dealTokens(usdc, bob, 1500e6);
         _approveTokens(usdc, bob, address(router), 1500e6);
         vm.prank(bob);
-        router.buy(inst.id, 1500e6, 0, false, 0);
+        router.buy(inst.id, 1500e6, 0, false, 0, 0, address(0));
 
         address yieldToken = ILendingAdapter(inst.adapter).getYieldToken(inst.marketId);
         assertGt(_getBalance(yieldToken, alice), 0, "Alice should have yield tokens");
@@ -316,7 +316,7 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
         _dealTokens(usdc, user, DEPOSIT_AMOUNT);
         _approveTokens(usdc, user, address(router), DEPOSIT_AMOUNT);
         vm.prank(user);
-        router.buy(inst.id, DEPOSIT_AMOUNT, 0, false, 0);
+        router.buy(inst.id, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
 
         assertEq(_getBalance(usdc, address(router)), 0, "Router should not hold USDC");
 
@@ -324,7 +324,7 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
         uint256 yieldBalance = _getBalance(yieldToken, user);
         _approveTokens(yieldToken, user, address(router), yieldBalance);
         vm.prank(user);
-        router.sell(inst.id, yieldBalance, 0);
+        router.sell(inst.id, yieldBalance, 0, 0, address(0));
 
         assertEq(_getBalance(usdc, address(router)), 0, "Router should not hold USDC after sell");
     }
@@ -338,7 +338,7 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
         _approveTokens(usdc, user, address(router), DEPOSIT_AMOUNT);
 
         vm.prank(user);
-        uint256 deposited = router.buy(inst.id, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT, false, 0);
+        uint256 deposited = router.buy(inst.id, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT, false, 0, 0, address(0));
         assertEq(deposited, DEPOSIT_AMOUNT, "No-swap deposit should equal input exactly");
     }
 
@@ -350,7 +350,7 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
 
         vm.prank(user);
         vm.expectRevert();
-        router.buy(inst.id, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT + 1, false, 0);
+        router.buy(inst.id, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT + 1, false, 0, 0, address(0));
     }
 
     function test_fork_arb_e2e_buy_withSwap_tightSlippage_reverts() public {
@@ -362,7 +362,7 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
 
         vm.prank(user);
         vm.expectRevert();
-        router.buy(inst.id, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT, false, 0);
+        router.buy(inst.id, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT, false, 0, 0, address(0));
     }
 
     function test_fork_arb_e2e_buy_withSwap_reasonableSlippage_passes() public {
@@ -377,7 +377,7 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
         _approveTokens(usdc, user, address(router), DEPOSIT_AMOUNT);
 
         vm.prank(user);
-        uint256 deposited = router.buy(inst.id, DEPOSIT_AMOUNT, minDeposited, false, 0);
+        uint256 deposited = router.buy(inst.id, DEPOSIT_AMOUNT, minDeposited, false, 0, 0, address(0));
         assertGe(deposited, minDeposited, "Stable-to-stable swap should lose less than 1%");
     }
 
@@ -387,7 +387,7 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
         _dealTokens(usdc, user, DEPOSIT_AMOUNT);
         _approveTokens(usdc, user, address(router), DEPOSIT_AMOUNT);
         vm.prank(user);
-        router.buy(inst.id, DEPOSIT_AMOUNT, 0, false, 0);
+        router.buy(inst.id, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
 
         address yieldToken = ILendingAdapter(inst.adapter).getYieldToken(inst.marketId);
         uint256 yieldBalance = _getBalance(yieldToken, user);
@@ -395,7 +395,7 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
 
         vm.prank(user);
         vm.expectRevert();
-        router.sell(inst.id, yieldBalance, DEPOSIT_AMOUNT * 2);
+        router.sell(inst.id, yieldBalance, DEPOSIT_AMOUNT * 2, 0, address(0));
     }
 
     function test_fork_arb_e2e_sell_reasonableSlippage_passes() public {
@@ -405,26 +405,26 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
         _dealTokens(usdc, user, DEPOSIT_AMOUNT);
         _approveTokens(usdc, user, address(router), DEPOSIT_AMOUNT);
         vm.prank(user);
-        router.buy(inst.id, DEPOSIT_AMOUNT, 0, false, 0);
+        router.buy(inst.id, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
 
         // Probe to discover actual sell output
         address probe = makeAddr("sell-probe");
         _dealTokens(usdc, probe, DEPOSIT_AMOUNT);
         _approveTokens(usdc, probe, address(router), DEPOSIT_AMOUNT);
         vm.prank(probe);
-        router.buy(inst.id, DEPOSIT_AMOUNT, 0, false, 0);
+        router.buy(inst.id, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
 
         address yieldToken = ILendingAdapter(inst.adapter).getYieldToken(inst.marketId);
         uint256 probeYield = _getBalance(yieldToken, probe);
         _approveTokens(yieldToken, probe, address(router), probeYield);
         vm.prank(probe);
-        uint256 actualOutput = router.sell(inst.id, probeYield, 0);
+        uint256 actualOutput = router.sell(inst.id, probeYield, 0, 0, address(0));
 
         // Sell with minOutputAmount = actual output
         uint256 userYield = _getBalance(yieldToken, user);
         _approveTokens(yieldToken, user, address(router), userYield);
         vm.prank(user);
-        uint256 output = router.sell(inst.id, userYield, actualOutput);
+        uint256 output = router.sell(inst.id, userYield, actualOutput, 0, address(0));
         assertGe(output, actualOutput, "Should meet min when using actual output as threshold");
     }
 
@@ -452,7 +452,7 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
         _approveTokens(usdc, testUser, address(router), amount);
 
         vm.prank(testUser);
-        uint256 deposited = router.buy(inst.id, amount, 0, false, 0);
+        uint256 deposited = router.buy(inst.id, amount, 0, false, 0, 0, address(0));
 
         if (!inst.requiresSwap) {
             assertEq(deposited, amount, string.concat("No-swap deposit should equal input for ", inst.name));
@@ -471,13 +471,13 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
         _dealTokens(usdc, testUser, amount);
         _approveTokens(usdc, testUser, address(router), amount);
         vm.prank(testUser);
-        router.buy(inst.id, amount, 0, false, 0);
+        router.buy(inst.id, amount, 0, false, 0, 0, address(0));
 
         address yieldToken = ILendingAdapter(inst.adapter).getYieldToken(inst.marketId);
         uint256 yieldBalance = _getBalance(yieldToken, testUser);
         _approveTokens(yieldToken, testUser, address(router), yieldBalance);
         vm.prank(testUser);
-        uint256 output = router.sell(inst.id, yieldBalance, 0);
+        uint256 output = router.sell(inst.id, yieldBalance, 0, 0, address(0));
 
         assertGt(output, 0, string.concat("Sell returned 0 for ", inst.name));
         // Compare output USDC against input USDC (not deposited which may differ in decimals)

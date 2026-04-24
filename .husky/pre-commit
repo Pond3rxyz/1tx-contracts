@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+
+# Skip if no Solidity files are staged
+staged_sol=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.sol$' || true)
+if [ -z "$staged_sol" ]; then
+  exit 0
+fi
+
+if ! command -v forge >/dev/null 2>&1; then
+  echo "pre-commit: forge not found in PATH — install Foundry to enable formatting checks." >&2
+  exit 1
+fi
+
+echo "pre-commit: running forge fmt --check"
+if ! forge fmt --check; then
+  echo ""
+  echo "pre-commit: formatting check failed. Run 'forge fmt' to fix, then re-stage and commit." >&2
+  exit 1
+fi
