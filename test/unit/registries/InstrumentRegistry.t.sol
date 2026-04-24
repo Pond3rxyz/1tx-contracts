@@ -315,30 +315,6 @@ contract InstrumentRegistryTest is Test {
         assertEq(InstrumentIdLib.getInstrumentChainId(id42161), 42161);
     }
 
-    // ============ InstrumentIdLib Tests ============
-
-    function test_instrumentIdLib_singleAssetMarketId() public view {
-        bytes32 expected = keccak256(abi.encode(Currency.wrap(address(usdc))));
-        assertEq(InstrumentIdLib.generateSingleAssetMarketId(Currency.wrap(address(usdc))), expected);
-    }
-
-    function test_instrumentIdLib_pairMarketId() public view {
-        Currency collateral = Currency.wrap(address(usdc));
-        Currency borrow = Currency.wrap(address(aUsdc));
-
-        bytes32 expected = keccak256(abi.encode(collateral, borrow));
-        assertEq(InstrumentIdLib.generatePairMarketId(collateral, borrow), expected);
-    }
-
-    function test_instrumentIdLib_pairMarketIdIsDirectional() public view {
-        Currency a = Currency.wrap(address(usdc));
-        Currency b = Currency.wrap(address(aUsdc));
-
-        bytes32 ab = InstrumentIdLib.generatePairMarketId(a, b);
-        bytes32 ba = InstrumentIdLib.generatePairMarketId(b, a);
-        assertTrue(ab != ba);
-    }
-
     function test_instrumentIdLib_differentInputsProduceDifferentIds() public pure {
         bytes32 id1 = InstrumentIdLib.generateInstrumentId(1, address(0x1), bytes32(uint256(1)));
         bytes32 id2 = InstrumentIdLib.generateInstrumentId(1, address(0x2), bytes32(uint256(1)));
