@@ -216,12 +216,6 @@ contract AdapterBaseTest is Test {
         adapter.registerMarket(nativeCurrency);
     }
 
-    // ============ requiresAllow Tests ============
-
-    function test_requiresAllow_returnsFalseByDefault() public view {
-        assertFalse(adapter.requiresAllow());
-    }
-
     // ============ Multiple Authorized Callers Tests ============
 
     function test_multipleAuthorizedCallers() public {

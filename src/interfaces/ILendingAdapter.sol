@@ -59,8 +59,4 @@ interface ILendingAdapter {
     /// @return The equivalent amount of underlying assets
     function convertToUnderlying(bytes32 marketId, uint256 yieldTokenAmount) external view returns (uint256);
 
-    /// @notice Check if the yield token requires allow() instead of approve()
-    /// @dev Compound V3 comet tokens use allow() instead of standard ERC20 approve()
-    /// @return True if the yield token requires allow() for transfers
-    function requiresAllow() external view returns (bool);
 }

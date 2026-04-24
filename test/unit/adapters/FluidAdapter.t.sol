@@ -60,8 +60,4 @@ contract FluidAdapterTest is AdapterTestBase {
         vm.expectRevert(AdapterBase.AssetMismatch.selector);
         adapter.registerFToken(usdcCurrency, address(usdtFToken));
     }
-
-    function test_requiresAllow_returnsFalse() public view {
-        assertFalse(adapter.requiresAllow());
-    }
 }

@@ -313,12 +313,6 @@ contract AaveAdapterTest is AdapterTestBase {
         assertEq(metadata.name, "Aave V3");
     }
 
-    // ============ requiresAllow Tests ============
-
-    function test_requiresAllow_returnsFalse() public view {
-        assertFalse(adapter.requiresAllow());
-    }
-
     // ============ Multiple Markets Tests ============
 
     function test_multipleMarkets() public {

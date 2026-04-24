@@ -85,9 +85,4 @@ abstract contract AdapterBase is ILendingAdapter, Ownable {
         authorizedCallers[caller] = false;
         emit AuthorizedCallerRemoved(caller);
     }
-
-    /// @inheritdoc ILendingAdapter
-    function requiresAllow() external pure virtual returns (bool) {
-        return false;
-    }
 }
