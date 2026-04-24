@@ -137,7 +137,7 @@ contract SwapDepositRouterForkTest is AdapterForkTestBase {
         _approveTokens(usdc, user, address(router), DEPOSIT_AMOUNT);
 
         vm.prank(user);
-        uint256 deposited = router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+        uint256 deposited = router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
 
         assertEq(deposited, DEPOSIT_AMOUNT);
         address aToken = aaveAdapter.getYieldToken(_computeMarketId(usdcCurrency));
@@ -153,7 +153,7 @@ contract SwapDepositRouterForkTest is AdapterForkTestBase {
         _approveTokens(usdc, user, address(router), DEPOSIT_AMOUNT);
 
         vm.prank(user);
-        uint256 deposited = router.buy(usdbcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+        uint256 deposited = router.buy(usdbcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
 
         assertGt(deposited, 0, "Should deposit nonzero USDbC");
         address aToken = aaveAdapter.getYieldToken(_computeMarketId(usdbcCurrency));
@@ -167,7 +167,7 @@ contract SwapDepositRouterForkTest is AdapterForkTestBase {
         _approveTokens(usdc, user, address(router), DEPOSIT_AMOUNT);
 
         vm.prank(user);
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
 
         address aToken = aaveAdapter.getYieldToken(_computeMarketId(usdcCurrency));
         uint256 aTokenBalance = _getBalance(aToken, user);
@@ -176,7 +176,7 @@ contract SwapDepositRouterForkTest is AdapterForkTestBase {
 
         uint256 usdcBefore = _getBalance(usdc, user);
         vm.prank(user);
-        uint256 output = router.sell(usdcInstrumentId, aTokenBalance, 0);
+        uint256 output = router.sell(usdcInstrumentId, aTokenBalance, 0, 0, address(0));
 
         assertGt(output, 0, "Should receive USDC");
         assertEq(_getBalance(usdc, user), usdcBefore + output);
@@ -191,7 +191,7 @@ contract SwapDepositRouterForkTest is AdapterForkTestBase {
         _approveTokens(usdc, user, address(router), DEPOSIT_AMOUNT);
 
         vm.prank(user);
-        router.buy(usdbcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+        router.buy(usdbcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
 
         address aToken = aaveAdapter.getYieldToken(_computeMarketId(usdbcCurrency));
         uint256 aTokenBalance = _getBalance(aToken, user);
@@ -200,7 +200,7 @@ contract SwapDepositRouterForkTest is AdapterForkTestBase {
 
         uint256 usdcBefore = _getBalance(usdc, user);
         vm.prank(user);
-        uint256 output = router.sell(usdbcInstrumentId, aTokenBalance, 0);
+        uint256 output = router.sell(usdbcInstrumentId, aTokenBalance, 0, 0, address(0));
 
         assertGt(output, 0, "Should receive USDC");
         assertEq(_getBalance(usdc, user), usdcBefore + output);
@@ -213,7 +213,7 @@ contract SwapDepositRouterForkTest is AdapterForkTestBase {
         _approveTokens(usdc, user, address(router), DEPOSIT_AMOUNT);
 
         vm.prank(user);
-        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+        router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
 
         address aToken = aaveAdapter.getYieldToken(_computeMarketId(usdcCurrency));
         uint256 aTokenBalance = _getBalance(aToken, user);
@@ -221,7 +221,7 @@ contract SwapDepositRouterForkTest is AdapterForkTestBase {
         _approveTokens(aToken, user, address(router), aTokenBalance);
 
         vm.prank(user);
-        uint256 output = router.sell(usdcInstrumentId, aTokenBalance, 0);
+        uint256 output = router.sell(usdcInstrumentId, aTokenBalance, 0, 0, address(0));
 
         assertGe(output, DEPOSIT_AMOUNT - 1, "Roundtrip should preserve value");
     }
@@ -233,7 +233,7 @@ contract SwapDepositRouterForkTest is AdapterForkTestBase {
         _approveTokens(usdc, user, address(router), DEPOSIT_AMOUNT);
 
         vm.prank(user);
-        router.buy(usdbcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0);
+        router.buy(usdbcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
 
         address aToken = aaveAdapter.getYieldToken(_computeMarketId(usdbcCurrency));
         uint256 aTokenBalance = _getBalance(aToken, user);
@@ -241,7 +241,7 @@ contract SwapDepositRouterForkTest is AdapterForkTestBase {
         _approveTokens(aToken, user, address(router), aTokenBalance);
 
         vm.prank(user);
-        uint256 output = router.sell(usdbcInstrumentId, aTokenBalance, 0);
+        uint256 output = router.sell(usdbcInstrumentId, aTokenBalance, 0, 0, address(0));
 
         assertGt(output, 0, "Should get USDC back");
         assertGt(output, DEPOSIT_AMOUNT * 95 / 100, "Should lose less than 5% in fees/slippage");

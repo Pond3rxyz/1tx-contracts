@@ -9,7 +9,7 @@ import {InstrumentIdLib} from "../src/libraries/InstrumentIdLib.sol";
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {ConfigReader, NetworkConfig, DeployedConfig, CCTPConfig, CCTPDestination} from "./utils/ConfigReader.sol";
 
-/// @notice Tests the cross-chain bridge flow by calling buy() with a remote-chain instrumentId
+/// @notice Tests the cross-chain bridge flow by calling the canonical buy() entrypoint with a remote-chain instrumentId
 /// @dev This triggers: SwapDepositRouter.buy() -> _bridgeForCrossChainInstrument() -> CCTPBridge.bridge()
 ///
 /// Usage:
@@ -78,9 +78,9 @@ contract TestBridge is ConfigReader {
             console.log("Approved router for max USDC");
         }
 
-        // Call buy with cross-chain instrumentId — triggers the bridge
+        // Call the canonical buy entrypoint with zero referral args; this triggers the bridge.
         // fastTransfer=true, maxFee=50000 (0.05 USDC / 5%), minDepositedAmount=0 for testing
-        router.buy(instrumentId, amount, 0, true, 50000);
+        router.buy(instrumentId, amount, 0, true, 50000, 0, address(0));
 
         vm.stopBroadcast();
 
