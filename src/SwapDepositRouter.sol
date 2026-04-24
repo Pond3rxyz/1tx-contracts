@@ -30,8 +30,8 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
 
     // ============ Constants ============
 
-    uint16 public constant MAX_PROTOCOL_FEE_BPS = 500;   // 5% max protocol fee
-    uint16 public constant MAX_REFERRAL_FEE_BPS = 500;   // 5% max referral fee
+    uint16 public constant MAX_PROTOCOL_FEE_BPS = 500; // 5% max protocol fee
+    uint16 public constant MAX_REFERRAL_FEE_BPS = 500; // 5% max referral fee
     uint16 public constant BPS_DENOMINATOR = 10_000;
 
     // ============ State ============
@@ -42,7 +42,7 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
     Currency public stable;
     address public cctpBridge;
     address public cctpReceiver;
-    
+
     uint16 public protocolFeeBps;
     address public feeRecipient;
 
@@ -181,7 +181,8 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
         address referralWallet
     ) external returns (uint256 depositedAmount) {
         if (referralFeeBps > MAX_REFERRAL_FEE_BPS) revert FeeTooHigh();
-        return _processBuy(instrumentId, amount, minDepositedAmount, fastTransfer, maxFee, referralFeeBps, referralWallet);
+        return
+            _processBuy(instrumentId, amount, minDepositedAmount, fastTransfer, maxFee, referralFeeBps, referralWallet);
     }
 
     function _processBuy(
@@ -204,7 +205,9 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
 
         uint32 targetChain = InstrumentIdLib.getInstrumentChainId(instrumentId);
         if (targetChain != _safeChainId()) {
-            _bridgeForCrossChainInstrument(instrumentId, netAmount, targetChain, fastTransfer, maxFee, minDepositedAmount);
+            _bridgeForCrossChainInstrument(
+                instrumentId, netAmount, targetChain, fastTransfer, maxFee, minDepositedAmount
+            );
             return 0; // Cross-chain: deposit happens on destination chain
         }
 
@@ -326,8 +329,9 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
 
     // ============ Internal ============
 
-    function _deductFee(uint256 amount, uint16 feeBps, address recipient, string memory feeType) 
-        internal returns (uint256 feeAmount) 
+    function _deductFee(uint256 amount, uint16 feeBps, address recipient, string memory feeType)
+        internal
+        returns (uint256 feeAmount)
     {
         if (feeBps == 0 || recipient == address(0)) return 0;
         feeAmount = (amount * feeBps) / BPS_DENOMINATOR;

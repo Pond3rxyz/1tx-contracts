@@ -28,7 +28,13 @@ contract SwapDepositRouterHandler is Test {
     uint256 public totalProtocolFees;
     uint256 public totalReferralFees;
 
-    constructor(SwapDepositRouter _router, MockERC20 _usdc, MockERC20 _aUsdc, bytes32 _usdcInstrumentId, address _feeRecipient) {
+    constructor(
+        SwapDepositRouter _router,
+        MockERC20 _usdc,
+        MockERC20 _aUsdc,
+        bytes32 _usdcInstrumentId,
+        address _feeRecipient
+    ) {
         router = _router;
         usdc = _usdc;
         aUsdc = _aUsdc;
@@ -39,10 +45,10 @@ contract SwapDepositRouterHandler is Test {
 
         usdc.mint(user, type(uint128).max);
         aUsdc.mint(user, type(uint128).max);
-        
+
         vm.prank(user);
         usdc.approve(address(router), type(uint256).max);
-        
+
         vm.prank(user);
         aUsdc.approve(address(router), type(uint256).max);
     }
@@ -55,10 +61,10 @@ contract SwapDepositRouterHandler is Test {
         if (protocolFeeBps + referralFeeBps > 1000) return; // Skip invalid configs
 
         totalGrossAmount += amount;
-        
+
         uint256 expectedProtocolFee = (amount * protocolFeeBps) / 10_000;
         uint256 expectedReferralFee = (amount * referralFeeBps) / 10_000;
-        
+
         totalProtocolFees += expectedProtocolFee;
         totalReferralFees += expectedReferralFee;
 
@@ -69,7 +75,7 @@ contract SwapDepositRouterHandler is Test {
     function sellWithRef(uint256 yieldAmount, uint16 referralFeeBps) public {
         yieldAmount = bound(yieldAmount, 1e6, 1_000_000e6);
         referralFeeBps = uint16(bound(referralFeeBps, 0, 500));
-        
+
         // Ensure user has enough aTokens
         if (aUsdc.balanceOf(user) < yieldAmount) return;
 
@@ -120,12 +126,20 @@ contract SwapDepositRouterInvariantTest is StdInvariant, Test {
         usdcCurrency = Currency.wrap(address(usdc));
 
         mockPM = new MockPoolManager();
-        
+
         InstrumentRegistry irImpl = new InstrumentRegistry();
-        instrumentRegistry = InstrumentRegistry(address(new ERC1967Proxy(address(irImpl), abi.encodeWithSelector(InstrumentRegistry.initialize.selector, owner))));
+        instrumentRegistry = InstrumentRegistry(
+            address(
+                new ERC1967Proxy(address(irImpl), abi.encodeWithSelector(InstrumentRegistry.initialize.selector, owner))
+            )
+        );
 
         SwapPoolRegistry sprImpl = new SwapPoolRegistry();
-        swapPoolRegistry = SwapPoolRegistry(address(new ERC1967Proxy(address(sprImpl), abi.encodeWithSelector(SwapPoolRegistry.initialize.selector, owner))));
+        swapPoolRegistry = SwapPoolRegistry(
+            address(
+                new ERC1967Proxy(address(sprImpl), abi.encodeWithSelector(SwapPoolRegistry.initialize.selector, owner))
+            )
+        );
 
         mockAavePool = new MockAavePool();
         mockAavePool.setReserveData(address(usdc), address(aUsdc));
@@ -136,24 +150,29 @@ contract SwapDepositRouterInvariantTest is StdInvariant, Test {
         aaveAdapter.registerMarket(usdcCurrency);
 
         SwapDepositRouter routerImpl = new SwapDepositRouter();
-        router = SwapDepositRouter(address(new ERC1967Proxy(
-            address(routerImpl),
-            abi.encodeWithSelector(
-                SwapDepositRouter.initialize.selector,
-                owner,
-                mockPM,
-                instrumentRegistry,
-                swapPoolRegistry,
-                usdcCurrency
+        router = SwapDepositRouter(
+            address(
+                new ERC1967Proxy(
+                    address(routerImpl),
+                    abi.encodeWithSelector(
+                        SwapDepositRouter.initialize.selector,
+                        owner,
+                        mockPM,
+                        instrumentRegistry,
+                        swapPoolRegistry,
+                        usdcCurrency
+                    )
+                )
             )
-        )));
+        );
 
         vm.prank(owner);
         aaveAdapter.addAuthorizedCaller(address(router));
 
         bytes32 usdcMarketId = keccak256(abi.encode(usdcCurrency));
-        usdcInstrumentId = InstrumentIdLib.generateInstrumentId(block.chainid, makeAddr("executionAddress"), usdcMarketId);
-        
+        usdcInstrumentId =
+            InstrumentIdLib.generateInstrumentId(block.chainid, makeAddr("executionAddress"), usdcMarketId);
+
         vm.prank(owner);
         instrumentRegistry.registerInstrument(makeAddr("executionAddress"), usdcMarketId, address(aaveAdapter));
 
@@ -161,7 +180,7 @@ contract SwapDepositRouterInvariantTest is StdInvariant, Test {
         router.setFeeConfig(100, feeRecipient); // 1%
 
         handler = new SwapDepositRouterHandler(router, usdc, aUsdc, usdcInstrumentId, feeRecipient);
-        
+
         targetContract(address(handler));
     }
 

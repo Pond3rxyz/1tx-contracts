@@ -160,7 +160,8 @@ contract SwapDepositRouterV2 is Initializable, UUPSUpgradeable, OwnableUpgradeab
         address referralWallet
     ) external returns (uint256 depositedAmount) {
         if (referralFeeBps > MAX_REFERRAL_FEE_BPS) revert FeeTooHigh();
-        return _processBuy(instrumentId, amount, minDepositedAmount, fastTransfer, maxFee, referralFeeBps, referralWallet);
+        return
+            _processBuy(instrumentId, amount, minDepositedAmount, fastTransfer, maxFee, referralFeeBps, referralWallet);
     }
 
     function _processBuy(
@@ -182,7 +183,9 @@ contract SwapDepositRouterV2 is Initializable, UUPSUpgradeable, OwnableUpgradeab
 
         uint32 targetChain = InstrumentIdLib.getInstrumentChainId(instrumentId);
         if (targetChain != _safeChainId()) {
-            _bridgeForCrossChainInstrument(instrumentId, netAmount, targetChain, fastTransfer, maxFee, minDepositedAmount);
+            _bridgeForCrossChainInstrument(
+                instrumentId, netAmount, targetChain, fastTransfer, maxFee, minDepositedAmount
+            );
             return 0;
         }
 
