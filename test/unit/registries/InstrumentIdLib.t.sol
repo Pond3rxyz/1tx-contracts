@@ -2,51 +2,10 @@
 pragma solidity ^0.8.26;
 
 import {Test} from "forge-std/Test.sol";
-import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 
 import {InstrumentIdLib} from "../../../src/libraries/InstrumentIdLib.sol";
 
 contract InstrumentIdLibTest is Test {
-    // ============ generateSingleAssetMarketId Tests ============
-
-    function test_singleAssetMarketId_deterministic() public pure {
-        Currency currency = Currency.wrap(address(0x1234));
-        bytes32 id1 = InstrumentIdLib.generateSingleAssetMarketId(currency);
-        bytes32 id2 = InstrumentIdLib.generateSingleAssetMarketId(currency);
-        assertEq(id1, id2);
-    }
-
-    function test_singleAssetMarketId_differentCurrenciesDifferentIds() public pure {
-        Currency a = Currency.wrap(address(0x1));
-        Currency b = Currency.wrap(address(0x2));
-        assertTrue(InstrumentIdLib.generateSingleAssetMarketId(a) != InstrumentIdLib.generateSingleAssetMarketId(b));
-    }
-
-    function test_singleAssetMarketId_matchesKeccak() public pure {
-        Currency currency = Currency.wrap(address(0xABCD));
-        assertEq(InstrumentIdLib.generateSingleAssetMarketId(currency), keccak256(abi.encode(currency)));
-    }
-
-    // ============ generatePairMarketId Tests ============
-
-    function test_pairMarketId_deterministic() public pure {
-        Currency a = Currency.wrap(address(0x1));
-        Currency b = Currency.wrap(address(0x2));
-        assertEq(InstrumentIdLib.generatePairMarketId(a, b), InstrumentIdLib.generatePairMarketId(a, b));
-    }
-
-    function test_pairMarketId_isDirectional() public pure {
-        Currency a = Currency.wrap(address(0x1));
-        Currency b = Currency.wrap(address(0x2));
-        assertTrue(InstrumentIdLib.generatePairMarketId(a, b) != InstrumentIdLib.generatePairMarketId(b, a));
-    }
-
-    function test_pairMarketId_matchesKeccak() public pure {
-        Currency a = Currency.wrap(address(0x1));
-        Currency b = Currency.wrap(address(0x2));
-        assertEq(InstrumentIdLib.generatePairMarketId(a, b), keccak256(abi.encode(a, b)));
-    }
-
     // ============ generateInstrumentId Tests ============
 
     function test_instrumentId_embedsChainId() public pure {
@@ -107,12 +66,5 @@ contract InstrumentIdLibTest is Test {
     function testFuzz_instrumentId_chainIdRoundtrip(uint32 chainId, address exec, bytes32 mktId) public pure {
         bytes32 id = InstrumentIdLib.generateInstrumentId(uint256(chainId), exec, mktId);
         assertEq(InstrumentIdLib.getInstrumentChainId(id), chainId);
-    }
-
-    function testFuzz_singleAssetMarketId_deterministic(address token) public pure {
-        Currency currency = Currency.wrap(token);
-        assertEq(
-            InstrumentIdLib.generateSingleAssetMarketId(currency), InstrumentIdLib.generateSingleAssetMarketId(currency)
-        );
     }
 }

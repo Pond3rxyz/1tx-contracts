@@ -38,7 +38,7 @@ contract TestBridge is ConfigReader {
 
     function _buildRemoteInstrumentId(CCTPDestination memory dest) internal view returns (bytes32) {
         NetworkConfig memory destConfig = getNetworkConfig(dest.name);
-        bytes32 marketId = InstrumentIdLib.generateSingleAssetMarketId(Currency.wrap(destConfig.tokens.USDC));
+        bytes32 marketId = keccak256(abi.encode(Currency.wrap(destConfig.tokens.USDC)));
         return InstrumentIdLib.generateInstrumentId(dest.chainId, destConfig.protocols.aave.pool, marketId);
     }
 
