@@ -68,7 +68,7 @@ jobs:
           version: stable
 
       - name: Run Base fork tests
-        run: forge test -vvv --match-path "test/fork/base/*" --jobs 1
+        run: forge test -vvv --match-path "test/fork/base/*" --jobs 1 --compute-units-per-second 200
 
   test-fork-arbitrum:
     name: Fork Tests (Arbitrum)
@@ -88,7 +88,7 @@ jobs:
           version: stable
 
       - name: Run Arbitrum fork tests
-        run: forge test -vvv --match-path "test/fork/arbitrum/*" --jobs 1
+        run: forge test -vvv --match-path "test/fork/arbitrum/*" --jobs 1 --compute-units-per-second 200
 
   test-fork-unichain:
     name: Fork Tests (Unichain)
@@ -108,7 +108,7 @@ jobs:
           version: stable
 
       - name: Run Unichain fork tests
-        run: forge test -vvv --match-path "test/fork/unichain/*" --jobs 1
+        run: forge test -vvv --match-path "test/fork/unichain/*" --jobs 1 --compute-units-per-second 200
 
   test-fork-upgrade:
     name: Fork Tests (Upgrade)
@@ -138,4 +138,4 @@ jobs:
         run: forge build --force
 
       - name: Run Upgrade fork tests
-        run: forge test -vvv --match-path "test/fork/upgrade/*" --jobs 1
+        run: forge test -vvv --match-path "test/fork/upgrade/*" --jobs 1 --compute-units-per-second 200

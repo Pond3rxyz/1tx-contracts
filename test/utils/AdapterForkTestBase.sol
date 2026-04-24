@@ -26,8 +26,11 @@ abstract contract AdapterForkTestBase is Test {
     uint256 internal constant DEPOSIT_AMOUNT_18 = 1000e18; // 1k tokens (18 decimals)
 
     function setUp() public virtual {
-        // Get network from environment or default
-        networkName = vm.envOr("NETWORK", string("baseMainnet"));
+        // Allow child contracts to set networkName before calling super.setUp().
+        // Only fall back to env/default when the child didn't choose a network.
+        if (bytes(networkName).length == 0) {
+            networkName = vm.envOr("NETWORK", string("baseMainnet"));
+        }
 
         // Create and select fork
         _selectFork(networkName);
