@@ -60,8 +60,4 @@ contract EulerAdapterTest is AdapterTestBase {
         vm.expectRevert(AdapterBase.AssetMismatch.selector);
         adapter.registerVault(usdcCurrency, address(usdtVault));
     }
-
-    function test_requiresAllow_returnsFalse() public view {
-        assertFalse(adapter.requiresAllow());
-    }
 }

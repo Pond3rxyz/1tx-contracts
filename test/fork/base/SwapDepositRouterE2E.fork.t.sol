@@ -330,13 +330,12 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
         return keccak256(bytes(a)) == keccak256(bytes(b));
     }
 
-    /// @dev Approve yield tokens — Compound V3 uses allow() instead of ERC20 approve
+    /// @dev Keep Compound's allow() handling test-local; production callers must know this off-chain.
     function _approveYieldTokens(address adapter, address yieldToken, address from, address spender, uint256 amount)
         internal
     {
-        bool needsAllow = ILendingAdapter(adapter).requiresAllow();
         vm.prank(from);
-        if (needsAllow) {
+        if (adapter == address(compoundAdapter)) {
             ICompoundV3(yieldToken).allow(spender, true);
         } else {
             IERC20(yieldToken).approve(spender, amount);

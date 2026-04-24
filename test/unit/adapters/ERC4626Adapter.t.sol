@@ -277,10 +277,6 @@ contract ERC4626AdapterTest is AdapterTestBase {
         assertEq(metadata.name, "Generic ERC4626");
     }
 
-    function test_requiresAllow_returnsFalse() public view {
-        assertFalse(adapter.requiresAllow());
-    }
-
     function test_depositWithdraw_withYieldAccrual() public {
         vm.startPrank(owner);
         adapter.registerMarket(usdcCurrency, address(mockVault));

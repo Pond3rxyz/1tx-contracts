@@ -295,12 +295,6 @@ contract CompoundAdapterTest is AdapterTestBase {
         assertEq(metadata.name, "Compound V3");
     }
 
-    // ============ requiresAllow Tests ============
-
-    function test_requiresAllow_returnsTrue() public view {
-        assertTrue(adapter.requiresAllow());
-    }
-
     // ============ Multiple Markets Tests ============
 
     function test_multipleMarkets() public {
