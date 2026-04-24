@@ -34,7 +34,7 @@ report
 .DS_Store
 
 # Foundry
-lib/
+# (lib/ is managed via git submodules — see .gitmodules)
 
 # Gas reports
 gas-report.txt
