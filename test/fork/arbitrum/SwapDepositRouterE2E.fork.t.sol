@@ -139,7 +139,7 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
     }
 
     function _setupMorpho() internal {
-        morphoAdapter = new ERC4626Adapter(address(this), "Morpho Vaults V2");
+        morphoAdapter = new ERC4626Adapter(address(this));
         morphoAdapter.addAuthorizedCaller(address(router));
 
         _tryRegisterMorphoVault("Morpho-clearstarHighYieldUSDC", "clearstarHighYieldUSDC");
@@ -163,7 +163,7 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
     }
 
     function _setupEuler() internal {
-        eulerAdapter = new ERC4626Adapter(address(this), "Euler Earn");
+        eulerAdapter = new ERC4626Adapter(address(this));
         eulerAdapter.addAuthorizedCaller(address(router));
 
         address vault = getEulerVault("eeUSDC");

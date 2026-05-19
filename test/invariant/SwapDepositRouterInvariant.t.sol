@@ -184,17 +184,17 @@ contract SwapDepositRouterInvariantTest is StdInvariant, Test {
         targetContract(address(handler));
     }
 
-    function invariant_noStableDustInRouter() public {
+    function invariant_noStableDustInRouter() public view {
         assertEq(usdc.balanceOf(address(router)), 0, "Router holds USDC dust");
         assertEq(aUsdc.balanceOf(address(router)), 0, "Router holds aUSDC dust");
     }
 
-    function invariant_feeAccountingExact() public {
+    function invariant_feeAccountingExact() public view {
         assertEq(usdc.balanceOf(feeRecipient), handler.totalProtocolFees(), "Protocol fee mismatch");
         assertEq(usdc.balanceOf(handler.referralWallet()), handler.totalReferralFees(), "Referral fee mismatch");
     }
 
-    function invariant_feesNotExceedingMax() public {
+    function invariant_feesNotExceedingMax() public view {
         uint256 combinedFees = usdc.balanceOf(feeRecipient) + usdc.balanceOf(handler.referralWallet());
         // Max fee is 10% combined (1000 bps)
         assertTrue(combinedFees <= (handler.totalGrossAmount() * 1000) / 10000, "Combined fees exceeded max allowed");

@@ -7,9 +7,6 @@ import {ILendingAdapter} from "../../src/interfaces/ILendingAdapter.sol";
 /// @title MockLendingAdapter
 /// @notice Mock lending adapter for registry unit tests
 contract MockLendingAdapter is ILendingAdapter {
-    string public adapterName;
-    uint256 public adapterChainId;
-
     struct MarketInfo {
         bool active;
         address yieldToken;
@@ -18,10 +15,7 @@ contract MockLendingAdapter is ILendingAdapter {
 
     mapping(bytes32 => MarketInfo) public markets;
 
-    constructor(string memory _name, uint256 _chainId) {
-        adapterName = _name;
-        adapterChainId = _chainId;
-    }
+    constructor(string memory, uint256) {}
 
     function addMockMarket(bytes32 marketId, address yieldToken, Currency currency) external {
         markets[marketId] = MarketInfo({active: true, yieldToken: yieldToken, currency: currency});
@@ -31,15 +25,7 @@ contract MockLendingAdapter is ILendingAdapter {
         delete markets[marketId];
     }
 
-    function setChainId(uint256 _chainId) external {
-        adapterChainId = _chainId;
-    }
-
     // ============ ILendingAdapter Implementation ============
-
-    function getAdapterMetadata() external view override returns (AdapterMetadata memory) {
-        return AdapterMetadata({name: adapterName, chainId: adapterChainId});
-    }
 
     function hasMarket(bytes32 marketId) external view override returns (bool) {
         return markets[marketId].active;
@@ -57,9 +43,5 @@ contract MockLendingAdapter is ILendingAdapter {
 
     function getMarketCurrency(bytes32 marketId) external view override returns (Currency) {
         return markets[marketId].currency;
-    }
-
-    function convertToUnderlying(bytes32, uint256 yieldTokenAmount) external pure override returns (uint256) {
-        return yieldTokenAmount;
     }
 }

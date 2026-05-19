@@ -24,7 +24,7 @@ contract ERC4626AdapterTest is AdapterTestBase {
         super.setUp();
 
         mockVault = new MockERC4626Vault(address(usdc), "Generic USDC Vault", "gUSDC");
-        adapter = new ERC4626Adapter(owner, "Generic ERC4626");
+        adapter = new ERC4626Adapter(owner);
         vaultMarketId = _computeVaultMarketId(address(mockVault));
     }
 
@@ -245,36 +245,6 @@ contract ERC4626AdapterTest is AdapterTestBase {
     function test_getMarketCurrency_revertsIfNotActive() public {
         vm.expectRevert(AdapterBase.MarketNotActive.selector);
         adapter.getMarketCurrency(vaultMarketId);
-    }
-
-    function test_convertToUnderlying_revertsIfNotActive() public {
-        vm.expectRevert(AdapterBase.MarketNotActive.selector);
-        adapter.convertToUnderlying(vaultMarketId, DEPOSIT_AMOUNT);
-    }
-
-    function test_convertToUnderlying_returnsUnderlyingValue() public {
-        vm.startPrank(owner);
-        adapter.registerMarket(usdcCurrency, address(mockVault));
-        adapter.addAuthorizedCaller(authorizedCaller);
-        vm.stopPrank();
-
-        _approveTokens(address(usdc), user, address(adapter), DEPOSIT_AMOUNT);
-        vm.prank(user);
-        adapter.deposit(vaultMarketId, DEPOSIT_AMOUNT, user);
-
-        uint256 yieldAmount = DEPOSIT_AMOUNT / 10;
-        usdc.mint(user, yieldAmount);
-        _approveTokens(address(usdc), user, address(mockVault), yieldAmount);
-        vm.prank(user);
-        mockVault.simulateYield(yieldAmount);
-
-        assertEq(adapter.convertToUnderlying(vaultMarketId, DEPOSIT_AMOUNT), DEPOSIT_AMOUNT + yieldAmount);
-    }
-
-    function test_getAdapterMetadata_returnsConfiguredName() public view {
-        ERC4626Adapter.AdapterMetadata memory metadata = adapter.getAdapterMetadata();
-
-        assertEq(metadata.name, "Generic ERC4626");
     }
 
     function test_depositWithdraw_withYieldAccrual() public {

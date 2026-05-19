@@ -292,7 +292,7 @@ contract AaveAdapterTest is AdapterTestBase {
         assertTrue(adapter.hasMarket(usdcMarketId));
     }
 
-    function test_hasMarket_returnsFalseForInactiveMarket() public {
+    function test_hasMarket_returnsFalseForInactiveMarket() public view {
         assertFalse(adapter.hasMarket(usdcMarketId));
     }
 
@@ -304,13 +304,6 @@ contract AaveAdapterTest is AdapterTestBase {
         adapter.deactivateMarket(usdcMarketId);
 
         assertFalse(adapter.hasMarket(usdcMarketId));
-    }
-
-    // ============ getAdapterMetadata Tests ============
-
-    function test_getAdapterMetadata_returnsCorrectName() public view {
-        AaveAdapter.AdapterMetadata memory metadata = adapter.getAdapterMetadata();
-        assertEq(metadata.name, "Aave V3");
     }
 
     // ============ Multiple Markets Tests ============

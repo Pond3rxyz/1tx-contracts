@@ -8,14 +8,49 @@ import {Currency, CurrencyLibrary} from "@uniswap/v4-core/src/types/Currency.sol
 import {InstrumentRegistry} from "../../../src/registries/InstrumentRegistry.sol";
 import {InstrumentIdLib} from "../../../src/libraries/InstrumentIdLib.sol";
 import {InstrumentRegistryV1} from "./legacy/InstrumentRegistryV1.sol";
-import {MockLendingAdapter} from "../../mocks/MockLendingAdapter.sol";
 import {MockERC20} from "../../mocks/MockERC20.sol";
+
+contract LegacyMockLendingAdapter {
+    struct AdapterMetadata {
+        string name;
+        uint256 chainId;
+    }
+
+    struct MarketInfo {
+        bool active;
+        address yieldToken;
+        Currency currency;
+    }
+
+    uint256 public immutable adapterChainId;
+    mapping(bytes32 => MarketInfo) public markets;
+
+    constructor(string memory, uint256 _chainId) {
+        adapterChainId = _chainId;
+    }
+
+    function addMockMarket(bytes32 marketId, address yieldToken, Currency currency) external {
+        markets[marketId] = MarketInfo({active: true, yieldToken: yieldToken, currency: currency});
+    }
+
+    function getAdapterMetadata() external view returns (AdapterMetadata memory) {
+        return AdapterMetadata({name: "Aave V3", chainId: adapterChainId});
+    }
+
+    function hasMarket(bytes32 marketId) external view returns (bool) {
+        return markets[marketId].active;
+    }
+
+    function getYieldToken(bytes32 marketId) external view returns (address) {
+        return markets[marketId].yieldToken;
+    }
+}
 
 contract InstrumentRegistryUpgradeTest is Test {
     using CurrencyLibrary for Currency;
 
     InstrumentRegistryV1 public proxy;
-    MockLendingAdapter public adapter;
+    LegacyMockLendingAdapter public adapter;
     MockERC20 public usdc;
     MockERC20 public aUsdc;
 
@@ -29,7 +64,7 @@ contract InstrumentRegistryUpgradeTest is Test {
         usdc = new MockERC20("USD Coin", "USDC", 6);
         aUsdc = new MockERC20("Aave USDC", "aUSDC", 6);
 
-        adapter = new MockLendingAdapter("Aave V3", block.chainid);
+        adapter = new LegacyMockLendingAdapter("Aave V3", block.chainid);
         marketId = keccak256(abi.encode(Currency.wrap(address(usdc))));
         adapter.addMockMarket(marketId, address(aUsdc), Currency.wrap(address(usdc)));
 

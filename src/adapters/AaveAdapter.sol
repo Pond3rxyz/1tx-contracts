@@ -80,12 +80,6 @@ contract AaveAdapter is AdapterBase {
         emit MarketDeactivated(marketId);
     }
 
-    /// @notice Returns the metadata for this lending adapter
-    /// @return metadata The adapter metadata containing name and chainId
-    function getAdapterMetadata() external view override returns (AdapterMetadata memory metadata) {
-        return AdapterMetadata({name: "Aave V3", chainId: block.chainid});
-    }
-
     /// @notice Checks if a market is registered and active
     /// @param marketId The market identifier
     /// @return True if the market is registered and active
@@ -162,12 +156,5 @@ contract AaveAdapter is AdapterBase {
         MarketConfig memory config = markets[marketId];
         if (!config.active) revert MarketNotActive();
         return config.currency;
-    }
-
-    /// @notice Converts aToken amount to underlying value (1:1 for Aave)
-    /// @param yieldTokenAmount The amount of aTokens
-    /// @return The equivalent amount of underlying assets
-    function convertToUnderlying(bytes32, uint256 yieldTokenAmount) external pure override returns (uint256) {
-        return yieldTokenAmount;
     }
 }

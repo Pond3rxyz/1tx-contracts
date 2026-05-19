@@ -24,16 +24,12 @@ contract ERC4626Adapter is AdapterBase {
 
     mapping(bytes32 marketId => MarketConfig) internal markets;
 
-    string private adapterName;
-
     event MarketRegistered(bytes32 indexed marketId, Currency currency, address vault);
     event MarketDeactivated(bytes32 indexed marketId);
     event Deposited(bytes32 indexed marketId, uint256 assets, uint256 shares, address onBehalfOf);
     event Withdrawn(bytes32 indexed marketId, uint256 assets, uint256 shares, address to);
 
-    constructor(address initialOwner, string memory adapterName_) AdapterBase(initialOwner) {
-        adapterName = adapterName_;
-    }
+    constructor(address initialOwner) AdapterBase(initialOwner) {}
 
     function registerMarket(Currency currency, address vault) public onlyOwner validCurrency(currency) {
         if (vault == address(0)) revert InvalidVaultAddress();
@@ -55,10 +51,6 @@ contract ERC4626Adapter is AdapterBase {
         config.active = false;
 
         emit MarketDeactivated(marketId);
-    }
-
-    function getAdapterMetadata() external view override returns (AdapterMetadata memory metadata) {
-        return AdapterMetadata({name: adapterName, chainId: block.chainid});
     }
 
     function hasMarket(bytes32 marketId) external view override returns (bool) {
@@ -102,10 +94,6 @@ contract ERC4626Adapter is AdapterBase {
 
     function getMarketCurrency(bytes32 marketId) external view override returns (Currency) {
         return _getActiveMarket(marketId).currency;
-    }
-
-    function convertToUnderlying(bytes32 marketId, uint256 yieldTokenAmount) external view override returns (uint256) {
-        return IERC4626(_getActiveMarket(marketId).vault).convertToAssets(yieldTokenAmount);
     }
 
     function _getActiveMarket(bytes32 marketId) internal view returns (MarketConfig storage config) {

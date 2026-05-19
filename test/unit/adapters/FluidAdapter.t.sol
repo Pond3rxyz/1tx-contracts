@@ -27,12 +27,6 @@ contract FluidAdapterTest is AdapterTestBase {
         assertEq(adapter.owner(), owner);
     }
 
-    function test_getAdapterMetadata_returnsFluidName() public view {
-        FluidAdapter.AdapterMetadata memory metadata = adapter.getAdapterMetadata();
-
-        assertEq(metadata.name, "Fluid Lending");
-    }
-
     function test_registerFToken_registersMarket() public {
         vm.prank(owner);
         adapter.registerFToken(usdcCurrency, address(mockFToken));
