@@ -7,19 +7,6 @@ import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 /// @notice Interface for lending protocol adapters
 /// @dev All lending adapters must implement this interface to standardize lending operations across protocols
 interface ILendingAdapter {
-    /// @notice Metadata for the lending adapter
-    /// @param name The protocol name (e.g., "Aave V3", "Morpho Blue", "Compound V3")
-    /// @param chainId The chain ID where this adapter is deployed
-    struct AdapterMetadata {
-        string name;
-        uint256 chainId;
-    }
-
-    /// @notice Returns the metadata for this lending adapter
-    /// @dev Informational metadata for off-chain consumers
-    /// @return metadata The adapter metadata containing name and chainId
-    function getAdapterMetadata() external view returns (AdapterMetadata memory metadata);
-
     /// @notice Checks if the adapter has registered a specific market
     /// @dev Used by InstrumentRegistry to validate market existence before registration
     /// @param marketId The protocol-specific market identifier
@@ -51,11 +38,4 @@ interface ILendingAdapter {
     /// @param marketId The protocol-specific market identifier
     /// @return The underlying currency of the market
     function getMarketCurrency(bytes32 marketId) external view returns (Currency);
-
-    /// @notice Converts yield token amount to underlying asset value
-    /// @dev Each adapter handles its own conversion logic (1:1 for Aave/Compound, ERC-4626 for others)
-    /// @param marketId The protocol-specific market identifier
-    /// @param yieldTokenAmount The amount of yield tokens to convert
-    /// @return The equivalent amount of underlying assets
-    function convertToUnderlying(bytes32 marketId, uint256 yieldTokenAmount) external view returns (uint256);
 }

@@ -288,13 +288,6 @@ contract CompoundAdapterTest is AdapterTestBase {
         assertFalse(adapter.hasMarket(usdcMarketId));
     }
 
-    // ============ getAdapterMetadata Tests ============
-
-    function test_getAdapterMetadata_returnsCorrectName() public view {
-        CompoundAdapter.AdapterMetadata memory metadata = adapter.getAdapterMetadata();
-        assertEq(metadata.name, "Compound V3");
-    }
-
     // ============ Multiple Markets Tests ============
 
     function test_multipleMarkets() public {

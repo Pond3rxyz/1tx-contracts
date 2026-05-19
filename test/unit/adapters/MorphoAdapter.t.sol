@@ -27,12 +27,6 @@ contract MorphoAdapterTest is AdapterTestBase {
         assertEq(adapter.owner(), owner);
     }
 
-    function test_getAdapterMetadata_returnsMorphoName() public view {
-        MorphoAdapter.AdapterMetadata memory metadata = adapter.getAdapterMetadata();
-
-        assertEq(metadata.name, "Morpho Vaults V2");
-    }
-
     function test_registerVault_registersMarket() public {
         vm.prank(owner);
         adapter.registerVault(usdcCurrency, address(mockVault));

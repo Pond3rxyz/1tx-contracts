@@ -165,7 +165,7 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
     }
 
     function _setupMorpho() internal {
-        morphoAdapter = new ERC4626Adapter(address(this), "Morpho Vaults V2");
+        morphoAdapter = new ERC4626Adapter(address(this));
         morphoAdapter.addAuthorizedCaller(address(router));
 
         _tryRegisterMorphoVault("Morpho-steakhouseUSDC", "steakhouseUSDC");
@@ -214,7 +214,7 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
     }
 
     function _setupFluid() internal {
-        fluidAdapter = new ERC4626Adapter(address(this), "Fluid Lending");
+        fluidAdapter = new ERC4626Adapter(address(this));
         fluidAdapter.addAuthorizedCaller(address(router));
 
         _tryRegisterFluidToken("Fluid-fUSDC", "fUSDC", usdc, false);
@@ -237,7 +237,7 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
     }
 
     function _setupEuler() internal {
-        eulerAdapter = new ERC4626Adapter(address(this), "Euler Earn");
+        eulerAdapter = new ERC4626Adapter(address(this));
         eulerAdapter.addAuthorizedCaller(address(router));
 
         _tryRegisterEulerVault("Euler-eeUSDC", "eeUSDC");
@@ -411,7 +411,7 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
 
         instrumentRegistry.unregisterInstrument(instrumentId);
 
-        ERC4626Adapter newAdapter = new ERC4626Adapter(address(this), "Morpho Vaults V2");
+        ERC4626Adapter newAdapter = new ERC4626Adapter(address(this));
         newAdapter.addAuthorizedCaller(address(router));
         newAdapter.registerMarket(usdcCurrency, vault);
 

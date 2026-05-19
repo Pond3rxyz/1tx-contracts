@@ -27,12 +27,6 @@ contract EulerAdapterTest is AdapterTestBase {
         assertEq(adapter.owner(), owner);
     }
 
-    function test_getAdapterMetadata_returnsEulerName() public view {
-        EulerAdapter.AdapterMetadata memory metadata = adapter.getAdapterMetadata();
-
-        assertEq(metadata.name, "Euler Earn");
-    }
-
     function test_registerVault_registersMarket() public {
         vm.prank(owner);
         adapter.registerVault(usdcCurrency, address(mockVault));

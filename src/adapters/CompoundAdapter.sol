@@ -72,12 +72,6 @@ contract CompoundAdapter is AdapterBase {
         emit MarketDeactivated(marketId);
     }
 
-    /// @notice Returns the metadata for this lending adapter
-    /// @return metadata The adapter metadata containing name and chainId
-    function getAdapterMetadata() external view override returns (AdapterMetadata memory metadata) {
-        return AdapterMetadata({name: "Compound V3", chainId: block.chainid});
-    }
-
     /// @notice Checks if a market is registered and active
     /// @param marketId The market identifier
     /// @return True if the market is registered and active
@@ -163,13 +157,5 @@ contract CompoundAdapter is AdapterBase {
         MarketConfig memory config = markets[marketId];
         if (!config.active) revert MarketNotActive();
         return config.currency;
-    }
-
-    /// @notice Converts Comet balance to underlying value (1:1 for Compound V3)
-    /// @dev Comet's balanceOf already returns the underlying value including accrued interest
-    /// @param yieldTokenAmount The Comet token balance
-    /// @return The equivalent amount of underlying assets
-    function convertToUnderlying(bytes32, uint256 yieldTokenAmount) external pure override returns (uint256) {
-        return yieldTokenAmount;
     }
 }

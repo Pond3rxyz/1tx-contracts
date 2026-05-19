@@ -222,7 +222,7 @@ contract Deploy is ConfigReader {
 
         console.log("\n[2/8] Deploying Morpho Adapter");
         console.log("-----------------------------------------------");
-        morphoAdapter = new ERC4626Adapter(deployer, "Morpho Vaults V2");
+        morphoAdapter = new ERC4626Adapter(deployer);
         console.log("  MorphoAdapter:", address(morphoAdapter));
     }
 
@@ -231,7 +231,7 @@ contract Deploy is ConfigReader {
 
         console.log("\n[2/8] Deploying Euler Earn Adapter");
         console.log("-----------------------------------------------");
-        eulerAdapter = new ERC4626Adapter(deployer, "Euler Earn");
+        eulerAdapter = new ERC4626Adapter(deployer);
         console.log("  EulerAdapter:", address(eulerAdapter));
     }
 
@@ -240,7 +240,7 @@ contract Deploy is ConfigReader {
 
         console.log("\n[2/8] Deploying Fluid Adapter");
         console.log("-----------------------------------------------");
-        fluidAdapter = new ERC4626Adapter(deployer, "Fluid Lending");
+        fluidAdapter = new ERC4626Adapter(deployer);
         console.log("  FluidAdapter:", address(fluidAdapter));
     }
 

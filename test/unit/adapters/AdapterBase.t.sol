@@ -17,10 +17,6 @@ contract ConcreteAdapter is AdapterBase {
 
     constructor(address initialOwner) AdapterBase(initialOwner) {}
 
-    function getAdapterMetadata() external pure override returns (AdapterMetadata memory) {
-        return AdapterMetadata({name: "Test Adapter", chainId: 1});
-    }
-
     function hasMarket(bytes32 marketId) external view override returns (bool) {
         return activeMarkets[marketId];
     }
@@ -33,6 +29,7 @@ contract ConcreteAdapter is AdapterBase {
 
     function withdraw(bytes32, uint256 amount, address to)
         external
+        view
         override
         onlyAuthorizedCaller
         validDepositWithdrawParams(amount, to)
@@ -47,10 +44,6 @@ contract ConcreteAdapter is AdapterBase {
 
     function getMarketCurrency(bytes32) external pure override returns (Currency) {
         return CurrencyLibrary.ADDRESS_ZERO;
-    }
-
-    function convertToUnderlying(bytes32, uint256 yieldTokenAmount) external pure override returns (uint256) {
-        return yieldTokenAmount;
     }
 
     // Test helper: register a market with validCurrency check

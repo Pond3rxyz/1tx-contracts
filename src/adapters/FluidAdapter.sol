@@ -8,7 +8,7 @@ import {ERC4626Adapter} from "./ERC4626Adapter.sol";
 /// @title FluidAdapter
 /// @notice Compatibility wrapper for Fluid ERC-4626 markets
 contract FluidAdapter is ERC4626Adapter {
-    constructor(address initialOwner) ERC4626Adapter(initialOwner, "Fluid Lending") {}
+    constructor(address initialOwner) ERC4626Adapter(initialOwner) {}
 
     function registerFToken(Currency currency, address fToken) external {
         registerMarket(currency, fToken);

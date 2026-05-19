@@ -6,8 +6,18 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
-import {ILendingAdapter} from "../../../../src/interfaces/ILendingAdapter.sol";
 import {InstrumentIdLib} from "../../../../src/libraries/InstrumentIdLib.sol";
+
+interface ILendingAdapterV1 {
+    struct AdapterMetadata {
+        string name;
+        uint256 chainId;
+    }
+
+    function getAdapterMetadata() external view returns (AdapterMetadata memory metadata);
+    function hasMarket(bytes32 marketId) external view returns (bool);
+    function getYieldToken(bytes32 marketId) external view returns (address);
+}
 
 contract InstrumentRegistryV1 is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     struct InstrumentInfo {
@@ -46,11 +56,11 @@ contract InstrumentRegistryV1 is Initializable, UUPSUpgradeable, OwnableUpgradea
         if (adapter == address(0)) revert InvalidAdapterAddress();
         if (executionAddress == address(0)) revert InvalidExecutionAddress();
 
-        ILendingAdapter adapterContract = ILendingAdapter(adapter);
+        ILendingAdapterV1 adapterContract = ILendingAdapterV1(adapter);
 
         if (!adapterContract.hasMarket(marketId)) revert MarketNotRegisteredInAdapter();
 
-        ILendingAdapter.AdapterMetadata memory metadata = adapterContract.getAdapterMetadata();
+        ILendingAdapterV1.AdapterMetadata memory metadata = adapterContract.getAdapterMetadata();
         if (metadata.chainId != block.chainid) revert ChainIdMismatch();
 
         bytes32 instrumentId = InstrumentIdLib.generateInstrumentId(block.chainid, executionAddress, marketId);
@@ -95,7 +105,7 @@ contract InstrumentRegistryV1 is Initializable, UUPSUpgradeable, OwnableUpgradea
         InstrumentInfo memory info = instruments[instrumentId];
         if (info.adapter == address(0)) revert InstrumentNotRegistered();
 
-        ILendingAdapter adapterContract = ILendingAdapter(info.adapter);
+        ILendingAdapterV1 adapterContract = ILendingAdapterV1(info.adapter);
         yieldToken = adapterContract.getYieldToken(info.marketId);
         decimals = IERC20Metadata(yieldToken).decimals();
 
