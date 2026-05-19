@@ -58,5 +58,4 @@ interface ILendingAdapter {
     /// @param yieldTokenAmount The amount of yield tokens to convert
     /// @return The equivalent amount of underlying assets
     function convertToUnderlying(bytes32 marketId, uint256 yieldTokenAmount) external view returns (uint256);
-
 }
