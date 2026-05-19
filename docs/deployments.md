@@ -19,15 +19,6 @@
 | CCTPBridge | `0x29DD1294052D317b6F142be2d4e7E9d9Eb178431` | `0x2f7EA74E1FeA199630dc3aa8eDE958882e293aEC` |
 | CCTPReceiver | `0xFCc3e94Eb1A6942a462Be9ADB657076AcD8954cB` | `0xC6aF193CBE5c546967CC916934d1Ff78Bb10fd05` |
 
-### Portfolio Contracts
-
-| Contract | Address |
-|----------|---------|
-| PortfolioStrategy (proxy) | `0x66dC3F5f87493a9F568bD3314625F79dbd242fbA` |
-| PortfolioStrategy (implementation) | `0x6C41f964D3F2aF65128912DcadE68c9E96B95e11` |
-| PortfolioFactory | `0xAeb653cEEC02bdAEDcD732e123580bEcB53f4F58` |
-| PortfolioFactoryHelper | `0xA27bCc651497DEdd0835C0A5aC2FD4275a5f498b` |
-
 ### Adapters
 
 | Adapter | Address | Protocol |
@@ -99,15 +90,6 @@
 | SwapDepositRouter | `0xbFdd5bEdC0cB9B8795A93C2a1fB634012C8F99bC` | `0x69950a624CF85FECb382AC95b9fEFCC90986F230` |
 | CCTPBridge | `0x76332AE6F24597cf37d38E5deB9f2f4172003E64` | `0x83241fAa04c1cBB7D5Da97D400aA78C9C7B46729` |
 | CCTPReceiver | `0xAA4a2CFd29734dA2041a56A716e408F1A610f85E` | `0x6d116ad5571BC8F2fd3839Fb18c351F58eaBdd97` |
-
-### Portfolio Contracts
-
-| Contract | Address |
-|----------|---------|
-| PortfolioStrategy (proxy) | `0x51A0971b514ab02c7F03A03e8831f1f1552dc30E` |
-| PortfolioStrategy (implementation) | `0xeb7f89d69074a21162bfAa8254A8C0e5153D4a08` |
-| PortfolioFactory | `0x90CA0f74342a6399E3469a53373627a26dB3f368` |
-| PortfolioFactoryHelper | `0x9bbF8d3C4057E9516C9c8AD3EB049e667AaddE09` |
 
 ### Adapters
 
@@ -201,15 +183,6 @@
 | SwapDepositRouter | `0xde80Ed3CeBdbf688fE12792BDC5d16f4401cC4f2` | `0x6310Fe911aeA27F0529Ea0c76E4B6Ab1A2395DB7` |
 | CCTPBridge | `0xAdE2f30c17821e26f58922abcB28bC8E1C7b7E0e` | `0xa22d6cCa3286D3CCb034AaeAd167f68b047E85A2` |
 | CCTPReceiver | `0xD0043081c45E50F2F35260bd4c2E006F6854F510` | `0x13130FC5BB532A4a261fD75C5fA79aD3029DF19b` |
-
-### Portfolio Contracts
-
-| Contract | Address |
-|----------|---------|
-| PortfolioStrategy (proxy) | `0xdD154cc48CC81D074630A695F8651762d05e4103` |
-| PortfolioStrategy (implementation) | `0x1c3fedD58868d5df292145114d8939e01AC7a51e` |
-| PortfolioFactory | `0x6F29586cAE2Eb38fE8b77f6FdaF15e2c532C44a5` |
-| PortfolioFactoryHelper | `0x3E79DdA2971633c69563976f1F3fd8F04CeC26d3` |
 
 ### Adapters
 
