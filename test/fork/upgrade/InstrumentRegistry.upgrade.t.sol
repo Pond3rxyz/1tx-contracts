@@ -82,8 +82,7 @@ contract InstrumentRegistryUpgradeTest is Test {
     }
 
     function test_upgrade_preservesStateAndRegistrationGuards() public {
-        InstrumentRegistry.InstrumentInfo memory infoBefore =
-            InstrumentRegistry(address(proxy)).getInstrument(instrumentId);
+        (address adapterBefore, bytes32 marketIdBefore) = proxy.instruments(instrumentId);
 
         InstrumentRegistry newImpl = new InstrumentRegistry();
 
@@ -91,13 +90,13 @@ contract InstrumentRegistryUpgradeTest is Test {
         proxy.upgradeToAndCall(address(newImpl), "");
 
         InstrumentRegistry upgraded = InstrumentRegistry(address(proxy));
-        InstrumentRegistry.InstrumentInfo memory infoAfter = upgraded.getInstrument(instrumentId);
+        (address adapterAfter, bytes32 marketIdAfter) = upgraded.instruments(instrumentId);
 
-        assertEq(infoBefore.adapter, address(adapter));
-        assertEq(infoBefore.marketId, marketId);
-        assertEq(infoAfter.adapter, infoBefore.adapter, "adapter changed across upgrade");
-        assertEq(infoAfter.marketId, infoBefore.marketId, "marketId changed across upgrade");
-        assertTrue(upgraded.isInstrumentRegistered(instrumentId), "instrument missing after upgrade");
+        assertEq(adapterBefore, address(adapter));
+        assertEq(marketIdBefore, marketId);
+        assertEq(adapterAfter, adapterBefore, "adapter changed across upgrade");
+        assertEq(marketIdAfter, marketIdBefore, "marketId changed across upgrade");
+        assertTrue(adapterAfter != address(0), "instrument missing after upgrade");
 
         vm.prank(owner);
         vm.expectRevert(InstrumentRegistry.InstrumentAlreadyRegistered.selector);

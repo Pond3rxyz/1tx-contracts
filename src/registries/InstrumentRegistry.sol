@@ -4,7 +4,6 @@ pragma solidity ^0.8.26;
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {ILendingAdapter} from "../interfaces/ILendingAdapter.sol";
 import {InstrumentIdLib} from "../libraries/InstrumentIdLib.sol";
 
@@ -92,15 +91,6 @@ contract InstrumentRegistry is Initializable, UUPSUpgradeable, OwnableUpgradeabl
 
     // ============ View Functions ============
 
-    /// @notice Retrieves information about a registered instrument
-    /// @param instrumentId The globally unique instrument identifier
-    /// @return instrument The instrument info (adapter address and marketId)
-    function getInstrument(bytes32 instrumentId) external view returns (InstrumentInfo memory instrument) {
-        instrument = instruments[instrumentId];
-        if (instrument.adapter == address(0)) revert InstrumentNotRegistered();
-        return instrument;
-    }
-
     /// @notice Gas-optimized retrieval returning individual values instead of struct
     /// @param instrumentId The globally unique instrument identifier
     /// @return adapter The address of the lending adapter
@@ -110,42 +100,6 @@ contract InstrumentRegistry is Initializable, UUPSUpgradeable, OwnableUpgradeabl
         adapter = info.adapter;
         if (adapter == address(0)) revert InstrumentNotRegistered();
         marketId = info.marketId;
-    }
-
-    /// @notice Checks if an instrument is registered
-    /// @param instrumentId The globally unique instrument identifier
-    /// @return True if the instrument is registered
-    function isInstrumentRegistered(bytes32 instrumentId) external view returns (bool) {
-        return instruments[instrumentId].adapter != address(0);
-    }
-
-    /// @notice Gets complete instrument details including yield token and decimals
-    /// @dev Convenience function aggregating data from adapter to reduce frontend RPC calls
-    /// @param instrumentId The globally unique instrument identifier
-    /// @return adapter The address of the lending adapter
-    /// @return marketId The protocol-specific market identifier
-    /// @return yieldToken The yield-bearing token address (e.g., aUSDC, cUSDCv3)
-    /// @return decimals The number of decimals for the yield token
-    function getInstrumentDetails(bytes32 instrumentId)
-        external
-        view
-        returns (address adapter, bytes32 marketId, address yieldToken, uint8 decimals)
-    {
-        InstrumentInfo memory info = instruments[instrumentId];
-        if (info.adapter == address(0)) revert InstrumentNotRegistered();
-
-        ILendingAdapter adapterContract = ILendingAdapter(info.adapter);
-        yieldToken = adapterContract.getYieldToken(info.marketId);
-        decimals = IERC20Metadata(yieldToken).decimals();
-
-        return (info.adapter, info.marketId, yieldToken, decimals);
-    }
-
-    /// @notice Extracts the chainId from an instrument ID
-    /// @param instrumentId The instrument ID to extract from
-    /// @return chainId The chain ID embedded in the instrument ID
-    function getInstrumentChainId(bytes32 instrumentId) public pure returns (uint32 chainId) {
-        return InstrumentIdLib.getInstrumentChainId(instrumentId);
     }
 
     // ============ Internal ============
