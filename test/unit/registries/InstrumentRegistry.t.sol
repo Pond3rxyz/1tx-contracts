@@ -61,6 +61,11 @@ contract InstrumentRegistryTest is Test {
         instrumentId = InstrumentIdLib.generateInstrumentId(block.chainid, executionAddress, marketId);
     }
 
+    function _isInstrumentRegistered(bytes32 id) internal view returns (bool) {
+        (address adapterAddr,) = registry.instruments(id);
+        return adapterAddr != address(0);
+    }
+
     // ============ Initialize Tests ============
 
     function test_initialize_setsOwner() public view {
@@ -81,16 +86,16 @@ contract InstrumentRegistryTest is Test {
         vm.prank(owner);
         registry.registerInstrument(executionAddress, marketId, address(adapter));
 
-        assertTrue(registry.isInstrumentRegistered(instrumentId));
+        assertTrue(_isInstrumentRegistered(instrumentId));
     }
 
     function test_registerInstrument_storesCorrectData() public {
         vm.prank(owner);
         registry.registerInstrument(executionAddress, marketId, address(adapter));
 
-        InstrumentRegistry.InstrumentInfo memory info = registry.getInstrument(instrumentId);
-        assertEq(info.adapter, address(adapter));
-        assertEq(info.marketId, marketId);
+        (address adapterAddr, bytes32 mktId) = registry.getInstrumentDirect(instrumentId);
+        assertEq(adapterAddr, address(adapter));
+        assertEq(mktId, marketId);
     }
 
     function test_registerInstrument_revertsOnNonOwner() public {
@@ -134,7 +139,7 @@ contract InstrumentRegistryTest is Test {
 
         // Verify the instrument ID matches the library's output
         bytes32 expectedId = InstrumentIdLib.generateInstrumentId(block.chainid, executionAddress, marketId);
-        assertTrue(registry.isInstrumentRegistered(expectedId));
+        assertTrue(_isInstrumentRegistered(expectedId));
     }
 
     function test_registerInstrument_multipleInstruments() public {
@@ -153,8 +158,8 @@ contract InstrumentRegistryTest is Test {
         vm.prank(owner);
         registry.registerInstrument(executionAddress, usdtMarketId, address(adapter));
 
-        assertTrue(registry.isInstrumentRegistered(instrumentId));
-        assertTrue(registry.isInstrumentRegistered(usdtInstrumentId));
+        assertTrue(_isInstrumentRegistered(instrumentId));
+        assertTrue(_isInstrumentRegistered(usdtInstrumentId));
     }
 
     // ============ unregisterInstrument Tests ============
@@ -162,7 +167,7 @@ contract InstrumentRegistryTest is Test {
     function test_unregisterInstrument_success() public {
         vm.prank(owner);
         registry.registerInstrument(executionAddress, marketId, address(adapter));
-        assertTrue(registry.isInstrumentRegistered(instrumentId));
+        assertTrue(_isInstrumentRegistered(instrumentId));
 
         vm.expectEmit(true, false, false, false);
         emit InstrumentUnregistered(instrumentId);
@@ -170,7 +175,7 @@ contract InstrumentRegistryTest is Test {
         vm.prank(owner);
         registry.unregisterInstrument(instrumentId);
 
-        assertFalse(registry.isInstrumentRegistered(instrumentId));
+        assertFalse(_isInstrumentRegistered(instrumentId));
     }
 
     function test_unregisterInstrument_revertsOnNonOwner() public {
@@ -194,28 +199,12 @@ contract InstrumentRegistryTest is Test {
 
         vm.prank(owner);
         registry.unregisterInstrument(instrumentId);
-        assertFalse(registry.isInstrumentRegistered(instrumentId));
+        assertFalse(_isInstrumentRegistered(instrumentId));
 
         // Re-register should succeed
         vm.prank(owner);
         registry.registerInstrument(executionAddress, marketId, address(adapter));
-        assertTrue(registry.isInstrumentRegistered(instrumentId));
-    }
-
-    // ============ getInstrument Tests ============
-
-    function test_getInstrument_returnsCorrectInfo() public {
-        vm.prank(owner);
-        registry.registerInstrument(executionAddress, marketId, address(adapter));
-
-        InstrumentRegistry.InstrumentInfo memory info = registry.getInstrument(instrumentId);
-        assertEq(info.adapter, address(adapter));
-        assertEq(info.marketId, marketId);
-    }
-
-    function test_getInstrument_revertsIfNotRegistered() public {
-        vm.expectRevert(InstrumentRegistry.InstrumentNotRegistered.selector);
-        registry.getInstrument(instrumentId);
+        assertTrue(_isInstrumentRegistered(instrumentId));
     }
 
     // ============ getInstrumentDirect Tests ============
@@ -234,73 +223,10 @@ contract InstrumentRegistryTest is Test {
         registry.getInstrumentDirect(instrumentId);
     }
 
-    // ============ isInstrumentRegistered Tests ============
-
-    function test_isInstrumentRegistered_returnsTrueWhenRegistered() public {
-        vm.prank(owner);
-        registry.registerInstrument(executionAddress, marketId, address(adapter));
-
-        assertTrue(registry.isInstrumentRegistered(instrumentId));
-    }
-
-    function test_isInstrumentRegistered_returnsFalseWhenNotRegistered() public view {
-        assertFalse(registry.isInstrumentRegistered(instrumentId));
-    }
-
-    function test_isInstrumentRegistered_returnsFalseAfterUnregister() public {
-        vm.prank(owner);
-        registry.registerInstrument(executionAddress, marketId, address(adapter));
-
-        vm.prank(owner);
-        registry.unregisterInstrument(instrumentId);
-
-        assertFalse(registry.isInstrumentRegistered(instrumentId));
-    }
-
-    // ============ getInstrumentDetails Tests ============
-
-    function test_getInstrumentDetails_returnsCompleteInfo() public {
-        vm.prank(owner);
-        registry.registerInstrument(executionAddress, marketId, address(adapter));
-
-        (address adapterAddr, bytes32 mktId, address yieldToken, uint8 decimals) =
-            registry.getInstrumentDetails(instrumentId);
-
-        assertEq(adapterAddr, address(adapter));
-        assertEq(mktId, marketId);
-        assertEq(yieldToken, address(aUsdc));
-        assertEq(decimals, 6);
-    }
-
-    function test_getInstrumentDetails_revertsIfNotRegistered() public {
-        vm.expectRevert(InstrumentRegistry.InstrumentNotRegistered.selector);
-        registry.getInstrumentDetails(instrumentId);
-    }
-
-    function test_getInstrumentDetails_handlesMultipleDecimals() public {
-        // Create 18-decimal token
-        MockERC20 dai = new MockERC20("DAI", "DAI", 18);
-        MockERC20 aDai = new MockERC20("Aave DAI", "aDAI", 18);
-        bytes32 daiMarketId = keccak256(abi.encode(Currency.wrap(address(dai))));
-        adapter.addMockMarket(daiMarketId, address(aDai), Currency.wrap(address(dai)));
-
-        address daiExec = makeAddr("daiExec");
-        bytes32 daiInstrumentId = InstrumentIdLib.generateInstrumentId(block.chainid, daiExec, daiMarketId);
-
-        vm.prank(owner);
-        registry.registerInstrument(daiExec, daiMarketId, address(adapter));
-
-        (,,, uint8 decimals) = registry.getInstrumentDetails(daiInstrumentId);
-        assertEq(decimals, 18);
-    }
-
     // ============ getInstrumentChainId Tests ============
 
-    function test_getInstrumentChainId_extractsCorrectChainId() public {
-        vm.prank(owner);
-        registry.registerInstrument(executionAddress, marketId, address(adapter));
-
-        uint32 chainId = registry.getInstrumentChainId(instrumentId);
+    function test_instrumentIdLib_extractsCorrectChainId() public view {
+        uint32 chainId = InstrumentIdLib.getInstrumentChainId(instrumentId);
         assertEq(chainId, uint32(block.chainid));
     }
 
@@ -356,8 +282,8 @@ contract InstrumentRegistryTest is Test {
         registry.unregisterInstrument(instrumentId);
 
         // Second should still exist
-        assertFalse(registry.isInstrumentRegistered(instrumentId));
-        assertTrue(registry.isInstrumentRegistered(usdtInstrumentId));
+        assertFalse(_isInstrumentRegistered(instrumentId));
+        assertTrue(_isInstrumentRegistered(usdtInstrumentId));
     }
 
     function test_registerInstrument_differentExecutionAddressesDifferentIds() public {
@@ -377,7 +303,7 @@ contract InstrumentRegistryTest is Test {
         vm.prank(owner);
         registry.registerInstrument(exec2, marketId, address(adapter));
 
-        assertTrue(registry.isInstrumentRegistered(id1));
-        assertTrue(registry.isInstrumentRegistered(id2));
+        assertTrue(_isInstrumentRegistered(id1));
+        assertTrue(_isInstrumentRegistered(id2));
     }
 }

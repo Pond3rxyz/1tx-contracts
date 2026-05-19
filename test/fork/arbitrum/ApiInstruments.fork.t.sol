@@ -168,7 +168,8 @@ contract ApiInstrumentsArbitrumForkTest is Test {
         for (uint256 i = 0; i < apiInstruments.length; i++) {
             ApiInstrument memory inst = apiInstruments[i];
             bytes32 instrumentId = _computeInstrumentId(inst);
-            bool registered = REGISTRY.isInstrumentRegistered(instrumentId);
+            (address adapter,) = REGISTRY.instruments(instrumentId);
+            bool registered = adapter != address(0);
             assertTrue(registered, string.concat("Not registered: ", inst.description));
         }
     }
