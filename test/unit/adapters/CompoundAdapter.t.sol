@@ -171,7 +171,7 @@ contract CompoundAdapterTest is AdapterTestBase {
         // Setup: register market and authorize caller
         vm.startPrank(owner);
         adapter.registerMarket(usdcCurrency, address(mockComet));
-        adapter.addAuthorizedCaller(authorizedCaller);
+        adapter.setAuthorizedCaller(authorizedCaller, true);
         vm.stopPrank();
 
         // User deposits first
@@ -206,7 +206,7 @@ contract CompoundAdapterTest is AdapterTestBase {
 
     function test_withdraw_revertsIfMarketNotActive() public {
         vm.startPrank(owner);
-        adapter.addAuthorizedCaller(authorizedCaller);
+        adapter.setAuthorizedCaller(authorizedCaller, true);
         vm.stopPrank();
 
         vm.prank(authorizedCaller);
@@ -217,7 +217,7 @@ contract CompoundAdapterTest is AdapterTestBase {
     function test_withdraw_revertsOnZeroAmount() public {
         vm.startPrank(owner);
         adapter.registerMarket(usdcCurrency, address(mockComet));
-        adapter.addAuthorizedCaller(authorizedCaller);
+        adapter.setAuthorizedCaller(authorizedCaller, true);
         vm.stopPrank();
 
         vm.prank(authorizedCaller);
@@ -228,7 +228,7 @@ contract CompoundAdapterTest is AdapterTestBase {
     function test_withdraw_revertsOnZeroRecipient() public {
         vm.startPrank(owner);
         adapter.registerMarket(usdcCurrency, address(mockComet));
-        adapter.addAuthorizedCaller(authorizedCaller);
+        adapter.setAuthorizedCaller(authorizedCaller, true);
         vm.stopPrank();
 
         vm.prank(authorizedCaller);

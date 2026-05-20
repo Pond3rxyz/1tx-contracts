@@ -257,7 +257,7 @@ contract CrossChainBuyE2ETest is Test {
         destinationRouter.setCCTPReceiver(address(destinationReceiver));
 
         vm.prank(owner);
-        destinationAdapter.addAuthorizedCaller(address(destinationRouter));
+        destinationAdapter.setAuthorizedCaller(address(destinationRouter), true);
 
         bytes32 usdtMarketId = keccak256(abi.encode(Currency.wrap(address(destinationUsdt))));
         address destinationExecutionAddress = makeAddr("destinationExecutionAddress");

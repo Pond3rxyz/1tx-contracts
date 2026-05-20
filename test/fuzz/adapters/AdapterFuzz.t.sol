@@ -67,7 +67,7 @@ contract AdapterFuzzTest is Test {
         aaveAdapter = new AaveAdapter(address(mockPool), owner);
         vm.startPrank(owner);
         aaveAdapter.registerMarket(usdcCurrency);
-        aaveAdapter.addAuthorizedCaller(authorizedCaller);
+        aaveAdapter.setAuthorizedCaller(authorizedCaller, true);
         vm.stopPrank();
 
         // Setup Compound
@@ -77,7 +77,7 @@ contract AdapterFuzzTest is Test {
         compoundAdapter = new CompoundAdapter(owner);
         vm.startPrank(owner);
         compoundAdapter.registerMarket(usdcCurrency, address(mockComet));
-        compoundAdapter.addAuthorizedCaller(authorizedCaller);
+        compoundAdapter.setAuthorizedCaller(authorizedCaller, true);
         vm.stopPrank();
 
         // Setup Morpho
@@ -87,7 +87,7 @@ contract AdapterFuzzTest is Test {
         morphoAdapter = new MorphoAdapter(owner);
         vm.startPrank(owner);
         morphoAdapter.registerVault(usdcCurrency, address(mockMorphoVault));
-        morphoAdapter.addAuthorizedCaller(authorizedCaller);
+        morphoAdapter.setAuthorizedCaller(authorizedCaller, true);
         vm.stopPrank();
 
         // Setup Fluid
@@ -97,7 +97,7 @@ contract AdapterFuzzTest is Test {
         fluidAdapter = new FluidAdapter(owner);
         vm.startPrank(owner);
         fluidAdapter.registerFToken(usdcCurrency, address(mockFToken));
-        fluidAdapter.addAuthorizedCaller(authorizedCaller);
+        fluidAdapter.setAuthorizedCaller(authorizedCaller, true);
         vm.stopPrank();
     }
 

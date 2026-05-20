@@ -189,7 +189,7 @@ contract AaveAdapterTest is AdapterTestBase {
         // Setup: register market and authorize caller
         vm.startPrank(owner);
         adapter.registerMarket(usdcCurrency);
-        adapter.addAuthorizedCaller(authorizedCaller);
+        adapter.setAuthorizedCaller(authorizedCaller, true);
         vm.stopPrank();
 
         // User deposits first
@@ -224,7 +224,7 @@ contract AaveAdapterTest is AdapterTestBase {
 
     function test_withdraw_revertsIfMarketNotActive() public {
         vm.startPrank(owner);
-        adapter.addAuthorizedCaller(authorizedCaller);
+        adapter.setAuthorizedCaller(authorizedCaller, true);
         vm.stopPrank();
 
         vm.prank(authorizedCaller);
@@ -235,7 +235,7 @@ contract AaveAdapterTest is AdapterTestBase {
     function test_withdraw_revertsOnZeroAmount() public {
         vm.startPrank(owner);
         adapter.registerMarket(usdcCurrency);
-        adapter.addAuthorizedCaller(authorizedCaller);
+        adapter.setAuthorizedCaller(authorizedCaller, true);
         vm.stopPrank();
 
         vm.prank(authorizedCaller);
@@ -246,7 +246,7 @@ contract AaveAdapterTest is AdapterTestBase {
     function test_withdraw_revertsOnZeroRecipient() public {
         vm.startPrank(owner);
         adapter.registerMarket(usdcCurrency);
-        adapter.addAuthorizedCaller(authorizedCaller);
+        adapter.setAuthorizedCaller(authorizedCaller, true);
         vm.stopPrank();
 
         vm.prank(authorizedCaller);

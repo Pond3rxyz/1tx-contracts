@@ -60,8 +60,7 @@ contract AdapterBaseTest is Test {
     address public user;
     address public authorizedCaller;
 
-    event AuthorizedCallerAdded(address indexed caller);
-    event AuthorizedCallerRemoved(address indexed caller);
+    event AuthorizedCallerUpdated(address indexed caller, bool allowed);
 
     function setUp() public {
         owner = makeAddr("owner");
@@ -78,62 +77,58 @@ contract AdapterBaseTest is Test {
         assertEq(adapter.owner(), owner);
     }
 
-    // ============ addAuthorizedCaller Tests ============
+    // ============ setAuthorizedCaller Tests ============
 
-    function test_addAuthorizedCaller_success() public {
-        vm.expectEmit(true, false, false, false);
-        emit AuthorizedCallerAdded(authorizedCaller);
+    function test_setAuthorizedCaller_authorizesCaller() public {
+        vm.expectEmit(true, false, false, true);
+        emit AuthorizedCallerUpdated(authorizedCaller, true);
 
         vm.prank(owner);
-        adapter.addAuthorizedCaller(authorizedCaller);
+        adapter.setAuthorizedCaller(authorizedCaller, true);
 
         assertTrue(adapter.authorizedCallers(authorizedCaller));
     }
 
-    function test_addAuthorizedCaller_revertsOnZeroAddress() public {
+    function test_setAuthorizedCaller_revertsOnZeroAddress() public {
         vm.prank(owner);
         vm.expectRevert(AdapterBase.InvalidAuthorizedCaller.selector);
-        adapter.addAuthorizedCaller(address(0));
+        adapter.setAuthorizedCaller(address(0), true);
     }
 
-    function test_addAuthorizedCaller_revertsOnNonOwner() public {
+    function test_setAuthorizedCaller_revertsOnNonOwner() public {
         vm.prank(user);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user));
-        adapter.addAuthorizedCaller(authorizedCaller);
+        adapter.setAuthorizedCaller(authorizedCaller, true);
     }
 
-    // ============ removeAuthorizedCaller Tests ============
-
-    function test_removeAuthorizedCaller_success() public {
-        // First add the caller
+    function test_setAuthorizedCaller_removesCaller() public {
         vm.prank(owner);
-        adapter.addAuthorizedCaller(authorizedCaller);
+        adapter.setAuthorizedCaller(authorizedCaller, true);
         assertTrue(adapter.authorizedCallers(authorizedCaller));
 
-        // Now remove
-        vm.expectEmit(true, false, false, false);
-        emit AuthorizedCallerRemoved(authorizedCaller);
+        vm.expectEmit(true, false, false, true);
+        emit AuthorizedCallerUpdated(authorizedCaller, false);
 
         vm.prank(owner);
-        adapter.removeAuthorizedCaller(authorizedCaller);
+        adapter.setAuthorizedCaller(authorizedCaller, false);
 
         assertFalse(adapter.authorizedCallers(authorizedCaller));
     }
 
-    function test_removeAuthorizedCaller_revertsOnNonOwner() public {
+    function test_setAuthorizedCaller_revertsOnRemoveByNonOwner() public {
         vm.prank(owner);
-        adapter.addAuthorizedCaller(authorizedCaller);
+        adapter.setAuthorizedCaller(authorizedCaller, true);
 
         vm.prank(user);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user));
-        adapter.removeAuthorizedCaller(authorizedCaller);
+        adapter.setAuthorizedCaller(authorizedCaller, false);
     }
 
     // ============ onlyAuthorizedCaller Modifier Tests ============
 
     function test_onlyAuthorizedCaller_success() public {
         vm.prank(owner);
-        adapter.addAuthorizedCaller(authorizedCaller);
+        adapter.setAuthorizedCaller(authorizedCaller, true);
 
         bytes32 marketId = keccak256("test");
         vm.prank(authorizedCaller);
@@ -152,9 +147,9 @@ contract AdapterBaseTest is Test {
     function test_onlyAuthorizedCaller_revertsForRemovedCaller() public {
         // Add and then remove
         vm.prank(owner);
-        adapter.addAuthorizedCaller(authorizedCaller);
+        adapter.setAuthorizedCaller(authorizedCaller, true);
         vm.prank(owner);
-        adapter.removeAuthorizedCaller(authorizedCaller);
+        adapter.setAuthorizedCaller(authorizedCaller, false);
 
         bytes32 marketId = keccak256("test");
         vm.prank(authorizedCaller);
@@ -217,9 +212,9 @@ contract AdapterBaseTest is Test {
         address caller3 = makeAddr("caller3");
 
         vm.startPrank(owner);
-        adapter.addAuthorizedCaller(caller1);
-        adapter.addAuthorizedCaller(caller2);
-        adapter.addAuthorizedCaller(caller3);
+        adapter.setAuthorizedCaller(caller1, true);
+        adapter.setAuthorizedCaller(caller2, true);
+        adapter.setAuthorizedCaller(caller3, true);
         vm.stopPrank();
 
         assertTrue(adapter.authorizedCallers(caller1));
@@ -241,10 +236,10 @@ contract AdapterBaseTest is Test {
 
     function test_addingCallerTwiceIsIdempotent() public {
         vm.prank(owner);
-        adapter.addAuthorizedCaller(authorizedCaller);
+        adapter.setAuthorizedCaller(authorizedCaller, true);
 
         vm.prank(owner);
-        adapter.addAuthorizedCaller(authorizedCaller);
+        adapter.setAuthorizedCaller(authorizedCaller, true);
 
         assertTrue(adapter.authorizedCallers(authorizedCaller));
     }
@@ -253,7 +248,7 @@ contract AdapterBaseTest is Test {
         assertFalse(adapter.authorizedCallers(authorizedCaller));
 
         vm.prank(owner);
-        adapter.removeAuthorizedCaller(authorizedCaller);
+        adapter.setAuthorizedCaller(authorizedCaller, false);
 
         assertFalse(adapter.authorizedCallers(authorizedCaller));
     }

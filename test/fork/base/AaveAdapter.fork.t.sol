@@ -113,7 +113,7 @@ contract AaveAdapterForkTest is AdapterForkTestBase {
 
         if (!adapter.authorizedCallers(address(this))) {
             vm.prank(adapter.owner());
-            adapter.addAuthorizedCaller(address(this));
+            adapter.setAuthorizedCaller(address(this), true);
         }
 
         _dealTokens(token, user, amount);

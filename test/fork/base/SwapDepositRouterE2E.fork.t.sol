@@ -126,7 +126,7 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
         if (aavePool == address(0)) return;
 
         aaveAdapter = new AaveAdapter(aavePool, address(this));
-        aaveAdapter.addAuthorizedCaller(address(router));
+        aaveAdapter.setAuthorizedCaller(address(router), true);
 
         // No-swap: USDC
         _tryRegisterAaveMarket("Aave-USDC", usdc, false);
@@ -166,7 +166,7 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
 
     function _setupMorpho() internal {
         morphoAdapter = new ERC4626Adapter(address(this));
-        morphoAdapter.addAuthorizedCaller(address(router));
+        morphoAdapter.setAuthorizedCaller(address(router), true);
 
         _tryRegisterMorphoVault("Morpho-steakhouseUSDC", "steakhouseUSDC");
         _tryRegisterMorphoVault("Morpho-sparkUSDC", "sparkUSDC");
@@ -191,7 +191,7 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
         if (!vm.keyExistsJson(json, compPath)) return;
 
         compoundAdapter = new CompoundAdapter(address(this));
-        compoundAdapter.addAuthorizedCaller(address(router));
+        compoundAdapter.setAuthorizedCaller(address(router), true);
 
         _tryRegisterCompoundMarket("Compound-USDC", "usdcComet", usdc, false);
         _tryRegisterCompoundMarket("Compound-USDbC", "usdbcComet", getToken("USDbC"), true);
@@ -215,7 +215,7 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
 
     function _setupFluid() internal {
         fluidAdapter = new ERC4626Adapter(address(this));
-        fluidAdapter.addAuthorizedCaller(address(router));
+        fluidAdapter.setAuthorizedCaller(address(router), true);
 
         _tryRegisterFluidToken("Fluid-fUSDC", "fUSDC", usdc, false);
         _tryRegisterFluidToken("Fluid-fEURC", "fEURC", getToken("EURC"), true);
@@ -238,7 +238,7 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
 
     function _setupEuler() internal {
         eulerAdapter = new ERC4626Adapter(address(this));
-        eulerAdapter.addAuthorizedCaller(address(router));
+        eulerAdapter.setAuthorizedCaller(address(router), true);
 
         _tryRegisterEulerVault("Euler-eeUSDC", "eeUSDC");
     }
@@ -395,7 +395,7 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
         bytes32 instrumentId = InstrumentIdLib.generateInstrumentId(block.chainid, executionAddress, marketId);
 
         MorphoAdapter oldAdapter = new MorphoAdapter(address(this));
-        oldAdapter.addAuthorizedCaller(address(router));
+        oldAdapter.setAuthorizedCaller(address(router), true);
         oldAdapter.registerVault(usdcCurrency, vault);
 
         instrumentRegistry.registerInstrument(executionAddress, marketId, address(oldAdapter));
@@ -412,7 +412,7 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
         instrumentRegistry.unregisterInstrument(instrumentId);
 
         ERC4626Adapter newAdapter = new ERC4626Adapter(address(this));
-        newAdapter.addAuthorizedCaller(address(router));
+        newAdapter.setAuthorizedCaller(address(router), true);
         newAdapter.registerMarket(usdcCurrency, vault);
 
         instrumentRegistry.registerInstrument(executionAddress, marketId, address(newAdapter));

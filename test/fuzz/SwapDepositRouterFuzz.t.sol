@@ -109,7 +109,7 @@ contract SwapDepositRouterFuzzTest is Test {
         );
 
         vm.prank(owner);
-        aaveAdapter.addAuthorizedCaller(address(router));
+        aaveAdapter.setAuthorizedCaller(address(router), true);
 
         // Market and instrument IDs
         usdcMarketId = keccak256(abi.encode(usdcCurrency));
