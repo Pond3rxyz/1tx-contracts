@@ -66,7 +66,7 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
     event Buy(bytes32 indexed instrumentId, address indexed recipient, uint256 inputAmount, uint256 depositedAmount);
     event Sell(bytes32 indexed instrumentId, address indexed recipient, uint256 yieldTokenAmount, uint256 outputAmount);
     event FeeConfigUpdated(uint16 protocolFeeBps, address feeRecipient);
-    event FeeCharged(address indexed recipient, uint256 amount, string feeType);
+    event FeeCharged(address indexed recipient, uint256 amount, bool isReferral);
     event CCTPBridgeUpdated(address indexed cctpBridge);
     event CCTPReceiverUpdated(address indexed cctpReceiver);
     event CCTPBridgeInitiated(
@@ -181,27 +181,14 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
         address referralWallet
     ) external returns (uint256 depositedAmount) {
         if (referralFeeBps > MAX_REFERRAL_FEE_BPS) revert FeeTooHigh();
-        return
-            _processBuy(instrumentId, amount, minDepositedAmount, fastTransfer, maxFee, referralFeeBps, referralWallet);
-    }
-
-    function _processBuy(
-        bytes32 instrumentId,
-        uint256 amount,
-        uint256 minDepositedAmount,
-        bool fastTransfer,
-        uint256 maxFee,
-        uint16 referralFeeBps,
-        address referralWallet
-    ) internal returns (uint256 depositedAmount) {
         if (amount == 0) revert InvalidAmount();
 
         // Pull the full amount from user
         IERC20(Currency.unwrap(stable)).safeTransferFrom(msg.sender, address(this), amount);
 
         uint256 netAmount = amount;
-        netAmount -= _deductFee(amount, protocolFeeBps, feeRecipient, "protocol");
-        netAmount -= _deductFee(amount, referralFeeBps, referralWallet, "referral");
+        netAmount -= _deductFee(amount, protocolFeeBps, feeRecipient, false);
+        netAmount -= _deductFee(amount, referralFeeBps, referralWallet, true);
 
         uint32 targetChain = InstrumentIdLib.getInstrumentChainId(instrumentId);
         if (targetChain != _safeChainId()) {
@@ -268,16 +255,6 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
         address referralWallet
     ) external returns (uint256 outputAmount) {
         if (referralFeeBps > MAX_REFERRAL_FEE_BPS) revert FeeTooHigh();
-        return _processSell(instrumentId, yieldTokenAmount, minOutputAmount, referralFeeBps, referralWallet);
-    }
-
-    function _processSell(
-        bytes32 instrumentId,
-        uint256 yieldTokenAmount,
-        uint256 minOutputAmount,
-        uint16 referralFeeBps,
-        address referralWallet
-    ) internal returns (uint256 outputAmount) {
         if (InstrumentIdLib.getInstrumentChainId(instrumentId) != _safeChainId()) {
             revert CrossChainSellNotSupported();
         }
@@ -302,8 +279,8 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
         }
 
         outputAmount = grossOutputAmount;
-        outputAmount -= _deductFee(grossOutputAmount, protocolFeeBps, feeRecipient, "protocol");
-        outputAmount -= _deductFee(grossOutputAmount, referralFeeBps, referralWallet, "referral");
+        outputAmount -= _deductFee(grossOutputAmount, protocolFeeBps, feeRecipient, false);
+        outputAmount -= _deductFee(grossOutputAmount, referralFeeBps, referralWallet, true);
 
         if (outputAmount < minOutputAmount) revert InsufficientOutput(outputAmount, minOutputAmount);
 
@@ -329,7 +306,7 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
 
     // ============ Internal ============
 
-    function _deductFee(uint256 amount, uint16 feeBps, address recipient, string memory feeType)
+    function _deductFee(uint256 amount, uint16 feeBps, address recipient, bool isReferral)
         internal
         returns (uint256 feeAmount)
     {
@@ -337,7 +314,7 @@ contract SwapDepositRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable
         feeAmount = (amount * feeBps) / BPS_DENOMINATOR;
         if (feeAmount > 0) {
             IERC20(Currency.unwrap(stable)).safeTransfer(recipient, feeAmount);
-            emit FeeCharged(recipient, feeAmount, feeType);
+            emit FeeCharged(recipient, feeAmount, isReferral);
         }
     }
 

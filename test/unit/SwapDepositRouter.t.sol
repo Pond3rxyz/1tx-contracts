@@ -998,7 +998,7 @@ contract SwapDepositRouterTest is Test {
         usdc.approve(address(router), DEPOSIT_AMOUNT);
 
         vm.expectEmit(true, false, false, true);
-        emit SwapDepositRouter.FeeCharged(feeRecipient, 5e6, "protocol");
+        emit SwapDepositRouter.FeeCharged(feeRecipient, 5e6, false);
 
         uint256 deposited = router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 0, address(0));
         vm.stopPrank();
@@ -1016,6 +1016,11 @@ contract SwapDepositRouterTest is Test {
 
         vm.startPrank(user);
         usdc.approve(address(router), DEPOSIT_AMOUNT);
+
+        vm.expectEmit(true, false, false, true);
+        emit SwapDepositRouter.FeeCharged(feeRecipient, 5e6, false);
+        vm.expectEmit(true, false, false, true);
+        emit SwapDepositRouter.FeeCharged(referralRecipient, 3e6, true);
 
         uint256 deposited = router.buy(usdcInstrumentId, DEPOSIT_AMOUNT, 0, false, 0, 30, referralRecipient); // 0.3%
         vm.stopPrank();
