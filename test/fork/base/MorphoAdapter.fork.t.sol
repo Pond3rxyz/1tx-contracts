@@ -16,12 +16,7 @@ contract MorphoAdapterForkTest is AdapterForkTestBase {
     function setUp() public override {
         super.setUp();
 
-        address deployedAdapter = getDeployedAdapter("morpho");
-        if (deployedAdapter != address(0) && deployedAdapter.code.length > 0) {
-            adapter = MorphoAdapter(deployedAdapter);
-        } else {
-            adapter = new MorphoAdapter(address(this));
-        }
+        adapter = new MorphoAdapter(address(this));
     }
 
     // ============ Vault Tests ============

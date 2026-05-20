@@ -16,12 +16,7 @@ contract FluidAdapterForkTest is AdapterForkTestBase {
     function setUp() public override {
         super.setUp();
 
-        address deployedAdapter = getDeployedAdapter("fluid");
-        if (deployedAdapter != address(0) && deployedAdapter.code.length > 0) {
-            adapter = FluidAdapter(deployedAdapter);
-        } else {
-            adapter = new FluidAdapter(address(this));
-        }
+        adapter = new FluidAdapter(address(this));
     }
 
     // ============ fToken Tests ============

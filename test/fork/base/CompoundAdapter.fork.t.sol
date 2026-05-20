@@ -16,12 +16,7 @@ contract CompoundAdapterForkTest is AdapterForkTestBase {
     function setUp() public override {
         super.setUp();
 
-        address deployedAdapter = getDeployedAdapter("compound");
-        if (deployedAdapter != address(0) && deployedAdapter.code.length > 0) {
-            adapter = CompoundAdapter(deployedAdapter);
-        } else {
-            adapter = new CompoundAdapter(address(this));
-        }
+        adapter = new CompoundAdapter(address(this));
     }
 
     // ============ Market Tests ============
