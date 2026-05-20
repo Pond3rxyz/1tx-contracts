@@ -95,7 +95,7 @@ contract SwapDepositRouterE2EUnichainForkTest is AdapterForkTestBase {
 
     function _setupMorpho() internal {
         morphoAdapter = new ERC4626Adapter(address(this));
-        morphoAdapter.addAuthorizedCaller(address(router));
+        morphoAdapter.setAuthorizedCaller(address(router), true);
 
         _tryRegisterMorphoVault("Morpho-gauntletUSDCC", "gauntletUSDCC");
     }
@@ -112,7 +112,7 @@ contract SwapDepositRouterE2EUnichainForkTest is AdapterForkTestBase {
 
     function _setupEuler() internal {
         eulerAdapter = new ERC4626Adapter(address(this));
-        eulerAdapter.addAuthorizedCaller(address(router));
+        eulerAdapter.setAuthorizedCaller(address(router), true);
 
         address vault = getEulerVault("eeUSDC");
         if (vault == address(0)) return;

@@ -16,12 +16,7 @@ contract FluidAdapterForkTest is AdapterForkTestBase {
     function setUp() public override {
         super.setUp();
 
-        address deployedAdapter = getDeployedAdapter("fluid");
-        if (deployedAdapter != address(0) && deployedAdapter.code.length > 0) {
-            adapter = FluidAdapter(deployedAdapter);
-        } else {
-            adapter = new FluidAdapter(address(this));
-        }
+        adapter = new FluidAdapter(address(this));
     }
 
     // ============ fToken Tests ============
@@ -84,7 +79,7 @@ contract FluidAdapterForkTest is AdapterForkTestBase {
 
         if (!adapter.authorizedCallers(address(this))) {
             vm.prank(adapter.owner());
-            adapter.addAuthorizedCaller(address(this));
+            adapter.setAuthorizedCaller(address(this), true);
         }
 
         _dealTokens(token, user, amount);

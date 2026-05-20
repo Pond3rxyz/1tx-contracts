@@ -39,11 +39,8 @@ abstract contract AdapterBase is ILendingAdapter, Ownable {
     /// @notice Maps addresses that are authorized to call withdraw functions
     mapping(address => bool) public authorizedCallers;
 
-    /// @notice Emitted when an authorized caller is added
-    event AuthorizedCallerAdded(address indexed caller);
-
-    /// @notice Emitted when an authorized caller is removed
-    event AuthorizedCallerRemoved(address indexed caller);
+    /// @notice Emitted when an authorized caller is updated
+    event AuthorizedCallerUpdated(address indexed caller, bool allowed);
 
     /// @notice Constructor that passes the initial owner to Ownable
     /// @param initialOwner The initial owner of the adapter
@@ -71,18 +68,12 @@ abstract contract AdapterBase is ILendingAdapter, Ownable {
         _;
     }
 
-    /// @notice Adds an address as an authorized caller
-    /// @param caller The address to authorize
-    function addAuthorizedCaller(address caller) external onlyOwner {
+    /// @notice Sets whether an address is an authorized caller
+    /// @param caller The address to update
+    /// @param allowed Whether the caller is authorized
+    function setAuthorizedCaller(address caller, bool allowed) external onlyOwner {
         if (caller == address(0)) revert InvalidAuthorizedCaller();
-        authorizedCallers[caller] = true;
-        emit AuthorizedCallerAdded(caller);
-    }
-
-    /// @notice Removes an address from authorized callers
-    /// @param caller The address to remove authorization from
-    function removeAuthorizedCaller(address caller) external onlyOwner {
-        authorizedCallers[caller] = false;
-        emit AuthorizedCallerRemoved(caller);
+        authorizedCallers[caller] = allowed;
+        emit AuthorizedCallerUpdated(caller, allowed);
     }
 }

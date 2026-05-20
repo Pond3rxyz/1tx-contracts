@@ -107,7 +107,7 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
         if (aavePool == address(0)) return;
 
         aaveAdapter = new AaveAdapter(aavePool, address(this));
-        aaveAdapter.addAuthorizedCaller(address(router));
+        aaveAdapter.setAuthorizedCaller(address(router), true);
 
         _tryRegisterAaveMarket("Aave-USDC", usdc, false);
         _tryRegisterAaveMarketWithSwap("Aave-USDT", "USDT");
@@ -140,7 +140,7 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
 
     function _setupMorpho() internal {
         morphoAdapter = new ERC4626Adapter(address(this));
-        morphoAdapter.addAuthorizedCaller(address(router));
+        morphoAdapter.setAuthorizedCaller(address(router), true);
 
         _tryRegisterMorphoVault("Morpho-clearstarHighYieldUSDC", "clearstarHighYieldUSDC");
         _tryRegisterMorphoVault("Morpho-kpkUSDCYield", "kpkUSDCYield");
@@ -164,7 +164,7 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
 
     function _setupEuler() internal {
         eulerAdapter = new ERC4626Adapter(address(this));
-        eulerAdapter.addAuthorizedCaller(address(router));
+        eulerAdapter.setAuthorizedCaller(address(router), true);
 
         address vault = getEulerVault("eeUSDC");
         if (vault == address(0)) return;

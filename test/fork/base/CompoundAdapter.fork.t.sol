@@ -16,12 +16,7 @@ contract CompoundAdapterForkTest is AdapterForkTestBase {
     function setUp() public override {
         super.setUp();
 
-        address deployedAdapter = getDeployedAdapter("compound");
-        if (deployedAdapter != address(0) && deployedAdapter.code.length > 0) {
-            adapter = CompoundAdapter(deployedAdapter);
-        } else {
-            adapter = new CompoundAdapter(address(this));
-        }
+        adapter = new CompoundAdapter(address(this));
     }
 
     // ============ Market Tests ============
@@ -79,7 +74,7 @@ contract CompoundAdapterForkTest is AdapterForkTestBase {
 
         if (!adapter.authorizedCallers(address(this))) {
             vm.prank(adapter.owner());
-            adapter.addAuthorizedCaller(address(this));
+            adapter.setAuthorizedCaller(address(this), true);
         }
 
         _dealTokens(token, user, amount);

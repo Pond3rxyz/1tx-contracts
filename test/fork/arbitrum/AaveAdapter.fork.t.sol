@@ -89,7 +89,7 @@ contract AaveAdapterArbitrumForkTest is AdapterForkTestBase {
         }
 
         if (!adapter.authorizedCallers(address(this))) {
-            adapter.addAuthorizedCaller(address(this));
+            adapter.setAuthorizedCaller(address(this), true);
         }
 
         _dealTokens(token, user, amount);

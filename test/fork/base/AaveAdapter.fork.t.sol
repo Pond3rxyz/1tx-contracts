@@ -17,15 +17,8 @@ contract AaveAdapterForkTest is AdapterForkTestBase {
     function setUp() public override {
         super.setUp();
 
-        address deployedAdapter = getDeployedAdapter("aave");
         address pool = getAavePool();
-
-        if (deployedAdapter != address(0) && deployedAdapter.code.length > 0) {
-            adapter = AaveAdapter(deployedAdapter);
-        } else {
-            adapter = new AaveAdapter(pool, address(this));
-        }
-
+        adapter = new AaveAdapter(pool, address(this));
         aavePool = IAavePool(pool);
     }
 
@@ -113,7 +106,7 @@ contract AaveAdapterForkTest is AdapterForkTestBase {
 
         if (!adapter.authorizedCallers(address(this))) {
             vm.prank(adapter.owner());
-            adapter.addAuthorizedCaller(address(this));
+            adapter.setAuthorizedCaller(address(this), true);
         }
 
         _dealTokens(token, user, amount);

@@ -167,7 +167,7 @@ contract SwapDepositRouterInvariantTest is StdInvariant, Test {
         );
 
         vm.prank(owner);
-        aaveAdapter.addAuthorizedCaller(address(router));
+        aaveAdapter.setAuthorizedCaller(address(router), true);
 
         bytes32 usdcMarketId = keccak256(abi.encode(usdcCurrency));
         usdcInstrumentId =

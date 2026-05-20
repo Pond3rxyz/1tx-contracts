@@ -170,7 +170,7 @@ contract SwapDepositRouterTest is Test {
 
         // Register adapter as authorized caller (for sell/withdraw)
         vm.prank(owner);
-        aaveAdapter.addAuthorizedCaller(address(router));
+        aaveAdapter.setAuthorizedCaller(address(router), true);
 
         // Compute market IDs
         usdcMarketId = keccak256(abi.encode(usdcCurrency));

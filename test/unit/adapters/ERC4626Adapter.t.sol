@@ -177,7 +177,7 @@ contract ERC4626AdapterTest is AdapterTestBase {
     function test_withdraw_success() public {
         vm.startPrank(owner);
         adapter.registerMarket(usdcCurrency, address(mockVault));
-        adapter.addAuthorizedCaller(authorizedCaller);
+        adapter.setAuthorizedCaller(authorizedCaller, true);
         vm.stopPrank();
 
         _approveTokens(address(usdc), user, address(adapter), DEPOSIT_AMOUNT);
@@ -208,7 +208,7 @@ contract ERC4626AdapterTest is AdapterTestBase {
 
     function test_withdraw_revertsIfMarketNotActive() public {
         vm.prank(owner);
-        adapter.addAuthorizedCaller(authorizedCaller);
+        adapter.setAuthorizedCaller(authorizedCaller, true);
 
         vm.prank(authorizedCaller);
         vm.expectRevert(AdapterBase.MarketNotActive.selector);
@@ -218,7 +218,7 @@ contract ERC4626AdapterTest is AdapterTestBase {
     function test_withdraw_revertsOnZeroAmount() public {
         vm.startPrank(owner);
         adapter.registerMarket(usdcCurrency, address(mockVault));
-        adapter.addAuthorizedCaller(authorizedCaller);
+        adapter.setAuthorizedCaller(authorizedCaller, true);
         vm.stopPrank();
 
         vm.prank(authorizedCaller);
@@ -229,7 +229,7 @@ contract ERC4626AdapterTest is AdapterTestBase {
     function test_withdraw_revertsOnZeroRecipient() public {
         vm.startPrank(owner);
         adapter.registerMarket(usdcCurrency, address(mockVault));
-        adapter.addAuthorizedCaller(authorizedCaller);
+        adapter.setAuthorizedCaller(authorizedCaller, true);
         vm.stopPrank();
 
         vm.prank(authorizedCaller);
@@ -250,7 +250,7 @@ contract ERC4626AdapterTest is AdapterTestBase {
     function test_depositWithdraw_withYieldAccrual() public {
         vm.startPrank(owner);
         adapter.registerMarket(usdcCurrency, address(mockVault));
-        adapter.addAuthorizedCaller(authorizedCaller);
+        adapter.setAuthorizedCaller(authorizedCaller, true);
         vm.stopPrank();
 
         _approveTokens(address(usdc), user, address(adapter), DEPOSIT_AMOUNT);

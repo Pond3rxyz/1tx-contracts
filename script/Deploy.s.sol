@@ -511,23 +511,23 @@ contract Deploy is ConfigReader {
         console.log("-----------------------------------------------");
 
         if (address(aaveAdapter) != address(0)) {
-            aaveAdapter.addAuthorizedCaller(address(router));
+            aaveAdapter.setAuthorizedCaller(address(router), true);
             console.log("  Router authorized on AaveAdapter");
         }
         if (address(compoundAdapter) != address(0)) {
-            compoundAdapter.addAuthorizedCaller(address(router));
+            compoundAdapter.setAuthorizedCaller(address(router), true);
             console.log("  Router authorized on CompoundAdapter");
         }
         if (address(morphoAdapter) != address(0)) {
-            morphoAdapter.addAuthorizedCaller(address(router));
+            morphoAdapter.setAuthorizedCaller(address(router), true);
             console.log("  Router authorized on MorphoAdapter");
         }
         if (address(eulerAdapter) != address(0)) {
-            eulerAdapter.addAuthorizedCaller(address(router));
+            eulerAdapter.setAuthorizedCaller(address(router), true);
             console.log("  Router authorized on EulerAdapter");
         }
         if (address(fluidAdapter) != address(0)) {
-            fluidAdapter.addAuthorizedCaller(address(router));
+            fluidAdapter.setAuthorizedCaller(address(router), true);
             console.log("  Router authorized on FluidAdapter");
         }
     }

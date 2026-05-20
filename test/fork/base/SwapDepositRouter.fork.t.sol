@@ -103,7 +103,7 @@ contract SwapDepositRouterForkTest is AdapterForkTestBase {
             )
         );
 
-        aaveAdapter.addAuthorizedCaller(address(router));
+        aaveAdapter.setAuthorizedCaller(address(router), true);
 
         // Register USDC instrument
         bytes32 usdcMarketId = _computeMarketId(usdcCurrency);
