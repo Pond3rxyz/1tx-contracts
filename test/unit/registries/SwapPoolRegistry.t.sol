@@ -85,19 +85,14 @@ contract SwapPoolRegistryTest is Test {
         vm.prank(owner);
         registry.registerDefaultSwapPool(usdcCurrency, usdtCurrency, validPoolKey);
 
-        assertTrue(registry.hasDefaultSwapPool(usdcCurrency, usdtCurrency));
+        assertDefaultSwapPoolEq(usdcCurrency, usdtCurrency, validPoolKey);
     }
 
     function test_registerDefaultSwapPool_storesCorrectPoolKey() public {
         vm.prank(owner);
         registry.registerDefaultSwapPool(usdcCurrency, usdtCurrency, validPoolKey);
 
-        PoolKey memory retrieved = registry.getDefaultSwapPool(usdcCurrency, usdtCurrency);
-        assertEq(Currency.unwrap(retrieved.currency0), Currency.unwrap(validPoolKey.currency0));
-        assertEq(Currency.unwrap(retrieved.currency1), Currency.unwrap(validPoolKey.currency1));
-        assertEq(retrieved.fee, validPoolKey.fee);
-        assertEq(retrieved.tickSpacing, validPoolKey.tickSpacing);
-        assertEq(address(retrieved.hooks), address(validPoolKey.hooks));
+        assertDefaultSwapPoolEq(usdcCurrency, usdtCurrency, validPoolKey);
     }
 
     function test_registerDefaultSwapPool_directional() public {
@@ -106,10 +101,11 @@ contract SwapPoolRegistryTest is Test {
         registry.registerDefaultSwapPool(usdcCurrency, usdtCurrency, validPoolKey);
 
         // USDC→USDT should exist
-        assertTrue(registry.hasDefaultSwapPool(usdcCurrency, usdtCurrency));
+        assertDefaultSwapPoolEq(usdcCurrency, usdtCurrency, validPoolKey);
 
         // USDT→USDC should NOT exist (directional)
-        assertFalse(registry.hasDefaultSwapPool(usdtCurrency, usdcCurrency));
+        vm.expectRevert(SwapPoolRegistry.NoDefaultPoolRegistered.selector);
+        registry.getDefaultSwapPool(usdtCurrency, usdcCurrency);
     }
 
     function test_registerDefaultSwapPool_bidirectionalRegistration() public {
@@ -119,8 +115,8 @@ contract SwapPoolRegistryTest is Test {
         registry.registerDefaultSwapPool(usdtCurrency, usdcCurrency, validPoolKey);
         vm.stopPrank();
 
-        assertTrue(registry.hasDefaultSwapPool(usdcCurrency, usdtCurrency));
-        assertTrue(registry.hasDefaultSwapPool(usdtCurrency, usdcCurrency));
+        assertDefaultSwapPoolEq(usdcCurrency, usdtCurrency, validPoolKey);
+        assertDefaultSwapPoolEq(usdtCurrency, usdcCurrency, validPoolKey);
     }
 
     function test_registerDefaultSwapPool_revertsOnNonOwner() public {
@@ -227,7 +223,8 @@ contract SwapPoolRegistryTest is Test {
         vm.prank(owner);
         registry.removeDefaultSwapPool(usdcCurrency, usdtCurrency);
 
-        assertFalse(registry.hasDefaultSwapPool(usdcCurrency, usdtCurrency));
+        vm.expectRevert(SwapPoolRegistry.NoDefaultPoolRegistered.selector);
+        registry.getDefaultSwapPool(usdcCurrency, usdtCurrency);
     }
 
     function test_removeDefaultSwapPool_revertsOnNonOwner() public {
@@ -255,8 +252,9 @@ contract SwapPoolRegistryTest is Test {
         registry.removeDefaultSwapPool(usdcCurrency, usdtCurrency);
         vm.stopPrank();
 
-        assertFalse(registry.hasDefaultSwapPool(usdcCurrency, usdtCurrency));
-        assertTrue(registry.hasDefaultSwapPool(usdtCurrency, usdcCurrency));
+        vm.expectRevert(SwapPoolRegistry.NoDefaultPoolRegistered.selector);
+        registry.getDefaultSwapPool(usdcCurrency, usdtCurrency);
+        assertDefaultSwapPoolEq(usdtCurrency, usdcCurrency, validPoolKey);
     }
 
     function test_removeDefaultSwapPool_canReRegisterAfterRemoval() public {
@@ -271,7 +269,7 @@ contract SwapPoolRegistryTest is Test {
         registry.registerDefaultSwapPool(usdcCurrency, usdtCurrency, validPoolKey);
         vm.stopPrank();
 
-        assertTrue(registry.hasDefaultSwapPool(usdcCurrency, usdtCurrency));
+        assertDefaultSwapPoolEq(usdcCurrency, usdtCurrency, validPoolKey);
     }
 
     // ============ getDefaultSwapPool Tests ============
@@ -289,19 +287,6 @@ contract SwapPoolRegistryTest is Test {
 
         vm.expectRevert(SwapPoolRegistry.NoDefaultPoolRegistered.selector);
         registry.getDefaultSwapPool(usdcCurrency, usdtCurrency);
-    }
-
-    // ============ hasDefaultSwapPool Tests ============
-
-    function test_hasDefaultSwapPool_returnsTrueWhenRegistered() public {
-        vm.prank(owner);
-        registry.registerDefaultSwapPool(usdcCurrency, usdtCurrency, validPoolKey);
-
-        assertTrue(registry.hasDefaultSwapPool(usdcCurrency, usdtCurrency));
-    }
-
-    function test_hasDefaultSwapPool_returnsFalseWhenNotRegistered() public view {
-        assertFalse(registry.hasDefaultSwapPool(usdcCurrency, usdtCurrency));
     }
 
     // ============ Multiple Pools Tests ============
@@ -330,9 +315,11 @@ contract SwapPoolRegistryTest is Test {
         registry.registerDefaultSwapPool(usdcCurrency, daiCurrency, usdcDaiPool);
         vm.stopPrank();
 
-        assertTrue(registry.hasDefaultSwapPool(usdcCurrency, usdtCurrency));
-        assertTrue(registry.hasDefaultSwapPool(usdcCurrency, daiCurrency));
-        assertFalse(registry.hasDefaultSwapPool(usdtCurrency, daiCurrency));
+        assertDefaultSwapPoolEq(usdcCurrency, usdtCurrency, validPoolKey);
+        assertDefaultSwapPoolEq(usdcCurrency, daiCurrency, usdcDaiPool);
+
+        vm.expectRevert(SwapPoolRegistry.NoDefaultPoolRegistered.selector);
+        registry.getDefaultSwapPool(usdtCurrency, daiCurrency);
 
         // Verify they return different pools
         PoolKey memory pool1 = registry.getDefaultSwapPool(usdcCurrency, usdtCurrency);
@@ -357,5 +344,14 @@ contract SwapPoolRegistryTest is Test {
 
         PoolKey memory retrieved = registry.getDefaultSwapPool(usdcCurrency, usdtCurrency);
         assertEq(address(retrieved.hooks), hookAddr);
+    }
+
+    function assertDefaultSwapPoolEq(Currency currencyIn, Currency currencyOut, PoolKey memory expected) internal view {
+        PoolKey memory retrieved = registry.getDefaultSwapPool(currencyIn, currencyOut);
+        assertEq(Currency.unwrap(retrieved.currency0), Currency.unwrap(expected.currency0));
+        assertEq(Currency.unwrap(retrieved.currency1), Currency.unwrap(expected.currency1));
+        assertEq(retrieved.fee, expected.fee);
+        assertEq(retrieved.tickSpacing, expected.tickSpacing);
+        assertEq(address(retrieved.hooks), address(expected.hooks));
     }
 }

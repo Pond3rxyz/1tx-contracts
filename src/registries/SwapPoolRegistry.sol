@@ -113,15 +113,6 @@ contract SwapPoolRegistry is Initializable, UUPSUpgradeable, OwnableUpgradeable 
         return pool;
     }
 
-    /// @notice Check if a default swap pool exists for a currency pair
-    /// @param currencyIn The input currency
-    /// @param currencyOut The output currency
-    /// @return True if a default pool is registered
-    function hasDefaultSwapPool(Currency currencyIn, Currency currencyOut) external view returns (bool) {
-        bytes32 key = _getSwapKey(currencyIn, currencyOut);
-        return defaultSwapPools[key].fee != 0;
-    }
-
     // ============ Internal ============
 
     /// @notice Generate unique key for a directional currency pair
