@@ -158,4 +158,23 @@ contract CompoundAdapter is AdapterBase {
         if (!config.active) revert MarketNotActive();
         return config.currency;
     }
+
+    /// @notice Returns adapter metadata (name + chainId)
+    /// @dev Backward-compatibility shim for the deployed InstrumentRegistry, which reads this in
+    ///      registerInstrument and requires `chainId == block.chainid`.
+    function getAdapterMetadata() external view returns (AdapterMetadata memory metadata) {
+        return AdapterMetadata({name: "Compound V3", chainId: block.chainid});
+    }
+
+    /// @notice Comet base-token balances are denominated 1:1 in the underlying asset.
+    /// @dev Backward-compatibility shim for the deployed registry/router ABI.
+    function convertToUnderlying(bytes32, uint256 yieldTokenAmount) external pure returns (uint256) {
+        return yieldTokenAmount;
+    }
+
+    /// @notice Compound markets require callers to be explicitly allowed before withdrawing.
+    /// @dev Matches the deployed CompoundAdapter behavior.
+    function requiresAllow() external pure override returns (bool) {
+        return true;
+    }
 }

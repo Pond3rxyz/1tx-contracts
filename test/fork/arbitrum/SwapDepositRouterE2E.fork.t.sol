@@ -18,6 +18,7 @@ import {ILendingAdapter} from "../../../src/interfaces/ILendingAdapter.sol";
 import {AaveAdapter} from "../../../src/adapters/AaveAdapter.sol";
 import {ERC4626Adapter} from "../../../src/adapters/ERC4626Adapter.sol";
 import {IAavePool} from "../../../src/interfaces/IAavePool.sol";
+import {IERC4626} from "../../../src/interfaces/IERC4626.sol";
 
 /// @title SwapDepositRouterE2EArbitrumForkTest
 /// @notice E2E fork tests for SwapDepositRouter on Arbitrum mainnet
@@ -150,11 +151,15 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
         _tryRegisterMorphoVault("Morpho-yearnDegenUSDC", "yearnDegenUSDC");
         _tryRegisterMorphoVault("Morpho-hyperithmUSDC", "hyperithmUSDC");
         _tryRegisterMorphoVault("Morpho-clearstarUSDCReactor", "clearstarUSDCReactor");
+        _tryRegisterMorphoVault("Morpho-bitgetSteakhouseUSDC", "bitgetSteakhouseUSDC");
     }
 
     function _tryRegisterMorphoVault(string memory name, string memory vaultName) internal {
         address vault = getMorphoVault(vaultName);
         if (vault == address(0)) return;
+
+        // Skip vaults that can't currently accept the test deposit (e.g. supply cap reached).
+        if (IERC4626(vault).maxDeposit(address(morphoAdapter)) < DEPOSIT_AMOUNT) return;
 
         Currency currency = Currency.wrap(usdc);
         try morphoAdapter.registerMarket(currency, vault) {
@@ -360,9 +365,13 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
         _dealTokens(usdc, user, DEPOSIT_AMOUNT);
         _approveTokens(usdc, user, address(router), DEPOSIT_AMOUNT);
 
+        // Demand more output than the input: a stablecoin swap always loses a little to fees, so
+        // this is unattainable and must revert regardless of the exact price at the fork block.
+        uint256 unattainableMinOut = DEPOSIT_AMOUNT * 101 / 100;
+
         vm.prank(user);
         vm.expectRevert();
-        router.buy(inst.id, DEPOSIT_AMOUNT, DEPOSIT_AMOUNT, false, 0, 0, address(0));
+        router.buy(inst.id, DEPOSIT_AMOUNT, unattainableMinOut, false, 0, 0, address(0));
     }
 
     function test_fork_arb_e2e_buy_withSwap_reasonableSlippage_passes() public {

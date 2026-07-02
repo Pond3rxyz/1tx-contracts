@@ -12,6 +12,14 @@ import {ILendingAdapter} from "../../interfaces/ILendingAdapter.sol";
 abstract contract AdapterBase is ILendingAdapter, Ownable {
     using CurrencyLibrary for Currency;
 
+    /// @notice Metadata describing this adapter
+    /// @dev Kept for backward compatibility with the deployed InstrumentRegistry, which reads it
+    ///      during registerInstrument and validates `chainId == block.chainid`.
+    struct AdapterMetadata {
+        string name;
+        uint256 chainId;
+    }
+
     /// @notice Thrown when the market is not active
     error MarketNotActive();
 
@@ -75,5 +83,12 @@ abstract contract AdapterBase is ILendingAdapter, Ownable {
         if (caller == address(0)) revert InvalidAuthorizedCaller();
         authorizedCallers[caller] = allowed;
         emit AuthorizedCallerUpdated(caller, allowed);
+    }
+
+    /// @notice Whether this adapter requires callers to be explicitly allowed before withdrawing
+    /// @dev Backward-compatibility shim for the deployed registry/router ABI. ERC-4626 style
+    ///      adapters do not require an allow step, so this defaults to false.
+    function requiresAllow() external pure virtual returns (bool) {
+        return false;
     }
 }

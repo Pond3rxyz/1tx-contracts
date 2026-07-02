@@ -23,9 +23,15 @@
 
 | Adapter | Address | Protocol |
 |---------|---------|----------|
-| AaveAdapter | `0xA734BdbBde76B8de92F2955c44583b1A851BA892` | Aave V3 |
-| MorphoAdapter | `0x61040AdE942611008c9Bc4da89735bE536eafFCe` | Morpho Vaults (ERC-4626) |
-| EulerAdapter | `0x2173c2E7A5DEb830392f4809c69577031eb757A0` | Euler Earn (ERC-4626) |
+| AaveAdapter | `0xB61d8b22d3EFc267A3781e0f72D049925521b412` | Aave V3 |
+| MorphoAdapter | `0xb795ff600c6856f04B3d52083be2579E95678b05` | Morpho Vaults (ERC-4626) |
+| EulerAdapter | `0x09F794080096b5131Eb803B431527C2f835763b4` | Euler Earn (ERC-4626) |
+
+> **Adapter migration (2026-07-02):** all adapters were swapped to the `src/adapters`
+> implementations via `script/migration/MigrateAdapters.s.sol` (atomic re-point of all 14 instruments, same
+> instrument IDs). Previous adapters: AaveAdapter `0xA734BdbBde76B8de92F2955c44583b1A851BA892`,
+> MorphoAdapter `0x61040AdE942611008c9Bc4da89735bE536eafFCe`,
+> EulerAdapter `0x2173c2E7A5DEb830392f4809c69577031eb757A0`.
 
 ### Registered Instruments
 
@@ -50,6 +56,7 @@
 | Clearstar USDC Reactor | `0xa53Cf822FE93002aEaE16d395CD823Ece161a6AC` | `0x0000a4b194d4938ed6aab5bdbac7ca4b622f3639b1bca1b8b9c3271403d3b1b5` |
 | Gauntlet USDC Core | `0x7e97fa6893871A2751B5fE961978DCCb2c201E65` | `0x0000a4b10b72c929e4226de63c0c29b99d9464f3263b713e814a9d5d3864f518` |
 | Steakhouse High Yield USDC | `0x5c0C306Aaa9F877de636f4d5822cA9F2E81563BA` | `0x0000a4b15f2a5083c04410a4302b68957f25ff58ab633244750cf29ba2af5c5d` |
+| Bitget x Steakhouse USDC | `0xbeeff1D5dE8F79ff37a151681100B039661da518` | `0x0000a4b1017ac2357e9ea20f8c8e44c19dd8e3ad6c0dfd366ccd29fdc1e68de6` |
 
 #### Euler Earn (ERC-4626)
 
@@ -95,11 +102,19 @@
 
 | Adapter | Address | Protocol |
 |---------|---------|----------|
-| AaveAdapter | `0xBACC8882E2a9f5a67570E1BC10d87062dB68dfDd` | Aave V3 |
-| CompoundAdapter | `0x24fe3D7a9aAdD40033F0C19Ad10D1dF2ea6F7c1B` | Compound V3 |
-| MorphoAdapter | `0x12A41B400ca8f81FD09DCcf83Be4632e681Ed2B5` | Morpho Vaults (ERC-4626) |
-| EulerAdapter | `0x873C9fFCc888622EF322746F653Bce12450E0Fd8` | Euler Earn (ERC-4626) |
-| FluidAdapter | `0x5fD5b1EF0a8FE892e5bdBFbd35CeEc7B3B950372` | Fluid (ERC-4626) |
+| AaveAdapter | `0x10D93d1de2f634d27B35c90EcBE1894D9D9696a4` | Aave V3 |
+| CompoundAdapter | `0xc97B496660C5606994dAebB51b722f2A99266604` | Compound V3 |
+| MorphoAdapter | `0x39cC57fEAA0941e60fD0E76c5283E16e2c616F67` | Morpho Vaults (ERC-4626) |
+| EulerAdapter | `0x25A9959Bf3A8a53e155CEd3F0F4AD8A56Dd1657F` | Euler Earn (ERC-4626) |
+| FluidAdapter | `0xfBAbd830FD0Bfe5a4d9E242094a60f223A162103` | Fluid (ERC-4626) |
+
+> **Adapter migration (2026-07-02):** all adapters were swapped to the `src/adapters`
+> implementations via `script/migration/MigrateAdapters.s.sol` (atomic re-point of all 18 instruments, same
+> instrument IDs). Previous adapters: AaveAdapter `0xBACC8882E2a9f5a67570E1BC10d87062dB68dfDd`,
+> CompoundAdapter `0x24fe3D7a9aAdD40033F0C19Ad10D1dF2ea6F7c1B`,
+> MorphoAdapter `0x12A41B400ca8f81FD09DCcf83Be4632e681Ed2B5`,
+> EulerAdapter `0x873C9fFCc888622EF322746F653Bce12450E0Fd8`,
+> FluidAdapter `0x5fD5b1EF0a8FE892e5bdBFbd35CeEc7B3B950372`.
 
 ### Registered Instruments
 
@@ -188,8 +203,13 @@
 
 | Adapter | Address | Protocol |
 |---------|---------|----------|
-| MorphoAdapter | `0xBACC8882E2a9f5a67570E1BC10d87062dB68dfDd` | Morpho Vaults (ERC-4626) |
-| EulerAdapter | `0x24fe3D7a9aAdD40033F0C19Ad10D1dF2ea6F7c1B` | Euler Earn (ERC-4626) |
+| MorphoAdapter | `0xd4aB69fD10CF2dF8AB0700561F6A4c96650D28B7` | Morpho Vaults (ERC-4626) |
+| EulerAdapter | `0x26864BCB5a60a9803bDa7Ef7C9eE8f0C7bE64cc3` | Euler Earn (ERC-4626) |
+
+> **Adapter migration (2026-07-02):** both adapters were swapped to the `src/adapters`
+> implementations via `script/migration/MigrateAdaptersUnichain.s.sol` (atomic re-point, same instrument IDs).
+> Previous adapters: MorphoAdapter `0xBACC8882E2a9f5a67570E1BC10d87062dB68dfDd`,
+> EulerAdapter `0x24fe3D7a9aAdD40033F0C19Ad10D1dF2ea6F7c1B`.
 
 ### Registered Instruments
 

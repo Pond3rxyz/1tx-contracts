@@ -157,4 +157,17 @@ contract AaveAdapter is AdapterBase {
         if (!config.active) revert MarketNotActive();
         return config.currency;
     }
+
+    /// @notice Returns adapter metadata (name + chainId)
+    /// @dev Backward-compatibility shim for the deployed InstrumentRegistry, which reads this in
+    ///      registerInstrument and requires `chainId == block.chainid`.
+    function getAdapterMetadata() external view returns (AdapterMetadata memory metadata) {
+        return AdapterMetadata({name: "Aave V3", chainId: block.chainid});
+    }
+
+    /// @notice aTokens are 1:1 redeemable for the underlying asset.
+    /// @dev Backward-compatibility shim for the deployed registry/router ABI.
+    function convertToUnderlying(bytes32, uint256 yieldTokenAmount) external pure returns (uint256) {
+        return yieldTokenAmount;
+    }
 }
