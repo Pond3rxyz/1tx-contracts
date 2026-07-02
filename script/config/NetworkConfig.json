@@ -110,11 +110,11 @@
                 "swapDepositorRouter": "0xbFdd5bEdC0cB9B8795A93C2a1fB634012C8F99bC",
                 "instrumentToken": "0x0000000000000000000000000000000000000000",
                 "adapters": {
-                    "aave": "0xBACC8882E2a9f5a67570E1BC10d87062dB68dfDd",
-                    "compound": "0x24fe3D7a9aAdD40033F0C19Ad10D1dF2ea6F7c1B",
-                    "morpho": "0x12A41B400ca8f81FD09DCcf83Be4632e681Ed2B5",
-                    "euler": "0x873C9fFCc888622EF322746F653Bce12450E0Fd8",
-                    "fluid": "0x5fD5b1EF0a8FE892e5bdBFbd35CeEc7B3B950372"
+                    "aave": "0x10D93d1de2f634d27B35c90EcBE1894D9D9696a4",
+                    "compound": "0xc97B496660C5606994dAebB51b722f2A99266604",
+                    "morpho": "0x39cC57fEAA0941e60fD0E76c5283E16e2c616F67",
+                    "euler": "0x25A9959Bf3A8a53e155CEd3F0F4AD8A56Dd1657F",
+                    "fluid": "0xfBAbd830FD0Bfe5a4d9E242094a60f223A162103"
                 },
                 "cctpBridge": "0x76332AE6F24597cf37d38E5deB9f2f4172003E64",
                 "cctpReceiver": "0xAA4a2CFd29734dA2041a56A716e408F1A610f85E",
@@ -170,7 +170,8 @@
                         "clearstarUSDCReactor": "0xa53Cf822FE93002aEaE16d395CD823Ece161a6AC",
                         "gauntletUSDCCore": "0x7e97fa6893871A2751B5fE961978DCCb2c201E65",
                         "steakhousePrimeUSDC": "0x250CF7c82bAc7cB6cf899b6052979d4B5BA1f9ca",
-                        "steakhouseHighYieldUSDC": "0x5c0C306Aaa9F877de636f4d5822cA9F2E81563BA"
+                        "steakhouseHighYieldUSDC": "0x5c0C306Aaa9F877de636f4d5822cA9F2E81563BA",
+                        "bitgetSteakhouseUSDC": "0xbeeff1D5dE8F79ff37a151681100B039661da518"
                     }
                 },
                 "eulerEarn": {
@@ -209,10 +210,10 @@
                 "swapDepositorRouter": "0xC46C6b9260F3BD3735637AaEd4fBD1B1dE6D84AE",
                 "instrumentToken": "0x0000000000000000000000000000000000000000",
                 "adapters": {
-                    "aave": "0xA734BdbBde76B8de92F2955c44583b1A851BA892",
+                    "aave": "0xB61d8b22d3EFc267A3781e0f72D049925521b412",
                     "compound": "0x0000000000000000000000000000000000000000",
-                    "morpho": "0x61040AdE942611008c9Bc4da89735bE536eafFCe",
-                    "euler": "0x2173c2E7A5DEb830392f4809c69577031eb757A0",
+                    "morpho": "0xb795ff600c6856f04B3d52083be2579E95678b05",
+                    "euler": "0x09F794080096b5131Eb803B431527C2f835763b4",
                     "fluid": "0x0000000000000000000000000000000000000000"
                 },
                 "cctpBridge": "0x29DD1294052D317b6F142be2d4e7E9d9Eb178431",
@@ -322,8 +323,8 @@
                 "adapters": {
                     "aave": "0x0000000000000000000000000000000000000000",
                     "compound": "0x0000000000000000000000000000000000000000",
-                    "morpho": "0xBACC8882E2a9f5a67570E1BC10d87062dB68dfDd",
-                    "euler": "0x24fe3D7a9aAdD40033F0C19Ad10D1dF2ea6F7c1B",
+                    "morpho": "0xd4aB69fD10CF2dF8AB0700561F6A4c96650D28B7",
+                    "euler": "0x26864BCB5a60a9803bDa7Ef7C9eE8f0C7bE64cc3",
                     "fluid": "0x0000000000000000000000000000000000000000"
                 },
                 "cctpBridge": "0xAdE2f30c17821e26f58922abcB28bC8E1C7b7E0e",
