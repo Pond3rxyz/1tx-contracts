@@ -70,7 +70,7 @@ contract ApiInstrumentsArbitrumForkTest is Test {
                 protocolType: ProtocolType.Morpho,
                 executionAddress: 0x64CA76e2525fc6Ab2179300c15e343d73e42f958,
                 tokenAddress: USDC,
-                expectedAdapter: 0x61040AdE942611008c9Bc4da89735bE536eafFCe,
+                expectedAdapter: 0xb795ff600c6856f04B3d52083be2579E95678b05,
                 expectedYieldToken: 0x64CA76e2525fc6Ab2179300c15e343d73e42f958
             })
         );
@@ -82,7 +82,7 @@ contract ApiInstrumentsArbitrumForkTest is Test {
                 protocolType: ProtocolType.Morpho,
                 executionAddress: 0x4B6F1C9E5d470b97181786b26da0d0945A7cf027,
                 tokenAddress: USDC,
-                expectedAdapter: 0x61040AdE942611008c9Bc4da89735bE536eafFCe,
+                expectedAdapter: 0xb795ff600c6856f04B3d52083be2579E95678b05,
                 expectedYieldToken: 0x4B6F1C9E5d470b97181786b26da0d0945A7cf027
             })
         );
@@ -94,7 +94,7 @@ contract ApiInstrumentsArbitrumForkTest is Test {
                 protocolType: ProtocolType.Morpho,
                 executionAddress: 0x250CF7c82bAc7cB6cf899b6052979d4B5BA1f9ca,
                 tokenAddress: USDC,
-                expectedAdapter: 0x61040AdE942611008c9Bc4da89735bE536eafFCe,
+                expectedAdapter: 0xb795ff600c6856f04B3d52083be2579E95678b05,
                 expectedYieldToken: 0x250CF7c82bAc7cB6cf899b6052979d4B5BA1f9ca
             })
         );
@@ -106,7 +106,7 @@ contract ApiInstrumentsArbitrumForkTest is Test {
                 protocolType: ProtocolType.Morpho,
                 executionAddress: 0xa53Cf822FE93002aEaE16d395CD823Ece161a6AC,
                 tokenAddress: USDC,
-                expectedAdapter: 0x61040AdE942611008c9Bc4da89735bE536eafFCe,
+                expectedAdapter: 0xb795ff600c6856f04B3d52083be2579E95678b05,
                 expectedYieldToken: 0xa53Cf822FE93002aEaE16d395CD823Ece161a6AC
             })
         );
@@ -118,7 +118,7 @@ contract ApiInstrumentsArbitrumForkTest is Test {
                 protocolType: ProtocolType.Morpho,
                 executionAddress: 0x7e97fa6893871A2751B5fE961978DCCb2c201E65,
                 tokenAddress: USDC,
-                expectedAdapter: 0x61040AdE942611008c9Bc4da89735bE536eafFCe,
+                expectedAdapter: 0xb795ff600c6856f04B3d52083be2579E95678b05,
                 expectedYieldToken: 0x7e97fa6893871A2751B5fE961978DCCb2c201E65
             })
         );
@@ -130,7 +130,7 @@ contract ApiInstrumentsArbitrumForkTest is Test {
                 protocolType: ProtocolType.Morpho,
                 executionAddress: 0x5c0C306Aaa9F877de636f4d5822cA9F2E81563BA,
                 tokenAddress: USDC,
-                expectedAdapter: 0x61040AdE942611008c9Bc4da89735bE536eafFCe,
+                expectedAdapter: 0xb795ff600c6856f04B3d52083be2579E95678b05,
                 expectedYieldToken: 0x5c0C306Aaa9F877de636f4d5822cA9F2E81563BA
             })
         );
@@ -142,7 +142,7 @@ contract ApiInstrumentsArbitrumForkTest is Test {
                 protocolType: ProtocolType.Aave,
                 executionAddress: 0x794a61358D6845594F94dc1DB02A252b5b4814aD,
                 tokenAddress: USDC,
-                expectedAdapter: 0xA734BdbBde76B8de92F2955c44583b1A851BA892,
+                expectedAdapter: 0xB61d8b22d3EFc267A3781e0f72D049925521b412,
                 expectedYieldToken: 0x724dc807b04555b71ed48a6896b6F41593b8C637
             })
         );
