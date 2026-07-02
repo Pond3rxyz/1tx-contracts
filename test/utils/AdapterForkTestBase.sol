@@ -111,7 +111,7 @@ abstract contract AdapterForkTestBase is Test {
             forkBlockNumber = 44730000;
         } else if (networkHash == keccak256("arbitrumMainnet")) {
             rpcEnvVar = "ARBITRUM_RPC_URL";
-            forkBlockNumber = 452780000;
+            forkBlockNumber = 479570000;
         } else if (networkHash == keccak256("unichainMainnet")) {
             rpcEnvVar = "UNICHAIN_RPC_URL";
             forkBlockNumber = 45510000;

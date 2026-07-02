@@ -59,6 +59,14 @@ contract MorphoAdapterArbitrumForkTest is AdapterForkTestBase {
         _testDeposit("USDC", "steakhouseHighYieldUSDC", DEPOSIT_AMOUNT);
     }
 
+    function test_fork_arbitrum_morpho_bitgetSteakhouseUSDC_deposit() public {
+        _testDeposit("USDC", "bitgetSteakhouseUSDC", DEPOSIT_AMOUNT);
+    }
+
+    function test_fork_arbitrum_morpho_bitgetSteakhouseUSDC_depositWithdraw() public {
+        _testDepositWithdraw("USDC", "bitgetSteakhouseUSDC", DEPOSIT_AMOUNT);
+    }
+
     // ============ Helper Functions ============
 
     function _testDeposit(string memory tokenSymbol, string memory vaultName, uint256 amount) internal {
@@ -68,6 +76,9 @@ contract MorphoAdapterArbitrumForkTest is AdapterForkTestBase {
 
         // Verify vault asset matches
         if (IERC4626(vault).asset() != token) return;
+
+        // Skip vaults that can't currently accept the deposit (e.g. supply cap reached).
+        if (IERC4626(vault).maxDeposit(address(adapter)) < amount) return;
 
         bytes32 marketId = _computeVaultMarketId(vault);
 
@@ -90,6 +101,9 @@ contract MorphoAdapterArbitrumForkTest is AdapterForkTestBase {
         if (token == address(0) || vault == address(0)) return;
 
         if (IERC4626(vault).asset() != token) return;
+
+        // Skip vaults that can't currently accept the deposit (e.g. supply cap reached).
+        if (IERC4626(vault).maxDeposit(address(adapter)) < amount) return;
 
         bytes32 marketId = _computeVaultMarketId(vault);
 
