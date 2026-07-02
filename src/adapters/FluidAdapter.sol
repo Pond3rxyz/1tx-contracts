@@ -13,4 +13,8 @@ contract FluidAdapter is ERC4626Adapter {
     function registerFToken(Currency currency, address fToken) external {
         registerMarket(currency, fToken);
     }
+
+    function _adapterName() internal pure override returns (string memory) {
+        return "Fluid Lending";
+    }
 }

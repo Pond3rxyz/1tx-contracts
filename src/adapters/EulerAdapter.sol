@@ -13,4 +13,8 @@ contract EulerAdapter is ERC4626Adapter {
     function registerVault(Currency currency, address vault) external {
         registerMarket(currency, vault);
     }
+
+    function _adapterName() internal pure override returns (string memory) {
+        return "Euler Earn";
+    }
 }

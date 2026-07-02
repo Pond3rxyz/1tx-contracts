@@ -57,6 +57,25 @@ contract ERC4626Adapter is AdapterBase {
         return markets[marketId].active;
     }
 
+    /// @notice Returns adapter metadata (name + chainId)
+    /// @dev Backward-compatibility shim for the deployed InstrumentRegistry, which reads this in
+    ///      registerInstrument and requires `chainId == block.chainid`.
+    function getAdapterMetadata() external view virtual returns (AdapterMetadata memory metadata) {
+        return AdapterMetadata({name: _adapterName(), chainId: block.chainid});
+    }
+
+    /// @notice Converts a yield-token (vault share) amount to its underlying asset value
+    /// @dev Backward-compatibility shim for the deployed registry/router ABI.
+    function convertToUnderlying(bytes32 marketId, uint256 yieldTokenAmount) external view returns (uint256) {
+        return IERC4626(_getActiveMarket(marketId).vault).convertToAssets(yieldTokenAmount);
+    }
+
+    /// @notice Human-readable adapter name surfaced in {getAdapterMetadata}
+    /// @dev Overridden by concrete adapters (Morpho, Euler, ...) to match their deployed names.
+    function _adapterName() internal pure virtual returns (string memory) {
+        return "ERC4626 Adapter";
+    }
+
     function deposit(bytes32 marketId, uint256 amount, address onBehalfOf)
         external
         override
