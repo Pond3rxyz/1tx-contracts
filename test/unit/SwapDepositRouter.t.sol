@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import {AdapterProxyLib} from "../utils/AdapterProxyLib.sol";
+
 import {Test} from "forge-std/Test.sol";
 import {Currency, CurrencyLibrary} from "@uniswap/v4-core/src/types/Currency.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
@@ -142,7 +144,7 @@ contract SwapDepositRouterTest is Test {
         usdc.mint(address(mockAavePool), INITIAL_BALANCE);
         usdt.mint(address(mockAavePool), INITIAL_BALANCE);
 
-        aaveAdapter = new AaveAdapter(address(mockAavePool), owner);
+        aaveAdapter = AdapterProxyLib.deployAave(address(mockAavePool), owner);
         vm.startPrank(owner);
         aaveAdapter.registerMarket(usdcCurrency);
         aaveAdapter.registerMarket(usdtCurrency);

@@ -187,7 +187,15 @@ contract Deploy is ConfigReader {
 
         console.log("\n[2/8] Deploying Aave Adapter");
         console.log("-----------------------------------------------");
-        aaveAdapter = new AaveAdapter(config.protocols.aave.pool, deployer);
+        AaveAdapter aaveImpl = new AaveAdapter();
+        aaveAdapter = AaveAdapter(
+            address(
+                new ERC1967Proxy(
+                    address(aaveImpl),
+                    abi.encodeWithSelector(AaveAdapter.initialize.selector, config.protocols.aave.pool, deployer)
+                )
+            )
+        );
         console.log("  AaveAdapter:", address(aaveAdapter));
         console.log("  Aave Pool:", config.protocols.aave.pool);
     }
@@ -197,7 +205,14 @@ contract Deploy is ConfigReader {
 
         console.log("\n[2/8] Deploying Compound Adapter");
         console.log("-----------------------------------------------");
-        compoundAdapter = new CompoundAdapter(deployer);
+        CompoundAdapter compoundImpl = new CompoundAdapter();
+        compoundAdapter = CompoundAdapter(
+            address(
+                new ERC1967Proxy(
+                    address(compoundImpl), abi.encodeWithSelector(CompoundAdapter.initialize.selector, deployer)
+                )
+            )
+        );
         console.log("  CompoundAdapter:", address(compoundAdapter));
     }
 
@@ -222,7 +237,7 @@ contract Deploy is ConfigReader {
 
         console.log("\n[2/8] Deploying Morpho Adapter");
         console.log("-----------------------------------------------");
-        morphoAdapter = new ERC4626Adapter(deployer);
+        morphoAdapter = _deployErc4626Proxy(deployer);
         console.log("  MorphoAdapter:", address(morphoAdapter));
     }
 
@@ -231,7 +246,7 @@ contract Deploy is ConfigReader {
 
         console.log("\n[2/8] Deploying Euler Earn Adapter");
         console.log("-----------------------------------------------");
-        eulerAdapter = new ERC4626Adapter(deployer);
+        eulerAdapter = _deployErc4626Proxy(deployer);
         console.log("  EulerAdapter:", address(eulerAdapter));
     }
 
@@ -240,8 +255,16 @@ contract Deploy is ConfigReader {
 
         console.log("\n[2/8] Deploying Fluid Adapter");
         console.log("-----------------------------------------------");
-        fluidAdapter = new ERC4626Adapter(deployer);
+        fluidAdapter = _deployErc4626Proxy(deployer);
         console.log("  FluidAdapter:", address(fluidAdapter));
+    }
+
+    /// @notice Deploys an ERC4626Adapter implementation behind an ERC1967Proxy, initialized to `owner`.
+    function _deployErc4626Proxy(address owner) internal returns (ERC4626Adapter) {
+        ERC4626Adapter impl = new ERC4626Adapter();
+        return ERC4626Adapter(
+            address(new ERC1967Proxy(address(impl), abi.encodeWithSelector(ERC4626Adapter.initialize.selector, owner)))
+        );
     }
 
     // ============================================

@@ -3,6 +3,7 @@ pragma solidity ^0.8.26;
 
 import {Script, console} from "forge-std/Script.sol";
 import {stdJson} from "forge-std/StdJson.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 
 import {InstrumentRegistry} from "../../src/registries/InstrumentRegistry.sol";
@@ -24,11 +25,11 @@ import {RepointMigrator} from "./RepointMigrator.sol";
 ///         atomically in one transaction via {RepointMigrator}.
 ///
 /// Dry run:
-///   forge script script/MigrateAdapters.s.sol:MigrateAdapters --rpc-url <base|arbitrum> \
+///   forge script script/migration/MigrateAdapters.s.sol:MigrateAdapters --rpc-url <base|arbitrum> \
 ///     --sender 0x4d0e3d2759B8f96B4FA82b2c308Dcd7663794F73 -vvvv
 ///
 /// Broadcast (signer MUST be the current registry/adapter owner):
-///   forge script script/MigrateAdapters.s.sol:MigrateAdapters --rpc-url <base|arbitrum> \
+///   forge script script/migration/MigrateAdapters.s.sol:MigrateAdapters --rpc-url <base|arbitrum> \
 ///     --account <keystore> --sender 0x4d0e3d2759B8f96B4FA82b2c308Dcd7663794F73 --broadcast -vvvv
 contract MigrateAdapters is Script {
     using stdJson for string;
@@ -72,30 +73,38 @@ contract MigrateAdapters is Script {
         vm.startBroadcast();
         require(msg.sender == owner, "broadcaster is not the registry owner");
 
-        // ---- Prep: deploy new adapters, register the same markets, authorize the router ----
-        AaveAdapter aave = new AaveAdapter(aavePool, owner);
+        // ---- Prep: deploy new proxy-backed adapters, register markets, authorize the router ----
+        // Each adapter is wrapped in an ERC1967Proxy so its address is permanent: all FUTURE logic
+        // changes ship via `upgradeToAndCall`.
+        AaveAdapter aave =
+            AaveAdapter(_proxy(address(new AaveAdapter()), abi.encodeCall(AaveAdapter.initialize, (aavePool, owner))));
         _registerAave(aave, _aaveSymbols(cid));
         aave.setAuthorizedCaller(router, true);
         console.log("New AaveAdapter:    ", address(aave));
 
-        MorphoAdapter morpho = new MorphoAdapter(owner);
+        MorphoAdapter morpho =
+            MorphoAdapter(_proxy(address(new MorphoAdapter()), abi.encodeCall(ERC4626Adapter.initialize, (owner))));
         _registerErc4626(address(morpho), "morpho", "vaults");
         morpho.setAuthorizedCaller(router, true);
         console.log("New MorphoAdapter:  ", address(morpho));
 
-        EulerAdapter euler = new EulerAdapter(owner);
+        EulerAdapter euler =
+            EulerAdapter(_proxy(address(new EulerAdapter()), abi.encodeCall(ERC4626Adapter.initialize, (owner))));
         _registerErc4626(address(euler), "eulerEarn", "vaults");
         euler.setAuthorizedCaller(router, true);
         console.log("New EulerAdapter:   ", address(euler));
 
         if (cid == BASE) {
-            CompoundAdapter comp = new CompoundAdapter(owner);
+            CompoundAdapter comp = CompoundAdapter(
+                _proxy(address(new CompoundAdapter()), abi.encodeCall(CompoundAdapter.initialize, (owner)))
+            );
             _registerCompound(comp, "USDC", ".protocols.compound.usdcComet");
             _registerCompound(comp, "USDbC", ".protocols.compound.usdbcComet");
             comp.setAuthorizedCaller(router, true);
             console.log("New CompoundAdapter:", address(comp));
 
-            FluidAdapter fluid = new FluidAdapter(owner);
+            FluidAdapter fluid =
+                FluidAdapter(_proxy(address(new FluidAdapter()), abi.encodeCall(ERC4626Adapter.initialize, (owner))));
             _registerErc4626(address(fluid), "fluid", "fTokens");
             fluid.setAuthorizedCaller(router, true);
             console.log("New FluidAdapter:   ", address(fluid));
@@ -106,6 +115,9 @@ contract MigrateAdapters is Script {
 
         // ---- Atomic re-point of the whole batch ----
         RepointMigrator migrator = new RepointMigrator(registry, owner);
+        // Logged before ownership moves: if repoint() reverts, the registry is left owned by this
+        // migrator and you need its address to call rescueRegistryOwnership().
+        console.log("RepointMigrator:    ", address(migrator));
         registry.transferOwnership(address(migrator));
         migrator.repoint(ids, execs, mids, newAdapters);
 
@@ -120,6 +132,11 @@ contract MigrateAdapters is Script {
         console.log("\nRe-pointed instruments:", ids.length);
         console.log("Registry owner:", registry.owner());
         console.log("================================================");
+    }
+
+    /// @notice Deploys an ERC1967Proxy for `impl`, delegatecalling `initData` in the constructor.
+    function _proxy(address impl, bytes memory initData) internal returns (address) {
+        return address(new ERC1967Proxy(impl, initData));
     }
 
     // ============ Registration helpers ============

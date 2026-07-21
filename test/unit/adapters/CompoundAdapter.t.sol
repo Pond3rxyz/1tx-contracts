@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import {AdapterProxyLib} from "../../utils/AdapterProxyLib.sol";
+
 import {Currency, CurrencyLibrary} from "@uniswap/v4-core/src/types/Currency.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import {AdapterTestBase} from "../../utils/AdapterTestBase.sol";
 import {CompoundAdapter} from "../../../src/adapters/CompoundAdapter.sol";
-import {AdapterBase} from "../../../src/adapters/base/AdapterBase.sol";
+import {AdapterBaseUpgradeable as AdapterBase} from "../../../src/adapters/base/AdapterBaseUpgradeable.sol";
 import {MockCompoundComet} from "../../mocks/MockCompoundComet.sol";
 import {MockERC20} from "../../mocks/MockERC20.sol";
 
@@ -33,7 +35,7 @@ contract CompoundAdapterTest is AdapterTestBase {
         usdc.mint(address(mockComet), INITIAL_BALANCE);
 
         // Deploy adapter
-        adapter = new CompoundAdapter(owner);
+        adapter = AdapterProxyLib.deployCompound(owner);
 
         // Pre-compute market ID
         usdcMarketId = _computeMarketId(usdcCurrency);

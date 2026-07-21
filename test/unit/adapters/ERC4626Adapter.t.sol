@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import {AdapterProxyLib} from "../../utils/AdapterProxyLib.sol";
+
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 
 import {AdapterTestBase} from "../../utils/AdapterTestBase.sol";
-import {AdapterBase} from "../../../src/adapters/base/AdapterBase.sol";
+import {AdapterBaseUpgradeable as AdapterBase} from "../../../src/adapters/base/AdapterBaseUpgradeable.sol";
 import {ERC4626Adapter} from "../../../src/adapters/ERC4626Adapter.sol";
 import {MockERC4626Vault} from "../../mocks/MockERC4626Vault.sol";
 
@@ -24,7 +26,7 @@ contract ERC4626AdapterTest is AdapterTestBase {
         super.setUp();
 
         mockVault = new MockERC4626Vault(address(usdc), "Generic USDC Vault", "gUSDC");
-        adapter = new ERC4626Adapter(owner);
+        adapter = AdapterProxyLib.deployERC4626(owner);
         vaultMarketId = _computeVaultMarketId(address(mockVault));
     }
 

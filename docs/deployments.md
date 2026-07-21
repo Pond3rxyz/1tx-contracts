@@ -21,12 +21,24 @@
 
 ### Adapters
 
-| Adapter | Address | Protocol |
-|---------|---------|----------|
-| AaveAdapter | `0xB61d8b22d3EFc267A3781e0f72D049925521b412` | Aave V3 |
-| MorphoAdapter | `0xb795ff600c6856f04B3d52083be2579E95678b05` | Morpho Vaults (ERC-4626) |
-| EulerAdapter | `0x09F794080096b5131Eb803B431527C2f835763b4` | Euler Earn (ERC-4626) |
+Adapters are now UUPS-upgradeable — the **proxy** address is permanent and registered in the
+InstrumentRegistry; future logic changes ship via `upgradeToAndCall` on the proxy (no
+re-registration). Upgrade owner is `0x4d0e3d2759B8f96B4FA82b2c308Dcd7663794F73`.
 
+| Adapter | Proxy | Implementation | Protocol |
+|---------|-------|----------------|----------|
+| AaveAdapter | `0xD6ff3Ac1e0Bf6284BdFb55626F733F100880F342` | `0xD0b91197fB81D81FEfD108d1fAE6B61F41f1B189` | Aave V3 |
+| MorphoAdapter | `0xa8fC4477EEdcb742B9640b23C816370A6523eDaf` | `0xdd515457F3ff1Bc57d2505295C5e58F76FD78458` | Morpho Vaults (ERC-4626) |
+| EulerAdapter | `0xDBD1B8048518E6D572181E577d117101292A72aD` | `0x88C0a46A11a6Dbd10a334f5A3b09A1A85755b3b6` | Euler Earn (ERC-4626) |
+
+> **Upgradeable-adapter migration (2026-07-21):** all adapters were swapped to proxy-backed,
+> UUPS-upgradeable `src/adapters` implementations via `script/migration/MigrateAdapters.s.sol`
+> (atomic re-point of all 14 instruments via `RepointMigrator`, same instrument IDs). Broadcast at
+> block 486239114. Previous (non-upgradeable) adapters:
+> AaveAdapter `0xB61d8b22d3EFc267A3781e0f72D049925521b412`,
+> MorphoAdapter `0xb795ff600c6856f04B3d52083be2579E95678b05`,
+> EulerAdapter `0x09F794080096b5131Eb803B431527C2f835763b4`.
+>
 > **Adapter migration (2026-07-02):** all adapters were swapped to the `src/adapters`
 > implementations via `script/migration/MigrateAdapters.s.sol` (atomic re-point of all 14 instruments, same
 > instrument IDs). Previous adapters: AaveAdapter `0xA734BdbBde76B8de92F2955c44583b1A851BA892`,
@@ -100,14 +112,28 @@
 
 ### Adapters
 
-| Adapter | Address | Protocol |
-|---------|---------|----------|
-| AaveAdapter | `0x10D93d1de2f634d27B35c90EcBE1894D9D9696a4` | Aave V3 |
-| CompoundAdapter | `0xc97B496660C5606994dAebB51b722f2A99266604` | Compound V3 |
-| MorphoAdapter | `0x39cC57fEAA0941e60fD0E76c5283E16e2c616F67` | Morpho Vaults (ERC-4626) |
-| EulerAdapter | `0x25A9959Bf3A8a53e155CEd3F0F4AD8A56Dd1657F` | Euler Earn (ERC-4626) |
-| FluidAdapter | `0xfBAbd830FD0Bfe5a4d9E242094a60f223A162103` | Fluid (ERC-4626) |
+Adapters are now UUPS-upgradeable — the **proxy** address is permanent and registered in the
+InstrumentRegistry; future logic changes ship via `upgradeToAndCall` on the proxy (no
+re-registration). Upgrade owner is `0x4d0e3d2759B8f96B4FA82b2c308Dcd7663794F73`.
 
+| Adapter | Proxy | Implementation | Protocol |
+|---------|-------|----------------|----------|
+| AaveAdapter | `0x72748778072707586303c09C7D72A502B02f609f` | `0xA0884B15535A747739B7C4CD68808215053B0828` | Aave V3 |
+| CompoundAdapter | `0xfc8fbF9E79FDdB6f54352698A0f0357D35E1A94e` | `0x0446bf8ffa67696bD45e17C31AD468f721caC18a` | Compound V3 |
+| MorphoAdapter | `0x74980651215862A2c9af32922EB193e31231fCf2` | `0x51c683A87C82A40248f1ccBCd328c21186454825` | Morpho Vaults (ERC-4626) |
+| EulerAdapter | `0xb795ff600c6856f04B3d52083be2579E95678b05` | `0x81a38dE58bdCFa60E640261117Aa7470A73AaC45` | Euler Earn (ERC-4626) |
+| FluidAdapter | `0xaB1659910AaF12d2274217212A597E9536488D3B` | `0xA666C08f8D720E3b2Dc21Eec3bF0FE01339deB32` | Fluid (ERC-4626) |
+
+> **Upgradeable-adapter migration (2026-07-21):** all adapters were swapped to proxy-backed,
+> UUPS-upgradeable `src/adapters` implementations via `script/migration/MigrateAdapters.s.sol`
+> (atomic re-point of all 18 instruments via `RepointMigrator`, same instrument IDs). Broadcast at
+> block 48930629. Previous (non-upgradeable) adapters:
+> AaveAdapter `0x10D93d1de2f634d27B35c90EcBE1894D9D9696a4`,
+> CompoundAdapter `0xc97B496660C5606994dAebB51b722f2A99266604`,
+> MorphoAdapter `0x39cC57fEAA0941e60fD0E76c5283E16e2c616F67`,
+> EulerAdapter `0x25A9959Bf3A8a53e155CEd3F0F4AD8A56Dd1657F`,
+> FluidAdapter `0xfBAbd830FD0Bfe5a4d9E242094a60f223A162103`.
+>
 > **Adapter migration (2026-07-02):** all adapters were swapped to the `src/adapters`
 > implementations via `script/migration/MigrateAdapters.s.sol` (atomic re-point of all 18 instruments, same
 > instrument IDs). Previous adapters: AaveAdapter `0xBACC8882E2a9f5a67570E1BC10d87062dB68dfDd`,
@@ -201,11 +227,22 @@
 
 ### Adapters
 
-| Adapter | Address | Protocol |
-|---------|---------|----------|
-| MorphoAdapter | `0xd4aB69fD10CF2dF8AB0700561F6A4c96650D28B7` | Morpho Vaults (ERC-4626) |
-| EulerAdapter | `0x26864BCB5a60a9803bDa7Ef7C9eE8f0C7bE64cc3` | Euler Earn (ERC-4626) |
+Adapters are now UUPS-upgradeable — the **proxy** address is permanent and registered in the
+InstrumentRegistry; future logic changes ship via `upgradeToAndCall` on the proxy (no
+re-registration). Upgrade owner is `0x4d0e3d2759B8f96B4FA82b2c308Dcd7663794F73`.
 
+| Adapter | Proxy | Implementation | Protocol |
+|---------|-------|----------------|----------|
+| MorphoAdapter | `0x07380DD19b01D07184269E3EAfBeadD28806348E` | `0x3F48517370De796CCDa6434953c32283A28Fd18f` | Morpho Vaults (ERC-4626) |
+| EulerAdapter | `0xb2C77bB144Fb9051a7B6339DF34888faDE13f53E` | `0x20BA5f06A69a732014C238B91Fe0C7cA50F8B2EA` | Euler Earn (ERC-4626) |
+
+> **Upgradeable-adapter migration (2026-07-21):** both adapters were swapped to proxy-backed,
+> UUPS-upgradeable `src/adapters` implementations via
+> `script/migration/MigrateAdaptersUnichain.s.sol` (atomic re-point, same instrument IDs).
+> Broadcast tx `0x330b6b619c9aa21917514fa7129914cd4deab7542896d8cc321e6db035976236` (block 53901927).
+> Previous (non-upgradeable) adapters: MorphoAdapter `0xd4aB69fD10CF2dF8AB0700561F6A4c96650D28B7`,
+> EulerAdapter `0x26864BCB5a60a9803bDa7Ef7C9eE8f0C7bE64cc3`.
+>
 > **Adapter migration (2026-07-02):** both adapters were swapped to the `src/adapters`
 > implementations via `script/migration/MigrateAdaptersUnichain.s.sol` (atomic re-point, same instrument IDs).
 > Previous adapters: MorphoAdapter `0xBACC8882E2a9f5a67570E1BC10d87062dB68dfDd`,

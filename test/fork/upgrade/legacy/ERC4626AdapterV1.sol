@@ -5,13 +5,14 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Currency, CurrencyLibrary} from "@uniswap/v4-core/src/types/Currency.sol";
 
-import {AdapterBaseUpgradeable} from "./base/AdapterBaseUpgradeable.sol";
-import {IERC4626} from "../interfaces/IERC4626.sol";
+import {AdapterBaseUpgradeableV1} from "./AdapterBaseUpgradeableV1.sol";
+import {IERC4626} from "../../../../src/interfaces/IERC4626.sol";
 
-/// @title ERC4626Adapter
-/// @notice Shared adapter for ERC-4626 integrations
-/// @dev UUPS-upgradeable behind an ERC1967Proxy so its address stays stable across logic changes.
-contract ERC4626Adapter is AdapterBaseUpgradeable {
+/// @title ERC4626AdapterV1
+/// @notice FROZEN storage-layout snapshot of {ERC4626Adapter} (and its Morpho/Euler/Fluid
+///         subclasses, which add no storage) at the first upgradeable release. Reference for
+///         `Upgrades.validateUpgrade`. Never edit.
+contract ERC4626AdapterV1 is AdapterBaseUpgradeableV1 {
     using SafeERC20 for IERC20;
     using CurrencyLibrary for Currency;
 
@@ -30,15 +31,12 @@ contract ERC4626Adapter is AdapterBaseUpgradeable {
     event Deposited(bytes32 indexed marketId, uint256 assets, uint256 shares, address onBehalfOf);
     event Withdrawn(bytes32 indexed marketId, uint256 assets, uint256 shares, address to);
 
-    /// @notice Initializes the adapter behind a proxy
-    /// @param initialOwner The initial owner of the adapter (can register markets)
     function initialize(address initialOwner) external initializer {
         __AdapterBase_init(initialOwner);
     }
 
     function registerMarket(Currency currency, address vault) public onlyOwner validCurrency(currency) {
         if (vault == address(0)) revert InvalidVaultAddress();
-
         if (IERC4626(vault).asset() != Currency.unwrap(currency)) revert AssetMismatch();
 
         bytes32 marketId = bytes32(uint256(uint160(vault)));
@@ -52,9 +50,7 @@ contract ERC4626Adapter is AdapterBaseUpgradeable {
     function deactivateMarket(bytes32 marketId) external onlyOwner {
         MarketConfig storage config = markets[marketId];
         if (!config.active) revert MarketNotActive();
-
         config.active = false;
-
         emit MarketDeactivated(marketId);
     }
 
@@ -62,21 +58,14 @@ contract ERC4626Adapter is AdapterBaseUpgradeable {
         return markets[marketId].active;
     }
 
-    /// @notice Returns adapter metadata (name + chainId)
-    /// @dev Backward-compatibility shim for the deployed InstrumentRegistry, which reads this in
-    ///      registerInstrument and requires `chainId == block.chainid`.
     function getAdapterMetadata() external view virtual returns (AdapterMetadata memory metadata) {
         return AdapterMetadata({name: _adapterName(), chainId: block.chainid});
     }
 
-    /// @notice Converts a yield-token (vault share) amount to its underlying asset value
-    /// @dev Backward-compatibility shim for the deployed registry/router ABI.
     function convertToUnderlying(bytes32 marketId, uint256 yieldTokenAmount) external view returns (uint256) {
         return IERC4626(_getActiveMarket(marketId).vault).convertToAssets(yieldTokenAmount);
     }
 
-    /// @notice Human-readable adapter name surfaced in {getAdapterMetadata}
-    /// @dev Overridden by concrete adapters (Morpho, Euler, ...) to match their deployed names.
     function _adapterName() internal pure virtual returns (string memory) {
         return "ERC4626 Adapter";
     }
@@ -106,9 +95,7 @@ contract ERC4626Adapter is AdapterBaseUpgradeable {
         returns (uint256 assetsWithdrawn)
     {
         MarketConfig storage config = _getActiveMarket(marketId);
-
         assetsWithdrawn = IERC4626(config.vault).redeem(amount, to, address(this));
-
         emit Withdrawn(marketId, assetsWithdrawn, amount, to);
     }
 
@@ -125,6 +112,5 @@ contract ERC4626Adapter is AdapterBaseUpgradeable {
         if (!config.active) revert MarketNotActive();
     }
 
-    /// @dev Reserved storage for future fields. Adapter storage is append-only once live.
     uint256[50] private __gap;
 }

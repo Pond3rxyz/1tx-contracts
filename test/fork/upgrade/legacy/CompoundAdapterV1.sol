@@ -5,58 +5,38 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Currency, CurrencyLibrary} from "@uniswap/v4-core/src/types/Currency.sol";
 
-import {AdapterBaseUpgradeable} from "./base/AdapterBaseUpgradeable.sol";
-import {ICompoundV3} from "../interfaces/ICompoundV3.sol";
+import {AdapterBaseUpgradeableV1} from "./AdapterBaseUpgradeableV1.sol";
+import {ICompoundV3} from "../../../../src/interfaces/ICompoundV3.sol";
 
-/// @title CompoundAdapter
-/// @notice Adapter for managing Compound V3 (Comet) markets
-/// @dev Implements the ILendingAdapter interface for Compound V3 protocol
-/// @dev Supports multiple Comet contracts (one per base asset). UUPS-upgradeable behind an
-///      ERC1967Proxy so its address stays stable across logic changes.
-contract CompoundAdapter is AdapterBaseUpgradeable {
+/// @title CompoundAdapterV1
+/// @notice FROZEN storage-layout snapshot of {CompoundAdapter} at the first upgradeable release.
+///         Reference for `Upgrades.validateUpgrade`. Never edit.
+contract CompoundAdapterV1 is AdapterBaseUpgradeableV1 {
     using SafeERC20 for IERC20;
     using CurrencyLibrary for Currency;
 
-    /// @notice Thrown when the yield token address is zero
     error InvalidYieldTokenAddress();
 
-    /// @notice Configuration for a single Compound market
     struct MarketConfig {
         Currency currency;
-        address yieldToken; // Comet contract address for this market
+        address yieldToken;
         bool active;
     }
 
-    /// @notice Maps marketId to market configuration
     mapping(bytes32 marketId => MarketConfig) public markets;
 
-    /// @notice Emitted when a new market is registered
     event MarketRegistered(bytes32 indexed marketId, Currency currency, address yieldToken);
-
-    /// @notice Emitted when a market is deactivated
     event MarketDeactivated(bytes32 indexed marketId);
-
-    /// @notice Emitted when a deposit is made to Compound
     event DepositedToCompound(bytes32 indexed marketId, uint256 amount, address onBehalfOf);
-
-    /// @notice Emitted when a withdrawal is made from Compound
     event WithdrawnFromCompound(bytes32 indexed marketId, uint256 amount, address to);
 
-    /// @notice Initializes the adapter behind a proxy
-    /// @dev No single Comet - each market will have its own Comet contract.
-    /// @param initialOwner The initial owner of the adapter (can register markets)
     function initialize(address initialOwner) external initializer {
         __AdapterBase_init(initialOwner);
     }
 
-    /// @notice Registers a new market in this adapter
-    /// @dev Only the adapter owner can register markets
-    /// @param currency The underlying currency for this market
-    /// @param yieldToken The cToken address for this market (usually the Comet contract itself)
     function registerMarket(Currency currency, address yieldToken) external onlyOwner validCurrency(currency) {
         if (yieldToken == address(0)) revert InvalidYieldTokenAddress();
 
-        // forge-lint: disable-next-line(asm-keccak256)
         bytes32 marketId = keccak256(abi.encode(currency));
         if (markets[marketId].active) revert MarketAlreadyRegistered();
 
@@ -65,26 +45,16 @@ contract CompoundAdapter is AdapterBaseUpgradeable {
         emit MarketRegistered(marketId, currency, yieldToken);
     }
 
-    /// @notice Deactivates a market
-    /// @dev Only the adapter owner can deactivate markets
-    /// @param marketId The market identifier to deactivate
     function deactivateMarket(bytes32 marketId) external onlyOwner {
         if (!markets[marketId].active) revert MarketNotActive();
         markets[marketId].active = false;
         emit MarketDeactivated(marketId);
     }
 
-    /// @notice Checks if a market is registered and active
-    /// @param marketId The market identifier
-    /// @return True if the market is registered and active
     function hasMarket(bytes32 marketId) external view override returns (bool) {
         return markets[marketId].active;
     }
 
-    /// @notice Deposits tokens into Compound V3
-    /// @param marketId The market identifier
-    /// @param amount The amount to deposit
-    /// @param onBehalfOf The address that will receive the cTokens
     function deposit(bytes32 marketId, uint256 amount, address onBehalfOf)
         external
         override
@@ -96,23 +66,13 @@ contract CompoundAdapter is AdapterBaseUpgradeable {
         address tokenAddress = Currency.unwrap(config.currency);
         ICompoundV3 comet = ICompoundV3(config.yieldToken);
 
-        // Transfer tokens from caller to this adapter
         IERC20(tokenAddress).safeTransferFrom(msg.sender, address(this), amount);
-
-        // Approve Comet to spend tokens (using forceApprove for USDT-like tokens)
         IERC20(tokenAddress).forceApprove(config.yieldToken, amount);
-
-        // Supply tokens to Compound on behalf of the specified address
         comet.supplyTo(onBehalfOf, tokenAddress, amount);
 
         emit DepositedToCompound(marketId, amount, onBehalfOf);
     }
 
-    /// @notice Withdraws tokens from Compound V3
-    /// @param marketId The market identifier
-    /// @param amount The amount of Comet tokens to redeem (Comet tokens are ERC20)
-    /// @param to The address that will receive the withdrawn tokens
-    /// @dev The hook transfers Comet tokens to this adapter before calling withdraw
     function withdraw(bytes32 marketId, uint256 amount, address to)
         external
         override
@@ -126,15 +86,11 @@ contract CompoundAdapter is AdapterBaseUpgradeable {
         address tokenAddress = Currency.unwrap(config.currency);
         ICompoundV3 comet = ICompoundV3(config.yieldToken);
 
-        // Comet tokens have already been transferred to this adapter by the hook.
-        // Use balanceOf (not amount) because Comet's interest accrual can cause
-        // slight differences. Cap to amount to avoid sweeping unrelated tokens.
         uint256 adapterBalance = comet.balanceOf(address(this));
         uint256 withdrawAmount = adapterBalance < amount ? adapterBalance : amount;
 
         comet.withdraw(tokenAddress, withdrawAmount);
 
-        // Transfer the withdrawn underlying tokens to the recipient
         uint256 actualAmount = IERC20(tokenAddress).balanceOf(address(this));
         IERC20(tokenAddress).safeTransfer(to, actualAmount);
 
@@ -143,43 +99,29 @@ contract CompoundAdapter is AdapterBaseUpgradeable {
         return actualAmount;
     }
 
-    /// @notice Returns the yield-bearing token address for a given market
-    /// @param marketId The market identifier
-    /// @return The address of the corresponding cToken
     function getYieldToken(bytes32 marketId) external view override returns (address) {
         MarketConfig memory config = markets[marketId];
         if (!config.active) revert MarketNotActive();
         return config.yieldToken;
     }
 
-    /// @notice Returns the underlying currency for a given market
-    /// @param marketId The market identifier
-    /// @return The underlying currency of the market
     function getMarketCurrency(bytes32 marketId) external view override returns (Currency) {
         MarketConfig memory config = markets[marketId];
         if (!config.active) revert MarketNotActive();
         return config.currency;
     }
 
-    /// @notice Returns adapter metadata (name + chainId)
-    /// @dev Backward-compatibility shim for the deployed InstrumentRegistry, which reads this in
-    ///      registerInstrument and requires `chainId == block.chainid`.
     function getAdapterMetadata() external view returns (AdapterMetadata memory metadata) {
         return AdapterMetadata({name: "Compound V3", chainId: block.chainid});
     }
 
-    /// @notice Comet base-token balances are denominated 1:1 in the underlying asset.
-    /// @dev Backward-compatibility shim for the deployed registry/router ABI.
     function convertToUnderlying(bytes32, uint256 yieldTokenAmount) external pure returns (uint256) {
         return yieldTokenAmount;
     }
 
-    /// @notice Compound markets require callers to be explicitly allowed before withdrawing.
-    /// @dev Matches the deployed CompoundAdapter behavior.
     function requiresAllow() external pure override returns (bool) {
         return true;
     }
 
-    /// @dev Reserved storage for future fields. Adapter storage is append-only once live.
     uint256[50] private __gap;
 }

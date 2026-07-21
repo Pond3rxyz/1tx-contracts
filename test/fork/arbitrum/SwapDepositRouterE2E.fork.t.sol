@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import {AdapterProxyLib} from "../../utils/AdapterProxyLib.sol";
+
 import {stdJson} from "forge-std/StdJson.sol";
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
@@ -107,7 +109,7 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
         address aavePool = getAavePool();
         if (aavePool == address(0)) return;
 
-        aaveAdapter = new AaveAdapter(aavePool, address(this));
+        aaveAdapter = AdapterProxyLib.deployAave(aavePool, address(this));
         aaveAdapter.setAuthorizedCaller(address(router), true);
 
         _tryRegisterAaveMarket("Aave-USDC", usdc, false);
@@ -140,7 +142,7 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
     }
 
     function _setupMorpho() internal {
-        morphoAdapter = new ERC4626Adapter(address(this));
+        morphoAdapter = AdapterProxyLib.deployERC4626(address(this));
         morphoAdapter.setAuthorizedCaller(address(router), true);
 
         _tryRegisterMorphoVault("Morpho-clearstarHighYieldUSDC", "clearstarHighYieldUSDC");
@@ -168,7 +170,7 @@ contract SwapDepositRouterE2EArbitrumForkTest is AdapterForkTestBase {
     }
 
     function _setupEuler() internal {
-        eulerAdapter = new ERC4626Adapter(address(this));
+        eulerAdapter = AdapterProxyLib.deployERC4626(address(this));
         eulerAdapter.setAuthorizedCaller(address(router), true);
 
         address vault = getEulerVault("eeUSDC");
