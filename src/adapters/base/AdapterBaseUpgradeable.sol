@@ -1,15 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {Currency, CurrencyLibrary} from "@uniswap/v4-core/src/types/Currency.sol";
 
 import {ILendingAdapter} from "../../interfaces/ILendingAdapter.sol";
 
-/// @title AdapterBase
-/// @notice Abstract base contract for lending adapters with shared functionality
-/// @dev Provides common errors, validation modifiers, and base structure for all adapters
-abstract contract AdapterBase is ILendingAdapter, Ownable {
+/// @title AdapterBaseUpgradeable
+/// @notice Abstract UUPS-upgradeable base contract for lending adapters with shared functionality
+/// @dev Upgradeable counterpart of {AdapterBase}. Each adapter sits behind its own ERC1967Proxy so
+///      its address is permanent: new logic ships as an implementation swap via `upgradeToAndCall`,
+///      never requiring instruments to be unregistered and re-registered in the InstrumentRegistry.
+///      Mirrors the UUPS pattern already used by InstrumentRegistry and SwapDepositRouter.
+abstract contract AdapterBaseUpgradeable is ILendingAdapter, Initializable, UUPSUpgradeable, OwnableUpgradeable {
     using CurrencyLibrary for Currency;
 
     /// @notice Metadata describing this adapter
@@ -45,14 +50,24 @@ abstract contract AdapterBase is ILendingAdapter, Ownable {
     error AssetMismatch();
 
     /// @notice Maps addresses that are authorized to call withdraw functions
+    /// @dev Slot 0 of the adapter's own storage. Kept first to preserve semantics across upgrades.
     mapping(address => bool) public authorizedCallers;
 
     /// @notice Emitted when an authorized caller is updated
     event AuthorizedCallerUpdated(address indexed caller, bool allowed);
 
-    /// @notice Constructor that passes the initial owner to Ownable
+    /// @notice Disables initializers on the implementation so it can only be used behind a proxy.
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    /// @notice Initializes the shared adapter base (owner + UUPS wiring)
+    /// @dev Concrete adapters call this from their own `initialize(...)`.
     /// @param initialOwner The initial owner of the adapter
-    constructor(address initialOwner) Ownable(initialOwner) {}
+    function __AdapterBase_init(address initialOwner) internal onlyInitializing {
+        __Ownable_init(initialOwner);
+    }
 
     /// @notice Validates deposit and withdraw parameters
     /// @param amount The amount to validate (must be > 0)
@@ -91,4 +106,10 @@ abstract contract AdapterBase is ILendingAdapter, Ownable {
     function requiresAllow() external pure virtual returns (bool) {
         return false;
     }
+
+    /// @notice Restricts upgrades to the adapter owner.
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+
+    /// @dev Reserved storage to allow future base-level fields without shifting derived layout.
+    uint256[49] private __gap;
 }

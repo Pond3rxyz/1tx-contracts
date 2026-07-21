@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import {AdapterProxyLib} from "../../utils/AdapterProxyLib.sol";
+
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import {AdapterTestBase} from "../../utils/AdapterTestBase.sol";
-import {AdapterBase} from "../../../src/adapters/base/AdapterBase.sol";
+import {AdapterBaseUpgradeable as AdapterBase} from "../../../src/adapters/base/AdapterBaseUpgradeable.sol";
 import {ERC4626Adapter} from "../../../src/adapters/ERC4626Adapter.sol";
 import {FluidAdapter} from "../../../src/adapters/FluidAdapter.sol";
 import {MockERC4626Vault} from "../../mocks/MockERC4626Vault.sol";
@@ -18,7 +20,7 @@ contract FluidAdapterTest is AdapterTestBase {
     function setUp() public override {
         super.setUp();
 
-        adapter = new FluidAdapter(owner);
+        adapter = AdapterProxyLib.deployFluid(owner);
         mockFToken = new MockERC4626Vault(address(usdc), "Fluid USDC", "fUSDC");
         fTokenMarketId = _computeVaultMarketId(address(mockFToken));
     }

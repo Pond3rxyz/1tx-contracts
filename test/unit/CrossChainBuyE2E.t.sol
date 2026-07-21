@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import {AdapterProxyLib} from "../utils/AdapterProxyLib.sol";
+
 import {Test} from "forge-std/Test.sol";
 import {Currency, CurrencyLibrary} from "@uniswap/v4-core/src/types/Currency.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
@@ -231,7 +233,7 @@ contract CrossChainBuyE2ETest is Test {
         destinationAavePool.setReserveData(address(destinationUsdt), address(destinationAUsdt));
         destinationUsdt.mint(address(destinationAavePool), 1_000_000e6);
 
-        AaveAdapter destinationAdapter = new AaveAdapter(address(destinationAavePool), owner);
+        AaveAdapter destinationAdapter = AdapterProxyLib.deployAave(address(destinationAavePool), owner);
         vm.startPrank(owner);
         destinationAdapter.registerMarket(Currency.wrap(address(destinationUsdt)));
         vm.stopPrank();

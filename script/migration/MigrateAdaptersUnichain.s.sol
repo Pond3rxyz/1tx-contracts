@@ -2,11 +2,13 @@
 pragma solidity ^0.8.26;
 
 import {Script, console} from "forge-std/Script.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 
 import {InstrumentRegistry} from "../../src/registries/InstrumentRegistry.sol";
 import {MorphoAdapter} from "../../src/adapters/MorphoAdapter.sol";
 import {EulerAdapter} from "../../src/adapters/EulerAdapter.sol";
+import {ERC4626Adapter} from "../../src/adapters/ERC4626Adapter.sol";
 
 /// @title AdapterMigrator
 /// @notice One-shot helper that atomically swaps the Unichain lending adapters for the new
@@ -69,9 +71,21 @@ contract AdapterMigrator {
     function migrate() external {
         if (msg.sender != admin) revert NotAdmin();
 
-        // 1. Deploy the new adapters; this migrator owns them until step 5.
-        MorphoAdapter morpho = new MorphoAdapter(address(this));
-        EulerAdapter euler = new EulerAdapter(address(this));
+        // 1. Deploy the new proxy-backed adapters; this migrator owns them until step 5.
+        MorphoAdapter morpho = MorphoAdapter(
+            address(
+                new ERC1967Proxy(
+                    address(new MorphoAdapter()), abi.encodeCall(ERC4626Adapter.initialize, (address(this)))
+                )
+            )
+        );
+        EulerAdapter euler = EulerAdapter(
+            address(
+                new ERC1967Proxy(
+                    address(new EulerAdapter()), abi.encodeCall(ERC4626Adapter.initialize, (address(this)))
+                )
+            )
+        );
         newMorphoAdapter = morpho;
         newEulerAdapter = euler;
 
@@ -118,10 +132,10 @@ contract AdapterMigrator {
 /// @notice Deploys the migrator, hands it registry ownership, and runs the atomic swap on Unichain.
 ///
 /// Dry run (simulation against live state, no state change):
-///   forge script script/MigrateAdaptersUnichain.s.sol:MigrateAdaptersUnichain --rpc-url unichain -vvvv
+///   forge script script/migration/MigrateAdaptersUnichain.s.sol:MigrateAdaptersUnichain --rpc-url unichain -vvvv
 ///
 /// Broadcast (signer MUST be the current owner of the registry + adapters):
-///   forge script script/MigrateAdaptersUnichain.s.sol:MigrateAdaptersUnichain \
+///   forge script script/migration/MigrateAdaptersUnichain.s.sol:MigrateAdaptersUnichain \
 ///     --rpc-url unichain --account <keystore> --broadcast -vvvv
 contract MigrateAdaptersUnichain is Script {
     // --- Unichain mainnet constants (verified on-chain against docs/deployments.md) ---

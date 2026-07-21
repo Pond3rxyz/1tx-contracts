@@ -4,18 +4,21 @@ pragma solidity ^0.8.26;
 import {Test} from "forge-std/Test.sol";
 import {Currency, CurrencyLibrary} from "@uniswap/v4-core/src/types/Currency.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-import {AdapterBase} from "../../../src/adapters/base/AdapterBase.sol";
+import {AdapterBaseUpgradeable as AdapterBase} from "../../../src/adapters/base/AdapterBaseUpgradeable.sol";
 import {ILendingAdapter} from "../../../src/interfaces/ILendingAdapter.sol";
 
 /// @title ConcreteAdapter
-/// @notice Concrete implementation of AdapterBase for testing
+/// @notice Concrete implementation of AdapterBaseUpgradeable for testing
 contract ConcreteAdapter is AdapterBase {
     using CurrencyLibrary for Currency;
 
     mapping(bytes32 => bool) public activeMarkets;
 
-    constructor(address initialOwner) AdapterBase(initialOwner) {}
+    function initialize(address initialOwner) external initializer {
+        __AdapterBase_init(initialOwner);
+    }
 
     function hasMarket(bytes32 marketId) external view override returns (bool) {
         return activeMarkets[marketId];
@@ -67,8 +70,10 @@ contract AdapterBaseTest is Test {
         user = makeAddr("user");
         authorizedCaller = makeAddr("authorizedCaller");
 
-        vm.prank(owner);
-        adapter = new ConcreteAdapter(owner);
+        ConcreteAdapter impl = new ConcreteAdapter();
+        adapter = ConcreteAdapter(
+            address(new ERC1967Proxy(address(impl), abi.encodeCall(ConcreteAdapter.initialize, (owner))))
+        );
     }
 
     // ============ Constructor Tests ============

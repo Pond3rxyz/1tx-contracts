@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import {AdapterProxyLib} from "../../utils/AdapterProxyLib.sol";
+
 import {Test} from "forge-std/Test.sol";
 import {Currency, CurrencyLibrary} from "@uniswap/v4-core/src/types/Currency.sol";
 
@@ -8,7 +10,7 @@ import {AaveAdapter} from "../../../src/adapters/AaveAdapter.sol";
 import {CompoundAdapter} from "../../../src/adapters/CompoundAdapter.sol";
 import {MorphoAdapter} from "../../../src/adapters/MorphoAdapter.sol";
 import {FluidAdapter} from "../../../src/adapters/FluidAdapter.sol";
-import {AdapterBase} from "../../../src/adapters/base/AdapterBase.sol";
+import {AdapterBaseUpgradeable as AdapterBase} from "../../../src/adapters/base/AdapterBaseUpgradeable.sol";
 
 import {MockERC20} from "../../mocks/MockERC20.sol";
 import {MockAavePool} from "../../mocks/MockAavePool.sol";
@@ -64,7 +66,7 @@ contract AdapterFuzzTest is Test {
         mockPool.setReserveData(address(usdc), address(aUsdc));
         usdc.mint(address(mockPool), INITIAL_BALANCE);
 
-        aaveAdapter = new AaveAdapter(address(mockPool), owner);
+        aaveAdapter = AdapterProxyLib.deployAave(address(mockPool), owner);
         vm.startPrank(owner);
         aaveAdapter.registerMarket(usdcCurrency);
         aaveAdapter.setAuthorizedCaller(authorizedCaller, true);
@@ -74,7 +76,7 @@ contract AdapterFuzzTest is Test {
         mockComet = new MockCompoundComet(address(usdc));
         usdc.mint(address(mockComet), INITIAL_BALANCE);
 
-        compoundAdapter = new CompoundAdapter(owner);
+        compoundAdapter = AdapterProxyLib.deployCompound(owner);
         vm.startPrank(owner);
         compoundAdapter.registerMarket(usdcCurrency, address(mockComet));
         compoundAdapter.setAuthorizedCaller(authorizedCaller, true);
@@ -84,7 +86,7 @@ contract AdapterFuzzTest is Test {
         mockMorphoVault = new MockERC4626Vault(address(usdc), "Morpho USDC", "mvUSDC");
         morphoMarketId = bytes32(uint256(uint160(address(mockMorphoVault))));
 
-        morphoAdapter = new MorphoAdapter(owner);
+        morphoAdapter = AdapterProxyLib.deployMorpho(owner);
         vm.startPrank(owner);
         morphoAdapter.registerVault(usdcCurrency, address(mockMorphoVault));
         morphoAdapter.setAuthorizedCaller(authorizedCaller, true);
@@ -94,7 +96,7 @@ contract AdapterFuzzTest is Test {
         mockFToken = new MockERC4626Vault(address(usdc), "Fluid USDC", "fUSDC");
         fluidMarketId = bytes32(uint256(uint160(address(mockFToken))));
 
-        fluidAdapter = new FluidAdapter(owner);
+        fluidAdapter = AdapterProxyLib.deployFluid(owner);
         vm.startPrank(owner);
         fluidAdapter.registerFToken(usdcCurrency, address(mockFToken));
         fluidAdapter.setAuthorizedCaller(authorizedCaller, true);

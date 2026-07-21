@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import {AdapterProxyLib} from "../../utils/AdapterProxyLib.sol";
+
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -16,7 +18,7 @@ contract CompoundAdapterForkTest is AdapterForkTestBase {
     function setUp() public override {
         super.setUp();
 
-        adapter = new CompoundAdapter(address(this));
+        adapter = AdapterProxyLib.deployCompound(address(this));
     }
 
     // ============ Market Tests ============

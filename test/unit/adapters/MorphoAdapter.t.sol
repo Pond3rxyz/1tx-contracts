@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import {AdapterProxyLib} from "../../utils/AdapterProxyLib.sol";
+
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import {AdapterTestBase} from "../../utils/AdapterTestBase.sol";
-import {AdapterBase} from "../../../src/adapters/base/AdapterBase.sol";
+import {AdapterBaseUpgradeable as AdapterBase} from "../../../src/adapters/base/AdapterBaseUpgradeable.sol";
 import {ERC4626Adapter} from "../../../src/adapters/ERC4626Adapter.sol";
 import {MorphoAdapter} from "../../../src/adapters/MorphoAdapter.sol";
 import {MockERC4626Vault} from "../../mocks/MockERC4626Vault.sol";
@@ -18,7 +20,7 @@ contract MorphoAdapterTest is AdapterTestBase {
     function setUp() public override {
         super.setUp();
 
-        adapter = new MorphoAdapter(owner);
+        adapter = AdapterProxyLib.deployMorpho(owner);
         mockVault = new MockERC4626Vault(address(usdc), "Morpho USDC Vault", "mvUSDC");
         vaultMarketId = _computeVaultMarketId(address(mockVault));
     }

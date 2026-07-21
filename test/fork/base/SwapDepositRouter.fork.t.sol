@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import {AdapterProxyLib} from "../../utils/AdapterProxyLib.sol";
+
 import {stdJson} from "forge-std/StdJson.sol";
 import {Currency, CurrencyLibrary} from "@uniswap/v4-core/src/types/Currency.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
@@ -73,7 +75,7 @@ contract SwapDepositRouterForkTest is AdapterForkTestBase {
         );
 
         // Deploy Aave adapter & register USDC (always available)
-        aaveAdapter = new AaveAdapter(address(aavePool), address(this));
+        aaveAdapter = AdapterProxyLib.deployAave(address(aavePool), address(this));
         aaveAdapter.registerMarket(usdcCurrency);
 
         // Conditionally register USDbC if Aave supports it

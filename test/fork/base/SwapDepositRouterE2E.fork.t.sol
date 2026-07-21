@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import {AdapterProxyLib} from "../../utils/AdapterProxyLib.sol";
+
 import {stdJson} from "forge-std/StdJson.sol";
 import {Currency, CurrencyLibrary} from "@uniswap/v4-core/src/types/Currency.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
@@ -125,7 +127,7 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
         address aavePool = getAavePool();
         if (aavePool == address(0)) return;
 
-        aaveAdapter = new AaveAdapter(aavePool, address(this));
+        aaveAdapter = AdapterProxyLib.deployAave(aavePool, address(this));
         aaveAdapter.setAuthorizedCaller(address(router), true);
 
         // No-swap: USDC
@@ -165,7 +167,7 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
     }
 
     function _setupMorpho() internal {
-        morphoAdapter = new ERC4626Adapter(address(this));
+        morphoAdapter = AdapterProxyLib.deployERC4626(address(this));
         morphoAdapter.setAuthorizedCaller(address(router), true);
 
         _tryRegisterMorphoVault("Morpho-steakhouseUSDC", "steakhouseUSDC");
@@ -190,7 +192,7 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
         string memory compPath = string.concat(networkPath, ".protocols.compound.usdcComet");
         if (!vm.keyExistsJson(json, compPath)) return;
 
-        compoundAdapter = new CompoundAdapter(address(this));
+        compoundAdapter = AdapterProxyLib.deployCompound(address(this));
         compoundAdapter.setAuthorizedCaller(address(router), true);
 
         _tryRegisterCompoundMarket("Compound-USDC", "usdcComet", usdc, false);
@@ -214,7 +216,7 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
     }
 
     function _setupFluid() internal {
-        fluidAdapter = new ERC4626Adapter(address(this));
+        fluidAdapter = AdapterProxyLib.deployERC4626(address(this));
         fluidAdapter.setAuthorizedCaller(address(router), true);
 
         _tryRegisterFluidToken("Fluid-fUSDC", "fUSDC", usdc, false);
@@ -237,7 +239,7 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
     }
 
     function _setupEuler() internal {
-        eulerAdapter = new ERC4626Adapter(address(this));
+        eulerAdapter = AdapterProxyLib.deployERC4626(address(this));
         eulerAdapter.setAuthorizedCaller(address(router), true);
 
         _tryRegisterEulerVault("Euler-eeUSDC", "eeUSDC");
@@ -394,7 +396,7 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
         address executionAddress = makeAddr("morphoMigrationExec");
         bytes32 instrumentId = InstrumentIdLib.generateInstrumentId(block.chainid, executionAddress, marketId);
 
-        MorphoAdapter oldAdapter = new MorphoAdapter(address(this));
+        MorphoAdapter oldAdapter = AdapterProxyLib.deployMorpho(address(this));
         oldAdapter.setAuthorizedCaller(address(router), true);
         oldAdapter.registerVault(usdcCurrency, vault);
 
@@ -411,7 +413,7 @@ contract SwapDepositRouterE2EForkTest is AdapterForkTestBase {
 
         instrumentRegistry.unregisterInstrument(instrumentId);
 
-        ERC4626Adapter newAdapter = new ERC4626Adapter(address(this));
+        ERC4626Adapter newAdapter = AdapterProxyLib.deployERC4626(address(this));
         newAdapter.setAuthorizedCaller(address(router), true);
         newAdapter.registerMarket(usdcCurrency, vault);
 

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import {AdapterProxyLib} from "../../utils/AdapterProxyLib.sol";
+
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -20,7 +22,7 @@ contract AaveAdapterArbitrumForkTest is AdapterForkTestBase {
         super.setUp();
 
         address pool = getAavePool();
-        adapter = new AaveAdapter(pool, address(this));
+        adapter = AdapterProxyLib.deployAave(pool, address(this));
         aavePool = IAavePool(pool);
     }
 

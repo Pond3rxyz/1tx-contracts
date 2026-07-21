@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import {AdapterProxyLib} from "../../utils/AdapterProxyLib.sol";
+
 import {Currency, CurrencyLibrary} from "@uniswap/v4-core/src/types/Currency.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 import {AdapterTestBase} from "../../utils/AdapterTestBase.sol";
 import {AaveAdapter} from "../../../src/adapters/AaveAdapter.sol";
-import {AdapterBase} from "../../../src/adapters/base/AdapterBase.sol";
+import {AdapterBaseUpgradeable as AdapterBase} from "../../../src/adapters/base/AdapterBaseUpgradeable.sol";
 import {MockAavePool} from "../../mocks/MockAavePool.sol";
 import {MockERC20} from "../../mocks/MockERC20.sol";
 
@@ -38,7 +41,7 @@ contract AaveAdapterTest is AdapterTestBase {
         usdc.mint(address(mockPool), INITIAL_BALANCE);
 
         // Deploy adapter
-        adapter = new AaveAdapter(address(mockPool), owner);
+        adapter = AdapterProxyLib.deployAave(address(mockPool), owner);
 
         // Pre-compute market ID
         usdcMarketId = _computeMarketId(usdcCurrency);
@@ -55,8 +58,9 @@ contract AaveAdapterTest is AdapterTestBase {
     }
 
     function test_constructor_revertsOnZeroPoolAddress() public {
+        AaveAdapter impl = new AaveAdapter();
         vm.expectRevert(AaveAdapter.InvalidPoolAddress.selector);
-        new AaveAdapter(address(0), owner);
+        new ERC1967Proxy(address(impl), abi.encodeCall(AaveAdapter.initialize, (address(0), owner)));
     }
 
     // ============ registerMarket Tests ============
