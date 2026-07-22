@@ -61,3 +61,6 @@ ENV/
 logs
 broadcast
 *.drawio
+command.md
+opencode.json
+notes
