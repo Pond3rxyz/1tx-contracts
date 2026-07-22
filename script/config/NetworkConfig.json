@@ -34,12 +34,32 @@
                         "steakhousePrimeUSDC": "0xBEEFE94c8aD530842bfE7d8B397938fFc1cb83b2",
                         "re7EUSD": "0xbb819D845b573B5D7C538F5b85057160cfb5f313",
                         "clearstarUSDC": "0x1D3b1Cd0a0f242d598834b3F2d126dC6bd774657",
-                        "mevFrontierUSDC": "0x8773447e6369472D9B72f064Ea62e405216E9084"
+                        "mevFrontierUSDC": "0x8773447e6369472D9B72f064Ea62e405216E9084",
+                        "clearstarCbAssetsUSDC": "0x91C056B6d4311a743614FBc03ac32d4E6A2d3a3c",
+                        "gauntletUSDCFrontier": "0x1deEfABEe758AAbdC29a542B24ca3b75aFD56765",
+                        "yearnOGUSDCV2": "0xe7D0DBE3493830e2Ab62619211A2BfF0Fc60dB42",
+                        "moonwellEcosystemUSDC": "0xbB2F06CeAE42CBcF5559Ed0713538c8892D977c9",
+                        "steakhouseHighYieldUSDC": "0xbeeff7aE5E00Aae3Db302e4B0d8C883810a58100",
+                        "farcasterSteakhousePrime": "0xBeEF00fc6e87dE086A0e29169A2f6e25cF5C11a9",
+                        "rockawayXMidasUSDCPrime": "0xAE4181CFB5aaA08bbE77d269c6B595672b9F9Edc",
+                        "gauntletUSDCPrimeV2": "0x050cE30b927Da55177A4914EC73480238BAD56f0",
+                        "clearstarBoringUSDC": "0x0282159ecCaabA941bD1f4C518944D8fDCdc0681",
+                        "architectGlobalValueII": "0x6022Cbf61352618053d89FD9eEfe78Cb725B3c9d",
+                        "steakhousePrimeUSDCV2": "0xbeef0e0834849aCC03f0089F01f4F1Eeb06873C9",
+                        "primeUSDC": "0x5e03f8965e2957291B3c6990C6Cb9023c36d3d30",
+                        "ethenaSteakhouseUSDC": "0xBeEfF0be997Cca5B1c13A7433c2004637975739e",
+                        "galaxyUSDCQuality": "0x1e9e47583f15D45a10Df48c0b1846E0492c795D7",
+                        "architectGlobalValue": "0x8effa741061aaA2d8A5012a9B09A2d31d8B628d7",
+                        "moonwellFlagshipUSDC": "0x48a90E85be5C56b0A669985A12ee7C449fC79965",
+                        "clearstarCoreUSDC": "0x116e1A65717A534B73EcB7d4F6543c65DBCd0E46",
+                        "avantgardeUSDCConservativeV2": "0xE34D43CA9152D198B60654868C8cD197196a492f",
+                        "steakhouseHighYieldUSDCEdition": "0xbeeff2490FEffa212faC2f6553682C219E6a8845"
                     }
                 },
                 "eulerEarn": {
                     "vaults": {
-                        "eeUSDC": "0x67f062a12f82c3b42d4ca7a35fb26cbaac28008b"
+                        "eeUSDC": "0x67f062a12f82c3b42d4ca7a35fb26cbaac28008b",
+                        "clearstarEarnUSDC": "0x8bF41Ad2b816F7c220b22F4BCD63fC2A35Ab4247"
                     }
                 },
                 "compound": {
@@ -171,7 +191,12 @@
                         "gauntletUSDCCore": "0x7e97fa6893871A2751B5fE961978DCCb2c201E65",
                         "steakhousePrimeUSDC": "0x250CF7c82bAc7cB6cf899b6052979d4B5BA1f9ca",
                         "steakhouseHighYieldUSDC": "0x5c0C306Aaa9F877de636f4d5822cA9F2E81563BA",
-                        "bitgetSteakhouseUSDC": "0xbeeff1D5dE8F79ff37a151681100B039661da518"
+                        "bitgetSteakhouseUSDC": "0xbeeff1D5dE8F79ff37a151681100B039661da518",
+                        "gauntletUSDCBalanced": "0x55a2B207b0074E13AdCb858950a81B7a04775E0F",
+                        "gauntletUSDCPrime": "0x610D151aE40662AE148cdBaaE1Ea5904b6AFAE78",
+                        "gauntletUSDCPrimeII": "0x7c574174DA4b2be3f705c6244B4BfA0815a8B3Ed",
+                        "kpkUSDCYieldV2": "0x5837e4189819637853a357aF36650902347F5e73",
+                        "bitgetSteakhouseUSDT": "0xbeeff77CE5C059445714E6A3490E273fE7F2492F"
                     }
                 },
                 "eulerEarn": {
