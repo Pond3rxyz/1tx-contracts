@@ -17,9 +17,11 @@ import {IERC4626} from "../../../src/interfaces/IERC4626.sol";
 ///      on-chain registration via `script/RegisterInstruments.s.sol`). Each vault is registered
 ///      on a freshly-deployed MorphoAdapter and exercised end-to-end: deposit then full withdraw.
 ///
-///      Pinned to a recent Arbitrum block because these vaults were deployed after the block used
-///      by the shared adapter fork base. The underlying asset is read on-chain per vault (USDC for
-///      most, USDT0 for the Bitget vault), so deposits are sized by the asset's own decimals.
+///      Forks from the latest block rather than a pinned one: these vaults were deployed after the
+///      block used by the shared adapter fork base, and pinning an older block makes CI's
+///      non-archive RPC fail with "missing trie node" once that state is pruned. The underlying
+///      asset is read on-chain per vault (USDC for most, USDT0 for the Bitget vault), so deposits
+///      are sized by the asset's own decimals.
 ///
 ///      Note: Morpho Vaults V2 under-report `maxDeposit()` as 0, yet accept deposits — so the
 ///      adapter path (which calls `vault.deposit` directly) works. Do NOT gate on maxDeposit.
@@ -28,7 +30,6 @@ import {IERC4626} from "../../../src/interfaces/IERC4626.sol";
 contract MorphoVaultsV2ArbitrumForkTest is Test {
     using stdJson for string;
 
-    uint256 internal constant FORK_BLOCK = 486_000_000;
     string internal constant CONFIG_PATH = "script/config/NetworkConfig.json";
     string internal constant VAULTS_PATH = ".networks.arbitrumMainnet.protocols.morpho.vaults.";
 
@@ -42,7 +43,8 @@ contract MorphoVaultsV2ArbitrumForkTest is Test {
         ["gauntletUSDCBalanced", "gauntletUSDCPrime", "gauntletUSDCPrimeII", "kpkUSDCYieldV2", "bitgetSteakhouseUSDT"];
 
     function setUp() public {
-        vm.createSelectFork(vm.envString("ARBITRUM_RPC_URL"), FORK_BLOCK);
+        // Fork from latest so CI's non-archive RPC always has the required state (no pruned block).
+        vm.createSelectFork(vm.envString("ARBITRUM_RPC_URL"));
         json = vm.readFile(CONFIG_PATH);
 
         adapter = AdapterProxyLib.deployMorpho(address(this));
