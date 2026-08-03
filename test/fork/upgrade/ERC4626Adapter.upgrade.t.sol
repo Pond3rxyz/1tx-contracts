@@ -105,4 +105,60 @@ contract ERC4626AdapterUpgradeTest is Test {
         assertTrue(upgraded.hasMarket(marketId), "market lost across upgrade");
         assertTrue(upgraded.authorizedCallers(caller), "authorizedCaller lost across upgrade");
     }
+
+    /// @notice A proxy that predates the stored adapter name keeps reporting a real name.
+    /// @dev The whole risk of moving the name into storage: every live proxy has that slot empty,
+    ///      so without the fallback in `_adapterName()` they would start reporting "" after an
+    ///      implementation upgrade — and the API reads that as the protocol identity.
+    function test_upgradeFromV1_nameFallsBackRatherThanEmptying() public {
+        ERC4626Adapter newImpl = new ERC4626Adapter();
+        vm.prank(owner);
+        proxy.upgradeToAndCall(address(newImpl), "");
+
+        string memory name = ERC4626Adapter(address(proxy)).getAdapterMetadata().name;
+        assertEq(name, "ERC4626 Adapter", "pre-existing proxy lost its name across the upgrade");
+    }
+
+    /// @notice A subclass keeps its hardcoded identity even on a proxy with an empty name slot.
+    function test_upgradeFromV1_subclassNameSurvives() public {
+        MorphoAdapter newImpl = new MorphoAdapter();
+        vm.prank(owner);
+        proxy.upgradeToAndCall(address(newImpl), "");
+
+        assertEq(
+            MorphoAdapter(address(proxy)).getAdapterMetadata().name,
+            "Morpho Vaults V2",
+            "live Morpho proxies must not be re-bucketed by the storage-name change"
+        );
+    }
+
+    /// @notice The generic path: one contract, identity supplied at init.
+    /// @dev This is what removes the need for a subclass — and a deploy script — per protocol.
+    function test_initializeNamed_setsProtocolIdentity() public {
+        ERC4626Adapter impl = new ERC4626Adapter();
+        ERC4626Adapter named = ERC4626Adapter(
+            address(new ERC1967Proxy(address(impl), abi.encodeCall(ERC4626Adapter.initializeNamed, (owner, "Avantis"))))
+        );
+
+        assertEq(named.getAdapterMetadata().name, "Avantis");
+        assertEq(named.getAdapterMetadata().chainId, block.chainid);
+        assertEq(named.owner(), owner);
+    }
+
+    /// @notice The name is set once. It is the protocol identity a weight cap budgets against, so
+    ///         there is no setter and re-initialization must not offer a way around that.
+    function test_initializeNamed_cannotBeReinitialized() public {
+        ERC4626Adapter impl = new ERC4626Adapter();
+        ERC4626Adapter named = ERC4626Adapter(
+            address(new ERC1967Proxy(address(impl), abi.encodeCall(ERC4626Adapter.initializeNamed, (owner, "Avantis"))))
+        );
+
+        vm.expectRevert();
+        named.initializeNamed(owner, "Morpho Vaults V2");
+
+        vm.expectRevert();
+        named.initialize(owner);
+
+        assertEq(named.getAdapterMetadata().name, "Avantis", "identity was overwritten");
+    }
 }

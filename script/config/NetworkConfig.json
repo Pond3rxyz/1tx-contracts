@@ -27,6 +27,10 @@
                     "pool": "0xA238Dd80C259a72e81d7e4664a9801593F98d1c5"
                 },
                 "morpho": {
+                    "adapter": {
+                        "key": "morpho",
+                        "name": "Morpho Vaults V2"
+                    },
                     "vaults": {
                         "steakhouseUSDC": "0xbeeF010f9cb27031ad51e3333f9aF9C6B1228183",
                         "sparkUSDC": "0x7BfA7C4f149E7415b73bdeDfe609237e29CBF34A",
@@ -57,9 +61,22 @@
                     }
                 },
                 "eulerEarn": {
+                    "adapter": {
+                        "key": "euler",
+                        "name": "Euler Earn"
+                    },
                     "vaults": {
                         "eeUSDC": "0x67f062a12f82c3b42d4ca7a35fb26cbaac28008b",
                         "clearstarEarnUSDC": "0x8bF41Ad2b816F7c220b22F4BCD63fC2A35Ab4247"
+                    }
+                },
+                "avantis": {
+                    "adapter": {
+                        "key": "avantis",
+                        "name": "Avantis"
+                    },
+                    "vaults": {
+                        "avUSDC": "0x944766f715b51967E56aFdE5f0Aa76cEaCc9E7f9"
                     }
                 },
                 "compound": {
@@ -70,6 +87,10 @@
                     "usdbcComet": "0x9c4ec768c28520B50860ea7a15bd7213a9fF58bf"
                 },
                 "fluid": {
+                    "adapter": {
+                        "key": "fluid",
+                        "name": "Fluid Lending"
+                    },
                     "liquidity": "0x52Aa899454998Be5b000Ad077a46Bbe360F4e497",
                     "factory": "0x54B91A0D94cb471F37f949c60F7Fa7935b551D03",
                     "fTokens": {
@@ -130,11 +151,12 @@
                 "swapDepositorRouter": "0xbFdd5bEdC0cB9B8795A93C2a1fB634012C8F99bC",
                 "instrumentToken": "0x0000000000000000000000000000000000000000",
                 "adapters": {
-                    "aave": "0x10D93d1de2f634d27B35c90EcBE1894D9D9696a4",
-                    "compound": "0xc97B496660C5606994dAebB51b722f2A99266604",
-                    "morpho": "0x39cC57fEAA0941e60fD0E76c5283E16e2c616F67",
-                    "euler": "0x25A9959Bf3A8a53e155CEd3F0F4AD8A56Dd1657F",
-                    "fluid": "0xfBAbd830FD0Bfe5a4d9E242094a60f223A162103"
+                    "aave": "0x72748778072707586303c09C7D72A502B02f609f",
+                    "compound": "0xfc8fbF9E79FDdB6f54352698A0f0357D35E1A94e",
+                    "morpho": "0x74980651215862A2c9af32922EB193e31231fCf2",
+                    "euler": "0xb795ff600c6856f04B3d52083be2579E95678b05",
+                    "fluid": "0xaB1659910AaF12d2274217212A597E9536488D3B",
+                    "avantis": "0x0000000000000000000000000000000000000000"
                 },
                 "cctpBridge": "0x76332AE6F24597cf37d38E5deB9f2f4172003E64",
                 "cctpReceiver": "0xAA4a2CFd29734dA2041a56A716e408F1A610f85E",
@@ -182,6 +204,10 @@
                     "pool": "0x794a61358D6845594F94dc1DB02A252b5b4814aD"
                 },
                 "morpho": {
+                    "adapter": {
+                        "key": "morpho",
+                        "name": "Morpho Vaults V2"
+                    },
                     "vaults": {
                         "clearstarHighYieldUSDC": "0x64CA76e2525fc6Ab2179300c15e343d73e42f958",
                         "kpkUSDCYield": "0x2C609d9CfC9dda2dB5C128B2a665D921ec53579d",
@@ -200,6 +226,10 @@
                     }
                 },
                 "eulerEarn": {
+                    "adapter": {
+                        "key": "euler",
+                        "name": "Euler Earn"
+                    },
                     "vaults": {
                         "eeUSDC": "0xe4783824593a50bfe9dc873204cec171ebc62de0"
                     }
@@ -235,10 +265,10 @@
                 "swapDepositorRouter": "0xC46C6b9260F3BD3735637AaEd4fBD1B1dE6D84AE",
                 "instrumentToken": "0x0000000000000000000000000000000000000000",
                 "adapters": {
-                    "aave": "0xB61d8b22d3EFc267A3781e0f72D049925521b412",
+                    "aave": "0xD6ff3Ac1e0Bf6284BdFb55626F733F100880F342",
                     "compound": "0x0000000000000000000000000000000000000000",
-                    "morpho": "0xb795ff600c6856f04B3d52083be2579E95678b05",
-                    "euler": "0x09F794080096b5131Eb803B431527C2f835763b4",
+                    "morpho": "0xa8fC4477EEdcb742B9640b23C816370A6523eDaf",
+                    "euler": "0xDBD1B8048518E6D572181E577d117101292A72aD",
                     "fluid": "0x0000000000000000000000000000000000000000"
                 },
                 "cctpBridge": "0x29DD1294052D317b6F142be2d4e7E9d9Eb178431",
@@ -328,11 +358,19 @@
             },
             "protocols": {
                 "morpho": {
+                    "adapter": {
+                        "key": "morpho",
+                        "name": "Morpho Vaults V2"
+                    },
                     "vaults": {
                         "gauntletUSDCC": "0x38f4f3B6533de0023b9DCd04b02F93d36ad1F9f9"
                     }
                 },
                 "eulerEarn": {
+                    "adapter": {
+                        "key": "euler",
+                        "name": "Euler Earn"
+                    },
                     "vaults": {
                         "eeUSDC": "0x6eAe95ee783e4D862867C4e0E4c3f4B95AA682Ba"
                     }
@@ -348,8 +386,8 @@
                 "adapters": {
                     "aave": "0x0000000000000000000000000000000000000000",
                     "compound": "0x0000000000000000000000000000000000000000",
-                    "morpho": "0xd4aB69fD10CF2dF8AB0700561F6A4c96650D28B7",
-                    "euler": "0x26864BCB5a60a9803bDa7Ef7C9eE8f0C7bE64cc3",
+                    "morpho": "0x07380DD19b01D07184269E3EAfBeadD28806348E",
+                    "euler": "0xb2C77bB144Fb9051a7B6339DF34888faDE13f53E",
                     "fluid": "0x0000000000000000000000000000000000000000"
                 },
                 "cctpBridge": "0xAdE2f30c17821e26f58922abcB28bC8E1C7b7E0e",

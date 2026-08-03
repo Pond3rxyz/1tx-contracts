@@ -237,7 +237,7 @@ contract Deploy is ConfigReader {
 
         console.log("\n[2/8] Deploying Morpho Adapter");
         console.log("-----------------------------------------------");
-        morphoAdapter = _deployErc4626Proxy(deployer);
+        morphoAdapter = _deployErc4626Proxy(deployer, "Morpho Vaults V2");
         console.log("  MorphoAdapter:", address(morphoAdapter));
     }
 
@@ -246,7 +246,7 @@ contract Deploy is ConfigReader {
 
         console.log("\n[2/8] Deploying Euler Earn Adapter");
         console.log("-----------------------------------------------");
-        eulerAdapter = _deployErc4626Proxy(deployer);
+        eulerAdapter = _deployErc4626Proxy(deployer, "Euler Earn");
         console.log("  EulerAdapter:", address(eulerAdapter));
     }
 
@@ -255,15 +255,23 @@ contract Deploy is ConfigReader {
 
         console.log("\n[2/8] Deploying Fluid Adapter");
         console.log("-----------------------------------------------");
-        fluidAdapter = _deployErc4626Proxy(deployer);
+        fluidAdapter = _deployErc4626Proxy(deployer, "Fluid Lending");
         console.log("  FluidAdapter:", address(fluidAdapter));
     }
 
-    /// @notice Deploys an ERC4626Adapter implementation behind an ERC1967Proxy, initialized to `owner`.
-    function _deployErc4626Proxy(address owner) internal returns (ERC4626Adapter) {
+    /// @notice Deploys an ERC4626Adapter implementation behind an ERC1967Proxy, initialized to
+    ///         `owner` and carrying `adapterName` as its protocol identity.
+    /// @dev The name is not decoration. It is what the API surfaces as the instrument's protocol
+    ///      and therefore what `max_weight_per_protocol` budgets against. Deploying all three
+    ///      ERC-4626 adapters unnamed — as this did before {ERC4626Adapter-initializeNamed}
+    ///      existed — gave Morpho, Euler and Fluid the identical name "ERC4626 Adapter" on any
+    ///      freshly deployed chain, collapsing three protocols into one cap bucket.
+    function _deployErc4626Proxy(address owner, string memory adapterName) internal returns (ERC4626Adapter) {
         ERC4626Adapter impl = new ERC4626Adapter();
         return ERC4626Adapter(
-            address(new ERC1967Proxy(address(impl), abi.encodeWithSelector(ERC4626Adapter.initialize.selector, owner)))
+            address(
+                new ERC1967Proxy(address(impl), abi.encodeCall(ERC4626Adapter.initializeNamed, (owner, adapterName)))
+            )
         );
     }
 
