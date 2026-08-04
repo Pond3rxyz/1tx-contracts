@@ -52,4 +52,16 @@ library AdapterProxyLib {
         return
             FluidAdapter(address(new ERC1967Proxy(address(impl), abi.encodeCall(ERC4626Adapter.initialize, (owner)))));
     }
+
+    /// @notice Deploys a generic ERC-4626 adapter carrying an explicit protocol name.
+    /// @dev The path every new ERC-4626 protocol takes now that the name is storage rather than
+    ///      bytecode — no subclass, so no new contract per listing.
+    function deployNamed(address owner, string memory adapterName) internal returns (ERC4626Adapter) {
+        ERC4626Adapter impl = new ERC4626Adapter();
+        return ERC4626Adapter(
+            address(
+                new ERC1967Proxy(address(impl), abi.encodeCall(ERC4626Adapter.initializeNamed, (owner, adapterName)))
+            )
+        );
+    }
 }

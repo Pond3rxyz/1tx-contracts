@@ -128,6 +128,26 @@ re-registration). Upgrade owner is `0x4d0e3d2759B8f96B4FA82b2c308Dcd7663794F73`.
 | MorphoAdapter | `0x74980651215862A2c9af32922EB193e31231fCf2` | `0x51c683A87C82A40248f1ccBCd328c21186454825` | Morpho Vaults (ERC-4626) |
 | EulerAdapter | `0xb795ff600c6856f04B3d52083be2579E95678b05` | `0x81a38dE58bdCFa60E640261117Aa7470A73AaC45` | Euler Earn (ERC-4626) |
 | FluidAdapter | `0xaB1659910AaF12d2274217212A597E9536488D3B` | `0xA666C08f8D720E3b2Dc21Eec3bF0FE01339deB32` | Fluid (ERC-4626) |
+| Avantis (generic `ERC4626Adapter`) | `0x5BC27259Be65f159C86B96a95753B485c8cf7A3A` | `0x341f4A237A1a01228e4d5db6065447F0F2b8aB1A` | Avantis |
+
+> **Avantis adapter — broadcast 2026-08-04, Base block 49,530,937.** One
+> `script/RegisterInstruments.s.sol` run deployed the implementation and proxy, authorized the
+> router, registered the `avUSDC` market and registered the instrument (5 txs, 1,949,789 gas,
+> 0.0000117 ETH). Adapter creation tx `0xf8a34f9daf36d21c32361019e646ebd8872ba4f5c54c38daa61960aa00b15971`.
+> Verified on-chain after the run: `getAdapterMetadata()` → `("Avantis", 8453)`, owner
+> `0x4d0e3d27…94F73`, `authorizedCallers(router)` true, `hasMarket(avUSDC)` true, and
+> `InstrumentRegistry.instruments(0x0000210505ce…32b3)` → this proxy. Arbitrum and Unichain were
+> dry-run and are no-ops (0 deployed, 0 registered) — Avantis is Base-only.
+>
+> It is the **generic `ERC4626Adapter`, not a subclass.** The adapter name is the instrument's
+> protocol identity downstream and is what `max_weight_per_protocol` budgets against — listing a
+> perp-DEX LP sleeve as "Morpho" would spend the Morpho budget on the one instrument that exists
+> because it is *not* Morpho. That identity now comes from `initializeNamed` at deploy time rather
+> than from bytecode, so a new ERC-4626 protocol needs no new contract and no new script.
+>
+> The Morpho/Euler/Fluid subclasses above are retained only because their proxies are already live
+> and were initialized before the stored name existed; their hardcoded names still win. New
+> listings should not add subclasses.
 
 > **Upgradeable-adapter migration (2026-07-21):** all adapters were swapped to proxy-backed,
 > UUPS-upgradeable `src/adapters` implementations via `script/migration/MigrateAdapters.s.sol`
@@ -211,6 +231,18 @@ re-registration). Upgrade owner is `0x4d0e3d2759B8f96B4FA82b2c308Dcd7663794F73`.
 | fUSDC | `0xf42f5795D9ac7e9D757dB633D693cD548Cfd9169` | `0x000021053a846b64b310324cfd96a29473b19dc05495f37cb6c87b8f3d721228` |
 | fEURC | `0x1943FA26360f038230442525Cf1B9125b5DCB401` | `0x000021056b6d09c15812cf4d0b80184c57f1abd1da536becf4f42dd444e01f23` |
 | fGHO | `0x8DdbfFA3CFda2355a23d6B11105AC624BDbE3631` | `0x00002105927eaf7d74858d0241fb00e75d8f519093042667cf0df17cbdd7e37e` |
+
+#### Avantis (ERC-4626)
+
+Registered 2026-08-04 on adapter `0x5BC27259Be65f159C86B96a95753B485c8cf7A3A`. The instrument ID
+matches what the backend derives (`generateInstrumentId(8453, vault, marketId)`).
+
+| Vault | Vault Address | Instrument ID |
+|-------|---------------|---------------|
+| avUSDC | `0x944766f715b51967E56aFdE5f0Aa76cEaCc9E7f9` | `0x0000210505ce3e09856275ab0e8b20abcc4e45bd455c50ab26f86011cde632b3` |
+
+No `SwapPoolRegistry` entry is needed — `avUSDC.asset()` is canonical USDC, so the router's swap
+branch never fires. Exit-path analysis: `avusdc-exit-verification.md`.
 
 ### Swap Pools
 

@@ -30,10 +30,28 @@ contract ERC4626Adapter is AdapterBaseUpgradeable {
     event Deposited(bytes32 indexed marketId, uint256 assets, uint256 shares, address onBehalfOf);
     event Withdrawn(bytes32 indexed marketId, uint256 assets, uint256 shares, address to);
 
-    /// @notice Initializes the adapter behind a proxy
+    /// @notice Initializes the adapter behind a proxy under the default name
     /// @param initialOwner The initial owner of the adapter (can register markets)
+    /// @dev Kept for the already-deployed proxies, which were initialized through this path.
+    ///      New deployments should use {initializeNamed} so the protocol identity is set.
     function initialize(address initialOwner) external initializer {
         __AdapterBase_init(initialOwner);
+    }
+
+    /// @notice Initializes the adapter behind a proxy with an explicit protocol name
+    /// @param initialOwner The initial owner of the adapter (can register markets)
+    /// @param adapterName_ Protocol identity surfaced by {getAdapterMetadata}, e.g. "Avantis"
+    /// @dev This is what makes a new ERC-4626 protocol a config-only listing. Before it, the name
+    ///      was baked into bytecode by a per-protocol subclass, so every new protocol needed a new
+    ///      contract *and* a deploy script that knew which contract to instantiate.
+    ///
+    ///      The name is not merely cosmetic and there is deliberately no setter: it is the
+    ///      instrument's protocol identity downstream, and that identity is what
+    ///      `max_weight_per_protocol` budgets against. Renaming a live adapter would silently
+    ///      re-bucket every instrument under it.
+    function initializeNamed(address initialOwner, string calldata adapterName_) external initializer {
+        __AdapterBase_init(initialOwner);
+        _storedAdapterName = adapterName_;
     }
 
     function registerMarket(Currency currency, address vault) public onlyOwner validCurrency(currency) {
@@ -76,9 +94,14 @@ contract ERC4626Adapter is AdapterBaseUpgradeable {
     }
 
     /// @notice Human-readable adapter name surfaced in {getAdapterMetadata}
-    /// @dev Overridden by concrete adapters (Morpho, Euler, ...) to match their deployed names.
-    function _adapterName() internal pure virtual returns (string memory) {
-        return "ERC4626 Adapter";
+    /// @dev A subclass override replaces this function outright, so for Morpho/Euler/Fluid the
+    ///      hardcoded name still wins — those proxies are live and were initialized before the
+    ///      stored name existed, and they must keep reporting the name they always have.
+    ///      For the generic adapter the name comes from {initializeNamed}, falling back to the
+    ///      default when it was deployed through the older {initialize}, or when a pre-existing
+    ///      proxy is upgraded to this implementation and the new slot is therefore empty.
+    function _adapterName() internal view virtual returns (string memory) {
+        return bytes(_storedAdapterName).length == 0 ? "ERC4626 Adapter" : _storedAdapterName;
     }
 
     function deposit(bytes32 marketId, uint256 amount, address onBehalfOf)
@@ -125,6 +148,11 @@ contract ERC4626Adapter is AdapterBaseUpgradeable {
         if (!config.active) revert MarketNotActive();
     }
 
+    /// @dev Protocol identity for adapters deployed via {initializeNamed}. Empty on every proxy
+    ///      initialized before this field existed, which is why {_adapterName} falls back.
+    ///      Appended here, ahead of the gap, so the V1 storage layout is preserved.
+    string private _storedAdapterName;
+
     /// @dev Reserved storage for future fields. Adapter storage is append-only once live.
-    uint256[50] private __gap;
+    uint256[49] private __gap;
 }
