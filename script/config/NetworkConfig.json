@@ -79,6 +79,15 @@
                         "avUSDC": "0x944766f715b51967E56aFdE5f0Aa76cEaCc9E7f9"
                     }
                 },
+                "tokemak": {
+                    "adapter": {
+                        "key": "tokemak",
+                        "name": "Tokemak"
+                    },
+                    "vaults": {
+                        "baseUSD": "0x9c6864105aec23388c89600046213a44c384c831"
+                    }
+                },
                 "compound": {
                     "configurator": "0x45939657d1CA34A8FA39A924B71D28Fe8431e581",
                     "rewards": "0x123964802e6ABabBE1Bc9547D72Ef1B69B00A6b1",
@@ -156,7 +165,8 @@
                     "morpho": "0x74980651215862A2c9af32922EB193e31231fCf2",
                     "euler": "0xb795ff600c6856f04B3d52083be2579E95678b05",
                     "fluid": "0xaB1659910AaF12d2274217212A597E9536488D3B",
-                    "avantis": "0x5BC27259Be65f159C86B96a95753B485c8cf7A3A"
+                    "avantis": "0x5BC27259Be65f159C86B96a95753B485c8cf7A3A",
+                    "tokemak": "0x86a5B3DF4aDd1c888F95D17d805D9c2d09222D65"
                 },
                 "cctpBridge": "0x76332AE6F24597cf37d38E5deB9f2f4172003E64",
                 "cctpReceiver": "0xAA4a2CFd29734dA2041a56A716e408F1A610f85E",

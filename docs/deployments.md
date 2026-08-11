@@ -129,6 +129,23 @@ re-registration). Upgrade owner is `0x4d0e3d2759B8f96B4FA82b2c308Dcd7663794F73`.
 | EulerAdapter | `0xb795ff600c6856f04B3d52083be2579E95678b05` | `0x81a38dE58bdCFa60E640261117Aa7470A73AaC45` | Euler Earn (ERC-4626) |
 | FluidAdapter | `0xaB1659910AaF12d2274217212A597E9536488D3B` | `0xA666C08f8D720E3b2Dc21Eec3bF0FE01339deB32` | Fluid (ERC-4626) |
 | Avantis (generic `ERC4626Adapter`) | `0x5BC27259Be65f159C86B96a95753B485c8cf7A3A` | `0x341f4A237A1a01228e4d5db6065447F0F2b8aB1A` | Avantis |
+| Tokemak (generic `ERC4626Adapter`) | `0x86a5B3DF4aDd1c888F95D17d805D9c2d09222D65` | `0xdBd655b17a9EE33fb1f1c328fA701B13C78Ff1dB` | Tokemak |
+
+> **Tokemak adapter — broadcast 2026-08-11, Base block 49,835,741.** One
+> `script/RegisterInstruments.s.sol` run deployed the implementation and proxy, authorized the
+> router, registered the `baseUSD` market and registered the instrument (5 txs, 1,947,730 gas).
+> Adapter implementation tx `0x81d81b807498cbf8384728e5df550e1a647f69a214f5c3b0725d0c7eb6491ad5`,
+> proxy tx `0x9a87178d59d9d8bfb0bc853f05ef50837a8d7bee8d9d0b3070c725338003aefd`.
+> Verified on-chain after the run: `getAdapterMetadata()` → `("Tokemak", 8453)`, owner
+> `0x4d0e3d27…94F73`, `authorizedCallers(router)` true, `hasMarket(baseUSD)` true,
+> `getMarketCurrency` → canonical USDC, and
+> `InstrumentRegistry.instruments(0x000021053d7d…03a0)` → this proxy. Re-running the script is now
+> a no-op. Base-only.
+>
+> Second generic-`ERC4626Adapter` listing after Avantis, and the same reasoning applies: the
+> adapter name is the instrument's protocol identity downstream and is what
+> `max_weight_per_protocol` budgets against, so a DEX-LP autopool must not be listed under another
+> protocol's name.
 
 > **Avantis adapter — broadcast 2026-08-04, Base block 49,530,937.** One
 > `script/RegisterInstruments.s.sol` run deployed the implementation and proxy, authorized the
@@ -243,6 +260,33 @@ matches what the backend derives (`generateInstrumentId(8453, vault, marketId)`)
 
 No `SwapPoolRegistry` entry is needed — `avUSDC.asset()` is canonical USDC, so the router's swap
 branch never fires. Exit-path analysis: `avusdc-exit-verification.md`.
+
+#### Tokemak (ERC-4626)
+
+Registered 2026-08-11 on adapter `0x86a5B3DF4aDd1c888F95D17d805D9c2d09222D65`. The instrument ID
+matches what the backend derives (`generateInstrumentId(8453, vault, marketId)`).
+
+| Vault | Vault Address | Instrument ID |
+|-------|---------------|---------------|
+| baseUSD | `0x9c6864105AEC23388C89600046213a44C384c831` | `0x000021053d7defefc2175a9fa61a945e0126a55ddc302fa156e07c855a7003a0` |
+
+No `SwapPoolRegistry` entry is needed — `baseUSD.asset()` is canonical USDC, so the router's swap
+branch never fires. Exit-path verification: `test/fork/base/TokemakBaseUSD.fork.t.sol`.
+
+Two properties of this vault are load-bearing and are pinned by that suite:
+
+- Exits are bounded by destination liquidity and **revert `"insufficient liquidity"` past that
+  bound rather than returning zero**, which is what makes it safe on `ERC4626Adapter.withdraw`
+  as it stands (no `assetsWithdrawn == 0` guard). Round trips settle at every size tested up to
+  $8M, ~163% of vault TVL, at a 3–9 bps spread that narrows as size grows.
+- **`previewRedeem` is state-mutating, in violation of ERC-4626** — a STATICCALL to it reverts.
+  Harmless only because the adapter values through `convertToAssets` and exits through `redeem`.
+  Do not move `convertToUnderlying` onto `previewRedeem`.
+
+Sizing caveat, not enforced anywhere in the stack: against the unperturbed vault the exit ceiling
+sits near 80% of TVL (~$3.95M of $4.90M at the pinned block). It does not constrain a
+deposit-then-exit round trip, which brings its own liquidity, but it does constrain a holder
+exiting after others have drawn the destinations down.
 
 ### Swap Pools
 
