@@ -279,20 +279,21 @@ contract Deploy is ConfigReader {
     // Instrument Registration
     // ============================================
 
+    /// @dev Symbols come from `protocols.aave.reserves` (falling back to the historical eight —
+    ///      see {ConfigReader-getAaveReserveSymbols}) and addresses from the `tokens` map, so a
+    ///      chain whose Aave reserves are named `USDT0`/`USDe` needs no edit here. Aave is the
+    ///      only protocol that cannot go through {RegisterInstruments}, which means a reserve
+    ///      missed on this run has no additive script to add it later — prefer an over-broad list.
     function _registerAaveMarkets() internal {
         if (address(aaveAdapter) == address(0)) return;
 
         console.log("\n[3/8] Registering Aave Markets");
         console.log("-----------------------------------------------");
 
-        _registerAaveStablecoin("USDC", config.tokens.USDC);
-        _registerAaveStablecoin("USDT", config.tokens.USDT);
-        _registerAaveStablecoin("DAI", config.tokens.DAI);
-        _registerAaveStablecoin("EURC", config.tokens.EURC);
-        _registerAaveStablecoin("USDbC", config.tokens.USDbC);
-        _registerAaveStablecoin("GHO", config.tokens.GHO);
-        _registerAaveStablecoin("USDS", config.tokens.USDS);
-        _registerAaveStablecoin("cbBTC", config.tokens.cbBTC);
+        string[] memory symbols = getAaveReserveSymbols(networkName);
+        for (uint256 i = 0; i < symbols.length; i++) {
+            _registerAaveStablecoin(symbols[i], _getTokenAddress(symbols[i]));
+        }
     }
 
     function _registerAaveStablecoin(string memory symbol, address token) internal {
@@ -497,18 +498,12 @@ contract Deploy is ConfigReader {
         }
     }
 
+    /// @dev Resolved from the `tokens` map rather than a hardcoded symbol table. The table used to
+    ///      silently return address(0) for any symbol nobody had added a case for, which surfaced
+    ///      as `SKIPPED (token not found)` when registering a swap pool — a listing quietly lost,
+    ///      not an error.
     function _getTokenAddress(string memory symbol) internal view returns (address) {
-        if (keccak256(bytes(symbol)) == keccak256(bytes("USDC"))) return config.tokens.USDC;
-        if (keccak256(bytes(symbol)) == keccak256(bytes("USDT"))) return config.tokens.USDT;
-        if (keccak256(bytes(symbol)) == keccak256(bytes("DAI"))) return config.tokens.DAI;
-        if (keccak256(bytes(symbol)) == keccak256(bytes("EURC"))) return config.tokens.EURC;
-        if (keccak256(bytes(symbol)) == keccak256(bytes("USDbC"))) return config.tokens.USDbC;
-        if (keccak256(bytes(symbol)) == keccak256(bytes("GHO"))) return config.tokens.GHO;
-        if (keccak256(bytes(symbol)) == keccak256(bytes("USDS"))) return config.tokens.USDS;
-        if (keccak256(bytes(symbol)) == keccak256(bytes("cbBTC"))) return config.tokens.cbBTC;
-        if (keccak256(bytes(symbol)) == keccak256(bytes("WETH"))) return config.tokens.WETH;
-        if (keccak256(bytes(symbol)) == keccak256(bytes("eUSD"))) return config.tokens.eUSD;
-        return address(0);
+        return getTokenAddressBySymbol(networkName, symbol);
     }
 
     // ============================================

@@ -476,6 +476,47 @@ abstract contract ConfigReader is Script {
         });
     }
 
+    /// @notice Resolves a token address by symbol straight from `networks.<net>.tokens`.
+    /// @dev The {TokenConfig} struct above can only carry symbols someone thought to add a field
+    ///      for, which made every new chain's local stablecoins (Monad's `USDT0`, `AUSD`, `USDe`)
+    ///      a Solidity change rather than a config change. Reading the map by key removes that:
+    ///      a token is listable the moment it appears in the JSON. Returns the zero address when
+    ///      the symbol is absent, so callers keep their existing "skip if unset" behaviour.
+    function getTokenAddressBySymbol(string memory networkName, string memory symbol) internal view returns (address) {
+        string memory json = vm.readFile(CONFIG_PATH);
+        string memory path = string.concat(".networks.", networkName, ".tokens.", symbol);
+        if (!vm.keyExistsJson(json, path)) return address(0);
+        return json.readAddress(path);
+    }
+
+    /// @notice The token symbols to try registering as Aave reserves on `networkName`.
+    /// @dev Aave is the one protocol {RegisterInstruments} cannot cover — it exposes no enumerable
+    ///      vault list — so its markets are only ever registered by {Deploy}, from a symbol list.
+    ///      That list used to be hardcoded in the script, which is why Monad's Aave `USDT0` and
+    ///      `USDe` reserves were unreachable without editing Solidity. An explicit
+    ///      `protocols.aave.reserves` array now overrides it.
+    ///
+    ///      The fallback is deliberately the exact eight symbols the script carried before, so
+    ///      Base, Arbitrum and Unichain re-deploy to byte-identical market sets. Non-reserves are
+    ///      filtered on-chain by the caller's `getReserveData` check, so an over-broad list is
+    ///      safe — an under-broad one silently drops a market.
+    function getAaveReserveSymbols(string memory networkName) internal view returns (string[] memory) {
+        string memory json = vm.readFile(CONFIG_PATH);
+        string memory path = string.concat(".networks.", networkName, ".protocols.aave.reserves");
+        if (vm.keyExistsJson(json, path)) return json.readStringArray(path);
+
+        string[] memory defaults = new string[](8);
+        defaults[0] = "USDC";
+        defaults[1] = "USDT";
+        defaults[2] = "DAI";
+        defaults[3] = "EURC";
+        defaults[4] = "USDbC";
+        defaults[5] = "GHO";
+        defaults[6] = "USDS";
+        defaults[7] = "cbBTC";
+        return defaults;
+    }
+
     function getAaveTokenAddress(string memory networkName, string memory tokenSymbol) internal view returns (address) {
         string memory json = vm.readFile(CONFIG_PATH);
         string memory tokenPath = string.concat(".networks.", networkName, ".protocols.aave.aTokens.", tokenSymbol);
@@ -539,6 +580,7 @@ abstract contract ConfigReader is Script {
         if (chainId == 42161) return "arbitrumMainnet";
         if (chainId == 1) return "ethereum";
         if (chainId == 130) return "unichainMainnet";
+        if (chainId == 143) return "monadMainnet";
         revert("Unsupported network");
     }
 }

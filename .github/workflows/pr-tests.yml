@@ -110,6 +110,29 @@ jobs:
       - name: Run Unichain fork tests
         run: forge test -vvv --match-path "test/fork/unichain/*" --jobs 1 --compute-units-per-second 200
 
+  test-fork-monad:
+    name: Fork Tests (Monad)
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      # Monad is not deployed yet; these tests screen the instruments the chain would list.
+      # Falls back to the public endpoint so the job is not silently skipped before the
+      # MONAD_RPC_URL secret is added.
+      MONAD_RPC_URL: ${{ secrets.MONAD_RPC_URL || 'https://rpc.monad.xyz' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Run Monad fork tests
+        run: forge test -vvv --match-path "test/fork/monad/*" --jobs 1 --compute-units-per-second 200
+
   test-fork-upgrade:
     name: Fork Tests (Upgrade)
     runs-on: ubuntu-latest

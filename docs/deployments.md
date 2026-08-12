@@ -311,6 +311,74 @@ exiting after others have drawn the destinations down.
 
 ---
 
+## Monad Mainnet (Chain ID: 143)
+
+**Explorer**: https://monadscan.com
+**Deployed**: 2026-08-12, block 95,317,402–95,317,520
+**CCTP domain**: 15
+
+### Core Contracts
+
+| Contract | Proxy | Implementation |
+|----------|-------|----------------|
+| InstrumentRegistry | `0xAeC82CA054E8Fc2ec9563230370aF199D9aaeE06` | `0x53eFd863B04F3db7F9285e4b1876642519d91961` |
+| SwapPoolRegistry | `0x01463d74B2AFCeEd4747561e863f00B37c5e1289` | `0x6cb17AFCB98A2DB21a1BaaE61990e9CC357F43c3` |
+| SwapDepositRouter | `0xe823985F6f08e0666c0271cD5c3457a5cF631edE` | `0xBF324a91e624Cde957618ff44c90b13809F4e3F5` |
+| CCTPBridge | `0x1c3fedD58868d5df292145114d8939e01AC7a51e` | `0xd5c7d72c57B44C1686970673576368B85F90a4Ff` |
+| CCTPReceiver | `0x6F29586cAE2Eb38fE8b77f6FdaF15e2c532C44a5` | `0xdD154cc48CC81D074630A695F8651762d05e4103` |
+
+### Adapters
+
+| Adapter | Proxy | Implementation | Protocol |
+|---------|-------|----------------|----------|
+| AaveAdapter | `0x451b9EBdf001B900a51fa8282c62f49478Bf5a22` | `0x9a210AD228Ad008D3c7663DD5CEE0574fB64b3C4` | Aave V3 |
+| MorphoAdapter | `0xacC31BD7A13d1c835792A0F5a5024507B34636b7` | `0x2C3d6e475EA7Fd054a502700a5d54bBd3457eCEf` | Morpho Vaults V2 |
+| EulerAdapter | `0xb68f4332A60143067ee5135b9baCd59681f3f20f` | `0x4dee4c5847De5B037DBd3a9D1B75fc9D8a1d0116` | Euler Earn |
+
+The Morpho and Euler adapters were deployed by `RegisterInstruments.s.sol`, not
+`Deploy.s.sol` — the latter's Morpho/Euler gates key off vault names that predate
+this chain, so it silently skips both. Both are the generic `ERC4626Adapter`
+carrying their protocol identity via `initializeNamed`; verified on-chain to
+report `("Morpho Vaults V2", 143)` and `("Euler Earn", 143)`, matching the other
+chains so `max_weight_per_protocol` budgets them in the same bucket.
+
+### Instruments
+
+| Instrument | Execution address | instrumentId |
+|---|---|---|
+| Aave V3 USDC | `0x69a5F9AD4f96ebf0a0C792dD42a01cC5C0102fef` | `0x0000008fbfd944d81e22998baa9c49d788d05ec5636ce25b26408135673ba9cf` |
+| Morpho `hyperUSDCa` | `0x78999cc96d2Ba0341588C60CcB0E91c6C33CF371` | `0x0000008f3d26791f852640634e078add7a84aa50630e294ff910af180097e875` |
+| Morpho `augustUSDCv2` | `0x80017bF0f793EBbE9679Cd61ff0e395B62CAbB59` | `0x0000008f3c1527da06166f62265ed8e7750e2b151127103d7c74957cb1849a9d` |
+| Morpho `satUSDC` | `0x75753e494e5e374C52E1d84fc04EB14B10F2C079` | `0x0000008f102d9ee582ee088bffee66e04a7452a25da6619fde473c3ec939bec1` |
+| Euler `eUSDC-15` | `0xa3B64e2674463c98CbD21807055D8C1E008b6e79` | `0x0000008f2580724bcc8c57ba6c99ec93607f008765eccd9bdb393989e8565528` |
+
+### Status
+
+**Complete.** Router ↔ bridge ↔ receiver wired, `tokenMessenger` set, router
+authorized on the bridge and on all three adapters, and the CCTP mesh closed in
+both directions — Monad ↔ Base, Arbitrum and Unichain each carry the correct
+domain, `mintRecipient` and `destinationCaller`, verified on-chain against the
+far side's own `CCTPReceiver`. Five instruments registered.
+
+**Source verification is not done.** The Etherscan V2 API covers chain 143 and the key works,
+but forge 1.5.0 rejects the chain from its own registry before reading the configured url.
+Needs a newer foundry or a manual standard-json POST. Contracts are unaffected.
+
+**Outstanding:** no swap pools are registered, so Monad is USDC-native only —
+Aave `USDT0` / `AUSD` need a verified Uniswap v4 `PoolKey` first. The allocator
+side has run no correlation screen against these vaults, and
+`caps.min_effective_positions` charges unmeasurable instruments as fully
+correlated, so they may still fail closed there.
+
+> ⚠️ **Every `forge script` run against Monad needs
+> `--gas-estimate-multiplier 300`.** Forge sizes gas from a local simulation on
+> Ethereum's schedule; Monad charges up to 34% more, and the first deploy attempt
+> lost all ten of its configuration calls to it while every contract creation
+> succeeded. Monad also bills the full gas limit, so every receipt shows
+> `gasUsed == gasLimit` whether it succeeded or not.
+
+---
+
 ## Unichain Mainnet (Chain ID: 130)
 
 **Explorer**: https://uniscan.xyz
