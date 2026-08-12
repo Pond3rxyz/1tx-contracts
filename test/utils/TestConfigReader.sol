@@ -32,6 +32,10 @@ abstract contract TestConfigReader is ConfigReader, Test {
             return "BASE_RPC_URL";
         } else if (networkHash == keccak256("arbitrumMainnet")) {
             return "ARBITRUM_RPC_URL";
+        } else if (networkHash == keccak256("unichainMainnet")) {
+            return "UNICHAIN_RPC_URL";
+        } else if (networkHash == keccak256("monadMainnet")) {
+            return "MONAD_RPC_URL";
         } else if (networkHash == keccak256("sandbox")) {
             return "BASE_RPC_URL"; // Sandbox uses Base mainnet state
         } else {

@@ -36,8 +36,14 @@ contract TestBridge is ConfigReader {
         _execute(config.tokens.USDC, deployed.swapDepositorRouter, instrumentId, amount);
     }
 
+    /// @dev Resolve the destination through its chain id, not its config key. A destination is
+    ///      keyed by a short name (`arbitrum`), while networks are keyed by a long one
+    ///      (`arbitrumMainnet`), so passing `dest.name` straight to {getNetworkConfig} reverts
+    ///      `path ".networks.arbitrum.chainId" must return exactly one JSON value`. It went
+    ///      unnoticed because the Sepolia config is the only one where the two names coincide
+    ///      (`baseSepolia`), and that is the config this script was exercised against.
     function _buildRemoteInstrumentId(CCTPDestination memory dest) internal view returns (bytes32) {
-        NetworkConfig memory destConfig = getNetworkConfig(dest.name);
+        NetworkConfig memory destConfig = getNetworkConfig(detectNetworkFromChainId(dest.chainId));
         bytes32 marketId = keccak256(abi.encode(Currency.wrap(destConfig.tokens.USDC)));
         return InstrumentIdLib.generateInstrumentId(dest.chainId, destConfig.protocols.aave.pool, marketId);
     }
