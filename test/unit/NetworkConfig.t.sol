@@ -240,4 +240,62 @@ contract NetworkConfigTest is Test, ConfigReader {
             assertTrue(anyResolved, string.concat("no Aave reserve symbol resolves on ", mainnets[i]));
         }
     }
+
+    // ============================================
+    // Vault list integrity
+    // ============================================
+
+    /// @dev The two market-map key names `RegisterInstruments` reads. Fluid calls its map
+    ///      `fTokens`; everyone else calls it `vaults`.
+    string[2] internal LIST_KEYS = ["vaults", "fTokens"];
+
+    /// @notice No two config entries on one network may point at the same vault.
+    /// @dev `InstrumentIdLib` keys on the vault address, so a duplicated address is not two
+    ///      instruments — it is one, and `RegisterInstruments._registerVault` skips the second
+    ///      copy with `SKIP (exists)` while the config still advertises both. The hazard is
+    ///      concrete: Morpho ships same-*named* vaults in two generations (Moonwell Flagship USDC
+    ///      exists as MetaMorpho V1.1 at `0xc1256Ae5` holding $9.77M and as Vaults V2 at
+    ///      `0x48a90E85` holding $10k, both minting `mwUSDC`), so a copy-paste while adding one
+    ///      generation silently overwrites the other. Cheap to assert, invisible otherwise.
+    function test_noNetworkListsOneVaultTwice() public view {
+        string memory json = vm.readFile(CONFIG_PATH);
+
+        for (uint256 i = 0; i < mainnets.length; i++) {
+            string memory protocolsPath = string.concat(".networks.", mainnets[i], ".protocols");
+            if (!vm.keyExistsJson(json, protocolsPath)) continue;
+
+            string[] memory protocols = vm.parseJsonKeys(json, protocolsPath);
+            address[] memory seen = new address[](256);
+            string[] memory seenKeys = new string[](256);
+            uint256 count;
+
+            for (uint256 p = 0; p < protocols.length; p++) {
+                for (uint256 k = 0; k < LIST_KEYS.length; k++) {
+                    string memory listPath = string.concat(protocolsPath, ".", protocols[p], ".", LIST_KEYS[k]);
+                    if (!vm.keyExistsJson(json, listPath)) continue;
+
+                    string[] memory names = vm.parseJsonKeys(json, listPath);
+                    for (uint256 n = 0; n < names.length; n++) {
+                        address vault = vm.parseJsonAddress(json, string.concat(listPath, ".", names[n]));
+                        assertTrue(
+                            vault != address(0), string.concat("zero vault address: ", mainnets[i], ".", names[n])
+                        );
+
+                        for (uint256 s = 0; s < count; s++) {
+                            assertTrue(
+                                seen[s] != vault,
+                                string.concat(
+                                    "duplicate vault address on ", mainnets[i], ": ", seenKeys[s], " and ", names[n]
+                                )
+                            );
+                        }
+
+                        seen[count] = vault;
+                        seenKeys[count] = names[n];
+                        count++;
+                    }
+                }
+            }
+        }
+    }
 }

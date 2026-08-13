@@ -233,6 +233,28 @@ re-registration). Upgrade owner is `0x4d0e3d2759B8f96B4FA82b2c308Dcd7663794F73`.
 | Clearstar Core USDC | `0x116e1A65717A534B73EcB7d4F6543c65DBCd0E46` | `0x000021058a5d325868084f366952c749c00b0887fc7d7157de5f123aa9741523` |
 | Avantgarde USDC Conservative V2 | `0xE34D43CA9152D198B60654868C8cD197196a492f` | `0x000021054a681e800e04821bd30b1c53f5792b2e345619add1f255c7d4ed6724` |
 | Steakhouse High Yield USDC Edition | `0xbeeff2490FEffa212faC2f6553682C219E6a8845` | `0x00002105488dd7aa268aaa7e97e3841a8908090137ce1959186a092e167a167b` |
+| Pangolins USDC † | `0x1401d1271C47648AC70cBcdfA3776D4A87CE006B` | `0x000021057ab5a05c032c9f60e46d06c772450b4b77567ccb8a9c19735ca496b2` |
+| Yield Clearstar USDC † | `0xE74c499fA461AF1844fCa84204490877787cED56` | `0x000021058be1513e7572e06fa77c4ff65518d3826b14f9f979dfa8aae23947c3` |
+| Gauntlet USDC Core † | `0xc0c5689e6f4D256E861F65465b691aeEcC0dEb12` | `0x00002105ef2f62db32db452d2dade3eac6215c9c6fc80ea316836a7a7f025589` |
+
+> † MetaMorpho **V1.1**, not Morpho Vaults V2 — as are the seven above them
+> (`Steakhouse USDC` through `MEV Frontier USDC`). Both generations share one adapter
+> because the adapter's name is the identity `max_weight_per_protocol` budgets against,
+> and both take the same Morpho Blue market risk; splitting them would hand the allocator
+> two Morpho budgets.
+>
+> Listed only because Morpho has no V2 successor for these three mandates. Where a
+> successor exists the curator migrates into it and the V1.1 balance leaves — measured
+> 2026-08-13, Moonwell Flagship V1.1 (`0xc1256Ae5`) was down 61% over 180 days against the
+> V2 vault listed above, and Steakhouse High Yield V1.1 (`0xBEEFA7B8`) down 64% against
+> its own. Those two and UltraYield USDC (`0x5435BC53`, −43% in 30 days, no successor) are
+> asserted **absent** from config by
+> `test/fork/base/MorphoVaultsV11.fork.t.sol:test_supersededV11VaultsAreDeliberatelyAbsent`.
+>
+> ⚠️ Both Moonwell Flagship vaults are named "Moonwell Flagship USDC" and both mint
+> `mwUSDC`. The one registered here is the **V2** contract at `0x48a90E85`, which held
+> $10.0k on 2026-08-13 while its V1.1 namesake held $9.77M. Match on address, never on
+> name or symbol.
 
 #### Euler Earn (ERC-4626)
 
@@ -351,6 +373,7 @@ chains so `max_weight_per_protocol` budgets them in the same bucket.
 | Morpho `augustUSDCv2` | `0x80017bF0f793EBbE9679Cd61ff0e395B62CAbB59` | `0x0000008f3c1527da06166f62265ed8e7750e2b151127103d7c74957cb1849a9d` |
 | Morpho `satUSDC` | `0x75753e494e5e374C52E1d84fc04EB14B10F2C079` | `0x0000008f102d9ee582ee088bffee66e04a7452a25da6619fde473c3ec939bec1` |
 | Euler `eUSDC-15` | `0xa3B64e2674463c98CbD21807055D8C1E008b6e79` | `0x0000008f2580724bcc8c57ba6c99ec93607f008765eccd9bdb393989e8565528` |
+| Euler `Clearstar Earn USDC` | `0xE1BcA19baA63894D374578320551633320436523` | `0x0000008f20acc156b5a77f0036614b47715953e03473bcd955ca726e00cb3176` |
 
 ### Status
 
@@ -358,7 +381,7 @@ chains so `max_weight_per_protocol` budgets them in the same bucket.
 authorized on the bridge and on all three adapters, and the CCTP mesh closed in
 both directions — Monad ↔ Base, Arbitrum and Unichain each carry the correct
 domain, `mintRecipient` and `destinationCaller`, verified on-chain against the
-far side's own `CCTPReceiver`. Five instruments registered.
+far side's own `CCTPReceiver`. Six instruments registered.
 
 **Source verification is not done.** The Etherscan V2 API covers chain 143 and the key works,
 but forge 1.5.0 rejects the chain from its own registry before reading the configured url.

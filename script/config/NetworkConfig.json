@@ -57,7 +57,10 @@
                         "moonwellFlagshipUSDC": "0x48a90E85be5C56b0A669985A12ee7C449fC79965",
                         "clearstarCoreUSDC": "0x116e1A65717A534B73EcB7d4F6543c65DBCd0E46",
                         "avantgardeUSDCConservativeV2": "0xE34D43CA9152D198B60654868C8cD197196a492f",
-                        "steakhouseHighYieldUSDCEdition": "0xbeeff2490FEffa212faC2f6553682C219E6a8845"
+                        "steakhouseHighYieldUSDCEdition": "0xbeeff2490FEffa212faC2f6553682C219E6a8845",
+                        "pangolinsUSDC": "0x1401d1271C47648AC70cBcdfA3776D4A87CE006B",
+                        "yieldClearstarUSDC": "0xE74c499fA461AF1844fCa84204490877787cED56",
+                        "gauntletUSDCCore": "0xc0c5689e6f4D256E861F65465b691aeEcC0dEb12"
                     }
                 },
                 "eulerEarn": {
@@ -350,7 +353,8 @@
                         "name": "Euler Earn"
                     },
                     "vaults": {
-                        "eUSDC15": "0xa3B64e2674463c98CbD21807055D8C1E008b6e79"
+                        "eUSDC15": "0xa3B64e2674463c98CbD21807055D8C1E008b6e79",
+                        "clearstarEarnUSDC": "0xE1BcA19baA63894D374578320551633320436523"
                     }
                 }
             },
