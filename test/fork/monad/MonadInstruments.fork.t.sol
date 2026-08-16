@@ -141,11 +141,64 @@ contract MonadInstrumentsForkTest is Test {
     // Listability
     // ============================================
 
-    /// @notice `registerMarket` asserts `IERC4626(vault).asset() == currency`, so a wrong config
-    ///         entry fails at registration rather than at first deposit.
-    function test_everyVaultIsDenominatedInNativeUSDC() public view {
+    /// @dev Monad is no longer USDC-only. Every USDC-denominated test below iterates through this
+    ///      rather than over `vaults` directly, because depositing USDC into an AUSD vault reverts
+    ///      `AssetMismatch()` at `registerMarket`.
+    function _isNativeUsdcVault(uint256 i) internal view returns (bool) {
+        return IERC4626(vaults[i]).asset() == NATIVE_USDC;
+    }
+
+    /// @notice Every configured vault must be denominated in a token the config also lists, and
+    ///         anything that is not USDC must have a swap route to reach it.
+    ///
+    /// @dev This replaces a blanket "every Monad vault is USDC" assertion, which `eAUSD16` broke —
+    ///      it is the chain's first non-USDC instrument. The blanket form was never the real
+    ///      invariant: `registerMarket` asserts `IERC4626(vault).asset() == currency` and
+    ///      `RegisterInstruments` reads that currency off the vault, so a non-USDC vault registers
+    ///      perfectly well. What actually makes such an instrument *unreachable* is a missing
+    ///      route — deposits arrive in USDC and have to be swapped — and `Deploy._registerSwapPools`
+    ///      skips a route whose symbols do not resolve without erroring. So the invariant worth
+    ///      asserting is: known asset, and a route if it is not the base one.
+    function test_everyVaultAssetIsConfiguredAndRoutable() public view {
         for (uint256 i = 0; i < vaults.length; i++) {
-            assertEq(IERC4626(vaults[i]).asset(), NATIVE_USDC, string.concat("wrong asset: ", names[i]));
+            address asset = IERC4626(vaults[i]).asset();
+            if (asset == NATIVE_USDC) continue;
+
+            assertTrue(_configListsToken(asset), string.concat("asset is in no token map entry: ", names[i]));
+            assertTrue(_configHasRouteFromUsdc(asset), string.concat("non-USDC vault with no swap route: ", names[i]));
+        }
+    }
+
+    /// @dev Walks `tokens` rather than naming symbols, so a new asset is covered automatically.
+    function _configListsToken(address token) internal view returns (bool) {
+        string memory tokensPath = string.concat(NET_PATH, ".tokens");
+        string[] memory symbols = vm.parseJsonKeys(config, tokensPath);
+        for (uint256 i = 0; i < symbols.length; i++) {
+            if (vm.parseJsonAddress(config, string.concat(tokensPath, ".", symbols[i])) == token) return true;
+        }
+        return false;
+    }
+
+    /// @dev A route is bidirectional once registered (`Deploy._registerSwapPools` registers both
+    ///      directions from one entry), so matching either leg is enough.
+    function _configHasRouteFromUsdc(address token) internal view returns (bool) {
+        string memory poolsPath = string.concat(NET_PATH, ".swapPools");
+        if (!vm.keyExistsJson(config, poolsPath)) return false;
+
+        string memory tokensPath = string.concat(NET_PATH, ".tokens");
+        for (uint256 i = 0;; i++) {
+            string memory entry = string.concat(poolsPath, "[", vm.toString(i), "]");
+            if (!vm.keyExistsJson(config, string.concat(entry, ".tokenIn"))) return false;
+
+            address inAddr = vm.parseJsonAddress(
+                config, string.concat(tokensPath, ".", vm.parseJsonString(config, string.concat(entry, ".tokenIn")))
+            );
+            address outAddr = vm.parseJsonAddress(
+                config, string.concat(tokensPath, ".", vm.parseJsonString(config, string.concat(entry, ".tokenOut")))
+            );
+            if ((inAddr == NATIVE_USDC && outAddr == token) || (outAddr == NATIVE_USDC && inAddr == token)) {
+                return true;
+            }
         }
     }
 
@@ -172,7 +225,9 @@ contract MonadInstrumentsForkTest is Test {
         for (uint256 i = 0; i < vaults.length; i++) {
             bytes32 marketId = bytes32(uint256(uint160(vaults[i])));
             if (!adapter.hasMarket(marketId)) {
-                adapter.registerMarket(Currency.wrap(usdc), vaults[i]);
+                // The vault's own asset, not USDC: `registerMarket` asserts they match, and
+                // Monad now carries an AUSD-denominated instrument.
+                adapter.registerMarket(Currency.wrap(IERC4626(vaults[i]).asset()), vaults[i]);
             }
 
             uint256 oneShare = 10 ** IVaultDecimals(vaults[i]).decimals();
@@ -213,6 +268,11 @@ contract MonadInstrumentsForkTest is Test {
     ///      is the check a preview-only screen cannot make.
     function _assertRoundTripsAtSize(uint256 amount) internal {
         for (uint256 i = 0; i < vaults.length; i++) {
+            // USDC-denominated vaults only. A non-USDC instrument round-trips in its own
+            // asset, which needs funding this loop cannot do generically — AUSD in particular
+            // defeats `deal`. `EulerEAUSD16ForkTest` covers `eAUSD16` at these same sizes.
+            if (!_isNativeUsdcVault(i)) continue;
+
             uint256 withdrawn = _roundTrip(vaults[i], amount);
 
             assertGt(withdrawn, 0, string.concat("silent zero on exit: ", names[i]));
@@ -243,6 +303,11 @@ contract MonadInstrumentsForkTest is Test {
             uint256 previewed = IERC4626(vaults[i]).previewDeposit(1e6);
 
             assertGt(previewed, 0, string.concat("previewDeposit is zero, entry really is shut: ", names[i]));
+
+            // The preview half applies to every vault; the deposit half is USDC-funded, so it
+            // covers the USDC-denominated ones only. `EulerEAUSD16ForkTest` carries the equivalent
+            // for `eAUSD16`.
+            if (!_isNativeUsdcVault(i)) continue;
 
             // Whatever maxDeposit claims, a real deposit through the adapter must settle.
             uint256 withdrawn = _roundTrip(vaults[i], 10_000e6);
