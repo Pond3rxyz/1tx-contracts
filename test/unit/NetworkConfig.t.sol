@@ -8,7 +8,8 @@ import {
     NetworkConfig,
     DeployedConfig,
     CCTPConfig,
-    CCTPDestination
+    CCTPDestination,
+    SwapPoolConfig
 } from "../../script/utils/ConfigReader.sol";
 
 /// @title NetworkConfigTest
@@ -173,12 +174,46 @@ contract NetworkConfigTest is Test, ConfigReader {
         assertEq(config.uniswapV4.poolManager, 0x188d586Ddcf52439676Ca21A244753fA19F9Ea8e);
     }
 
-    /// @dev Monad launches USDC-native only, so it registers no swap pools. `_countSwapPools`
-    ///      walks `swapPools[i]` until the key is absent, and an empty array has to survive that
-    ///      walk rather than reverting.
-    function test_monadHasNoSwapPools() public view {
-        NetworkConfig memory config = getNetworkConfig("monadMainnet");
+    /// @dev `_countSwapPools` walks `swapPools[i]` until the key is absent, so an empty array has
+    ///      to survive that walk rather than reverting. Monad used to be this case; it now carries
+    ///      the AUSD route, so Unichain holds the coverage.
+    function test_emptySwapPoolsArraySurvivesTheWalk() public view {
+        NetworkConfig memory config = getNetworkConfig("unichainMainnet");
         assertEq(config.swapPools.length, 0);
+    }
+
+    /// @notice Monad's first swap route: AUSD/USDC, which the Euler `eAUSD16` listing depends on.
+    ///
+    /// @dev The fee tier is the whole assertion. DeFiLlama lists this pair at "0.01%" and there is
+    ///      no such pool — four tiers are initialised on-chain and only **fee 50, tickSpacing 1**
+    ///      holds liquidity (643_682_090_469_433 at Monad block 96_460_000). A `swapPools` entry
+    ///      written from the vendor label would point `SwapPoolRegistry` at an empty pool, and §5d
+    ///      confines routing to Uniswap V4 with no fallback, so every swap would fail or price
+    ///      catastrophically. Depth and the live tier are measured in
+    ///      `test/fork/monad/AusdUsdcRoute.fork.t.sol`; this pins that config still says what that
+    ///      test measured.
+    function test_monadAusdRouteIsConfigured() public view {
+        NetworkConfig memory config = getNetworkConfig("monadMainnet");
+        assertEq(config.swapPools.length, 1, "Monad should carry exactly the AUSD route");
+
+        SwapPoolConfig memory route = config.swapPools[0];
+        assertEq(route.tokenIn, "USDC");
+        assertEq(route.tokenOut, "AUSD");
+        assertEq(uint256(route.fee), 50, "wrong fee tier: the liquid AUSD/USDC pool is 0.005%, not 0.01%");
+        assertEq(int256(route.tickSpacing), 1);
+        assertEq(route.hooks, address(0), "an unexpected hook would change swap semantics");
+    }
+
+    /// @dev `Deploy._registerSwapPools` resolves `tokenIn`/`tokenOut` through
+    ///      `getTokenAddressBySymbol`, and silently *skips* a pool whose symbols do not resolve.
+    ///      A route naming a token absent from the `tokens` map would therefore deploy a chain
+    ///      with no route and no error, so the symbol has to exist.
+    function test_monadAusdTokenResolves() public view {
+        assertEq(
+            getTokenAddressBySymbol("monadMainnet", "AUSD"),
+            0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a,
+            "AUSD must resolve by symbol or _registerSwapPools skips the route silently"
+        );
     }
 
     // ============================================
