@@ -374,6 +374,38 @@ chains so `max_weight_per_protocol` budgets them in the same bucket.
 | Morpho `satUSDC` | `0x75753e494e5e374C52E1d84fc04EB14B10F2C079` | `0x0000008f102d9ee582ee088bffee66e04a7452a25da6619fde473c3ec939bec1` |
 | Euler `eUSDC-15` | `0xa3B64e2674463c98CbD21807055D8C1E008b6e79` | `0x0000008f2580724bcc8c57ba6c99ec93607f008765eccd9bdb393989e8565528` |
 | Euler `Clearstar Earn USDC` | `0xE1BcA19baA63894D374578320551633320436523` | `0x0000008f20acc156b5a77f0036614b47715953e03473bcd955ca726e00cb3176` |
+| Euler `eAUSD-16` (AUSD) | `0x9E3500649e16EBE295277EC030e42FAbacFa870E` | `0x0000008fe112a02a03f4a41b8843076a4a7700f0aa6bf9b654755ba73a42078b` |
+
+`eAUSD-16` is the chain's first non-USDC instrument, registered 2026-08-16 in
+block 96,496,190. Its market currency is AUSD
+(`0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a`), read on-chain from the vault by
+`RegisterInstruments.s.sol`, so it is reachable only through the swap route
+below. 91.5% utilised at listing — `cash()` $1.017M against $10.45M of assets —
+which bounds a single exit near $1.0M. Nothing off-chain reads
+`maxRedeem`/`maxWithdraw`, so an oversized sell is an opaque revert.
+
+### Swap Pools
+
+| Route | Fee | tickSpacing | Hooks |
+|---|---|---|---|
+| USDC ↔ AUSD (bidirectional) | 50 (0.005%) | 1 | none |
+
+Registered 2026-08-16 in block 96,495,955 by `RegisterSwapPools.s.sol` — the incremental script
+added for this listing, because swap-pool registration previously existed only
+inside `Deploy.s.sol`'s full eight-step `run()` and could not be applied to a
+live chain.
+
+> ⚠️ **The fee tier is the whole assertion.** Four AUSD/USDC tiers are
+> initialised on Monad and only fee 50 / tickSpacing 1 holds liquidity.
+> DeFiLlama labels this pair "0.01%" and there is no such pool — a route written
+> from the vendor label would point `SwapPoolRegistry` at an empty pool, and
+> routing is confined to Uniswap V4 with no fallback. Measured in
+> `test/fork/monad/AusdUsdcRoute.fork.t.sol`; pinned in
+> `test/unit/NetworkConfig.t.sol`.
+
+Quoted through Monad's V4Quoter (`0xa222dd357a9076d1091ed6aa2e16c9742dd26891`)
+at registration: 250,000 USDC → 249,924.709470 AUSD (3.0 bps), and
+250,000 AUSD → 249,857.920844 USDC (5.7 bps).
 
 ### Status
 
@@ -381,17 +413,19 @@ chains so `max_weight_per_protocol` budgets them in the same bucket.
 authorized on the bridge and on all three adapters, and the CCTP mesh closed in
 both directions — Monad ↔ Base, Arbitrum and Unichain each carry the correct
 domain, `mintRecipient` and `destinationCaller`, verified on-chain against the
-far side's own `CCTPReceiver`. Six instruments registered.
+far side's own `CCTPReceiver`. Seven instruments registered, and the USDC/AUSD
+route registered in both directions.
 
 **Source verification is not done.** The Etherscan V2 API covers chain 143 and the key works,
 but forge 1.5.0 rejects the chain from its own registry before reading the configured url.
 Needs a newer foundry or a manual standard-json POST. Contracts are unaffected.
 
-**Outstanding:** no swap pools are registered, so Monad is USDC-native only —
-Aave `USDT0` / `AUSD` need a verified Uniswap v4 `PoolKey` first. The allocator
-side has run no correlation screen against these vaults, and
-`caps.min_effective_positions` charges unmeasurable instruments as fully
-correlated, so they may still fail closed there.
+**Outstanding:** Aave `USDT0` still needs a verified Uniswap v4 `PoolKey` before
+it can be listed; AUSD now has one (above). The allocator side has run no
+correlation screen against the USDC vaults, and `caps.min_effective_positions`
+charges unmeasurable instruments as fully correlated, so they may still fail
+closed there — `eAUSD-16` is the exception, screened at correlation −0.017
+against the shelf.
 
 > ⚠️ **Every `forge script` run against Monad needs
 > `--gas-estimate-multiplier 300`.** Forge sizes gas from a local simulation on
