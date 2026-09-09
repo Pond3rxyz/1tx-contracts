@@ -63,15 +63,15 @@ interface IEulerVault {
 contract MonadInstrumentsForkTest is Test {
     using stdJson for string;
 
-    uint256 internal constant FORK_BLOCK = 95_300_000;
+    uint256 internal constant FORK_BLOCK = 103_280_000;
     string internal constant CONFIG_PATH = "script/config/NetworkConfig.json";
     string internal constant NET_PATH = ".networks.monadMainnet";
 
     /// @dev Verified live against rpc.monad.xyz.
     address internal constant NATIVE_USDC = 0x754704Bc059F8C67012fEd69BC8A327a5aafb603;
 
-    /// @dev Euler `eUSDC-12`: $1.43M borrowed against ~1 unit of cash. Not in config, asserted
-    ///      unexitable below.
+    /// @dev Euler `eUSDC-12`: borrowed against to the hilt. Not in config, asserted unexitable
+    ///      below.
     address internal constant EXCLUDED_EULER_VAULT = 0x1905EDDF5943ef6C92Ccf1469bd40fC2cB4A77b0;
 
     /// @dev Round trips are deposit-then-exit, so the deposit leg supplies most of the liquidity
@@ -82,6 +82,11 @@ contract MonadInstrumentsForkTest is Test {
     /// @dev DeFiLlama's Monad TVLs were $1.9M-$59M. A vault below this is a wrong-generation shell
     ///      (see the V1/V2 `hyperUSDCa` trap), not a small vault.
     uint256 internal constant MIN_CREDIBLE_TVL = 500_000e6;
+
+    /// @dev The ticket `screen/` sizes its exit flags against (`--position-size`), the same figure
+    ///      {CurvanceCUSDCForkTest} uses. A vault holding less cash than this cannot return the
+    ///      position it is being screened for.
+    uint256 internal constant POSITION_SIZE = 250_000e6;
 
     ERC4626Adapter internal adapter;
     address internal usdc;
@@ -335,15 +340,21 @@ contract MonadInstrumentsForkTest is Test {
     // ============================================
 
     /// @notice Euler `eUSDC-12` is excluded from config because its 14.57% base rate exists
-    ///         *because* the vault is fully utilised — `cash()` is a single unit against $1.43M
-    ///         borrowed. A high APY on an unexitable vault is the shape this checklist exists to
-    ///         catch, so the exclusion is pinned rather than left as a comment in a plan.
+    ///         *because* the vault is borrowed against to the hilt. A high APY on a vault that
+    ///         cannot return the ticket is the shape this checklist exists to catch, so the
+    ///         exclusion is pinned rather than left as a comment in a plan.
+    /// @dev The bound is the ticket, not a snapshot of `cash()`. At block 95_300_000 cash was a
+    ///      single unit against $1.43M borrowed; at FORK_BLOCK it is $71,438 against $1,048,983
+    ///      borrowed — 93.6% utilisation, still an order of magnitude short of a $250k exit.
+    ///      Measuring against `POSITION_SIZE` keeps the tripwire pointed at the thing that would
+    ///      change the listing decision — the vault being able to return the position — instead of
+    ///      firing every time a borrower repays.
     function test_excludedEulerVaultIsStillUnexitable() public view {
         uint256 cash = IEulerVault(EXCLUDED_EULER_VAULT).cash();
         uint256 borrows = IEulerVault(EXCLUDED_EULER_VAULT).totalBorrows();
 
         assertGt(borrows, 0, "excluded vault has no borrows; re-screen it");
-        assertLt(cash, 1_000e6, "excluded vault now holds cash; it may be listable, re-screen it");
+        assertLt(cash, POSITION_SIZE, "excluded vault can now return the ticket; it may be listable, re-screen it");
 
         for (uint256 i = 0; i < vaults.length; i++) {
             assertTrue(vaults[i] != EXCLUDED_EULER_VAULT, "unexitable vault was added to config");
@@ -373,9 +384,10 @@ contract MonadInstrumentsForkTest is Test {
 ///      that resolve, deposit and withdraw perfectly well against entirely the wrong protocol.
 ///      Reading `aToken.POOL()` back is what makes that visible.
 ///
-///      Pinned to a separate, later block than the vault sweep above: Neverland's markets and
-///      Aave's GHO reserve postdate that one, and its loss bounds are measurements of its own
-///      block that must not be disturbed.
+///      Pinned to its own block, separate from the vault sweep above, because each suite's bounds
+///      are measurements of its own block and must not be disturbed by the other's re-pin. (The
+///      sweep now sits at the later of the two; it was moved forward when its original block aged
+///      out of what the RPC retains.)
 ///
 ///      Run: MONAD_RPC_URL=https://rpc.monad.xyz forge test --mc MonadReserveInstrumentsForkTest -vv
 contract MonadReserveInstrumentsForkTest is Test {

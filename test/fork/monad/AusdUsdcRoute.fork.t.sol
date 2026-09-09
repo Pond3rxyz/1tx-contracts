@@ -48,7 +48,7 @@ contract AusdUsdcRouteForkTest is Test {
     using PoolIdLibrary for PoolKey;
     using StateLibrary for IPoolManager;
 
-    uint256 internal constant FORK_BLOCK = 96_460_000;
+    uint256 internal constant FORK_BLOCK = 103_280_000;
     string internal constant CONFIG_PATH = "script/config/NetworkConfig.json";
 
     address internal constant AUSD = 0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a;
