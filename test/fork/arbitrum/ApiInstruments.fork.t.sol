@@ -204,29 +204,11 @@ contract ApiInstrumentsArbitrumForkTest is Test {
         _testBuyFor(apiInstruments[1]);
     }
 
-    /// @notice Steakhouse Prime USDC is the one instrument on this list whose vault can be shut
-    ///         to deposits, so it is the one test that reports a closed door instead of failing.
-    /// @dev Measured 2026-09-09 at Arbitrum head: `totalAssets() == 8_760_640_998` ($8,760), and a
-    ///      binary search over deposit sizes puts the accepted maximum at **exactly 0** — the
-    ///      curator's caps sit at or below the current allocation, so `deposit` mints shares and
-    ///      then reverts `AllCapsReached()` on the way out, for any amount.
-    ///
-    ///      It is not a superseded address. The Morpho API lists exactly one "Steakhouse Prime
-    ///      USDC" on Arbitrum (`0x250CF7c8…`), unlike the two-generation shape pinned in
-    ///      `test_noNetworkListsOneVaultTwice`, so repointing config has nothing to point at.
-    ///      The instrument is right; the vault is closed.
-    ///
-    ///      Note that the usual signals both lie here. `maxDeposit()` returns 0, which for a
-    ///      Morpho Vaults V2 vault means nothing at all
-    ///      ({MonadInstrumentsForkTest-test_maxDepositZeroIsNotAFullVault} pins vaults that report
-    ///      0 while taking deposits happily), and `previewDeposit(1e6)` returns a healthy
-    ///      `9.66e17`. Only an actual deposit tells the truth, which is why the probe below is a
-    ///      real deposit inside a snapshot rather than a view call.
-    ///
-    ///      The tolerance is deliberately narrow: it is scoped to this instrument, the probe is
-    ///      re-run every time so a reopened vault immediately restores the full assertion, and
-    ///      anything other than a refused deposit still fails. The other six `buyFor` tests are
-    ///      untouched and still assert a settled deposit.
+    /// @notice The only instrument here whose vault can be shut, so the only one that reports a
+    ///         closed door instead of failing. Reopen it and the full assertion returns by itself.
+    /// @dev Measured 2026-09-09: holds $8,760 and accepts a maximum deposit of exactly 0 — caps
+    ///      sit at or below the current allocation, so `deposit` reverts `AllCapsReached()` for
+    ///      any amount. Not a superseded address; Morpho lists one Steakhouse Prime USDC here.
     function test_fork_arb_api_buyFor_morphoSteakhousePrime() public {
         ApiInstrument memory inst = apiInstruments[2];
 
@@ -266,8 +248,9 @@ contract ApiInstrumentsArbitrumForkTest is Test {
     // ============ Internal ============
 
     /// @notice Whether `vault` will actually take `amount` of its underlying, right now.
-    /// @dev Deposits for real and rolls the state back, because on Morpho Vaults V2 neither
-    ///      `maxDeposit` nor `previewDeposit` distinguishes a live vault from a capped one.
+    /// @dev Deposits for real and rolls back: on Vaults V2 neither `maxDeposit` (0 on healthy
+    ///      vaults, see {MonadInstrumentsForkTest-test_maxDepositZeroIsNotAFullVault}) nor
+    ///      `previewDeposit` (quotes fine on a shut vault) tells a live vault from a capped one.
     function _vaultAcceptsDeposit(address vault, uint256 amount) internal returns (bool accepted) {
         uint256 snapshot = vm.snapshotState();
 

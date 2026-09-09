@@ -89,18 +89,9 @@ baseSepolia = "${BASE_SEPOLIA_RPC_URL}"
 arbitrum = "${ARBITRUM_RPC_URL}"
 arbitrumSepolia = "${ARBITRUM_SEPOLIA_RPC_URL}"
 unichain = "${UNICHAIN_RPC_URL}"
-# ⚠️ From forge 1.8.0 on, `vm.createSelectFork` against this endpoint needs `--network monad`:
-#
-#     forge test --match-path "test/fork/monad/*" --network monad
-#
-# Foundry instantiates the EVM per network family (`ethereum` | `optimism` | `tempo` | `monad`)
-# and defaults to `ethereum`, which then refuses the fork with "cannot create a `monad` fork with
-# an EVM instantiated for `ethereum`" — in `setUp()`, before a single test body runs. Same shape
-# as the `chainId`-not-`chain` note below: forge has to be told what chain 143 is.
-#
-# A `network = "monad"` key on this table is silently ignored; the flag or a `[profile]` key is
-# what forge reads. `forge script --rpc-url monad` is unaffected — it never takes the fork path.
-# forge 1.5.0 has no `--network` flag and needs none. CI passes it in the Monad job only.
+# ⚠️ forge 1.8+ instantiates the EVM per network family and defaults to `ethereum`, which refuses
+# a `monad` fork. Anything calling `vm.createSelectFork` here needs `--network monad` on the CLI;
+# a `network` key on this table is silently ignored.
 monad = "${MONAD_RPC_URL}"
 
 # Block explorer verification
