@@ -9,6 +9,7 @@ import {SwapDepositRouter} from "../../../src/SwapDepositRouter.sol";
 import {InstrumentRegistry} from "../../../src/registries/InstrumentRegistry.sol";
 import {ILendingAdapter} from "../../../src/interfaces/ILendingAdapter.sol";
 import {InstrumentIdLib} from "../../../src/libraries/InstrumentIdLib.sol";
+import {IERC4626} from "../../../src/interfaces/IERC4626.sol";
 
 /// @title ApiInstrumentsArbitrumForkTest
 /// @notice Verifies that every instrument returned by the API is registered on-chain
@@ -203,8 +204,47 @@ contract ApiInstrumentsArbitrumForkTest is Test {
         _testBuyFor(apiInstruments[1]);
     }
 
+    /// @notice Steakhouse Prime USDC is the one instrument on this list whose vault can be shut
+    ///         to deposits, so it is the one test that reports a closed door instead of failing.
+    /// @dev Measured 2026-09-09 at Arbitrum head: `totalAssets() == 8_760_640_998` ($8,760), and a
+    ///      binary search over deposit sizes puts the accepted maximum at **exactly 0** — the
+    ///      curator's caps sit at or below the current allocation, so `deposit` mints shares and
+    ///      then reverts `AllCapsReached()` on the way out, for any amount.
+    ///
+    ///      It is not a superseded address. The Morpho API lists exactly one "Steakhouse Prime
+    ///      USDC" on Arbitrum (`0x250CF7c8…`), unlike the two-generation shape pinned in
+    ///      `test_noNetworkListsOneVaultTwice`, so repointing config has nothing to point at.
+    ///      The instrument is right; the vault is closed.
+    ///
+    ///      Note that the usual signals both lie here. `maxDeposit()` returns 0, which for a
+    ///      Morpho Vaults V2 vault means nothing at all
+    ///      ({MonadInstrumentsForkTest-test_maxDepositZeroIsNotAFullVault} pins vaults that report
+    ///      0 while taking deposits happily), and `previewDeposit(1e6)` returns a healthy
+    ///      `9.66e17`. Only an actual deposit tells the truth, which is why the probe below is a
+    ///      real deposit inside a snapshot rather than a view call.
+    ///
+    ///      The tolerance is deliberately narrow: it is scoped to this instrument, the probe is
+    ///      re-run every time so a reopened vault immediately restores the full assertion, and
+    ///      anything other than a refused deposit still fails. The other six `buyFor` tests are
+    ///      untouched and still assert a settled deposit.
     function test_fork_arb_api_buyFor_morphoSteakhousePrime() public {
-        _testBuyFor(apiInstruments[2]);
+        ApiInstrument memory inst = apiInstruments[2];
+
+        if (!_vaultAcceptsDeposit(inst.executionAddress, BUY_AMOUNT)) {
+            // `vm.skip` swallows `emit log_*`, so the whole report has to fit in the reason.
+            vm.skip(
+                true,
+                string.concat(
+                    inst.description,
+                    " refuses deposits (vault holds ",
+                    vm.toString(IERC4626(inst.executionAddress).totalAssets()),
+                    " of its underlying); buyFor not exercised"
+                )
+            );
+            return;
+        }
+
+        _testBuyFor(inst);
     }
 
     function test_fork_arb_api_buyFor_morphoClearstarReactor() public {
@@ -224,6 +264,23 @@ contract ApiInstrumentsArbitrumForkTest is Test {
     }
 
     // ============ Internal ============
+
+    /// @notice Whether `vault` will actually take `amount` of its underlying, right now.
+    /// @dev Deposits for real and rolls the state back, because on Morpho Vaults V2 neither
+    ///      `maxDeposit` nor `previewDeposit` distinguishes a live vault from a capped one.
+    function _vaultAcceptsDeposit(address vault, uint256 amount) internal returns (bool accepted) {
+        uint256 snapshot = vm.snapshotState();
+
+        deal(IERC4626(vault).asset(), address(this), amount);
+        IERC20(IERC4626(vault).asset()).approve(vault, amount);
+        try IERC4626(vault).deposit(amount, address(this)) {
+            accepted = true;
+        } catch {
+            accepted = false;
+        }
+
+        vm.revertToState(snapshot);
+    }
 
     function _testBuyFor(ApiInstrument memory inst) internal {
         bytes32 instrumentId = _computeInstrumentId(inst);
