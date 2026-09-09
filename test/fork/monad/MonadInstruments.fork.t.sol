@@ -8,13 +8,24 @@ import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 
 import {AdapterProxyLib} from "../../utils/AdapterProxyLib.sol";
 import {ERC4626Adapter} from "../../../src/adapters/ERC4626Adapter.sol";
+import {AaveAdapter} from "../../../src/adapters/AaveAdapter.sol";
 import {IERC4626} from "../../../src/interfaces/IERC4626.sol";
+import {IAavePool} from "../../../src/interfaces/IAavePool.sol";
+import {InstrumentIdLib} from "../../../src/libraries/InstrumentIdLib.sol";
 
 /// @dev Share decimals, which `IERC4626` here does not declare. Needed because share and asset
 ///      decimals differ on these vaults, and probing a conversion at the wrong unit reads as a
 ///      broken vault.
 interface IVaultDecimals {
     function decimals() external view returns (uint8);
+}
+
+/// @dev The aToken surface an Aave-shaped reserve exposes. `POOL()` is what proves a reserve
+///      belongs to the pool config claims it does, rather than to the other Aave-shaped pool on
+///      the same chain.
+interface IAToken {
+    function UNDERLYING_ASSET_ADDRESS() external view returns (address);
+    function POOL() external view returns (address);
 }
 
 /// @dev Euler's vault surface beyond ERC-4626. `cash()` is the balance actually held by the vault
@@ -337,5 +348,264 @@ contract MonadInstrumentsForkTest is Test {
         for (uint256 i = 0; i < vaults.length; i++) {
             assertTrue(vaults[i] != EXCLUDED_EULER_VAULT, "unexitable vault was added to config");
         }
+    }
+}
+
+/// @title MonadReserveInstrumentsForkTest
+/// @notice The same config-vs-chain sweep as above, for the **reserve-shaped** protocols —
+///         `networks.monadMainnet.protocols.*` carrying both `pool` and `reserves`.
+///
+/// @dev {MonadInstrumentsForkTest} above walks vault lists, which is everything
+///      `RegisterInstruments.s.sol` can register. It could never cover Aave, because Aave exposes
+///      no enumerable vault list — and once `RegisterInstruments.s.sol` grew a branch that makes
+///      reserve lists a
+///      registrable thing, a `reserves` array that drifts from chain state became a way to ship a
+///      broken listing with nothing failing. This is that guard.
+///
+///      The selection rule is deliberately the same predicate the script uses
+///      ({RegisterInstruments-_isReserveShaped}): `pool` **and** `reserves`. So a new Aave
+///      fork added to config is covered here the moment it is added, with no edit to this file.
+///
+///      **The load-bearing assertion is {test_everyReserveBelongsToItsConfiguredPool}.** Monad
+///      carries two Aave-shaped pools — Aave V3 and Neverland — and they share reserve symbols.
+///      `AaveAdapter` keys markets by `keccak256(abi.encode(currency))` with no pool in the
+///      preimage, so a `pool` address that drifted to the other protocol's would register markets
+///      that resolve, deposit and withdraw perfectly well against entirely the wrong protocol.
+///      Reading `aToken.POOL()` back is what makes that visible.
+///
+///      Pinned to a separate, later block than the vault sweep above: Neverland's markets and
+///      Aave's GHO reserve postdate that one, and its loss bounds are measurements of its own
+///      block that must not be disturbed.
+///
+///      Run: MONAD_RPC_URL=https://rpc.monad.xyz forge test --mc MonadReserveInstrumentsForkTest -vv
+contract MonadReserveInstrumentsForkTest is Test {
+    using stdJson for string;
+
+    uint256 internal constant FORK_BLOCK = 103_060_000;
+    string internal constant CONFIG_PATH = "script/config/NetworkConfig.json";
+    string internal constant NET_PATH = ".networks.monadMainnet";
+
+    address internal constant NATIVE_USDC = 0x754704Bc059F8C67012fEd69BC8A327a5aafb603;
+
+    string internal config;
+    string[] internal protocolKeys;
+
+    function setUp() public {
+        vm.createSelectFork(vm.envString("MONAD_RPC_URL"), FORK_BLOCK);
+        config = vm.readFile(CONFIG_PATH);
+
+        string memory protocolsPath = string.concat(NET_PATH, ".protocols");
+        string[] memory all = vm.parseJsonKeys(config, protocolsPath);
+        for (uint256 i = 0; i < all.length; i++) {
+            string memory protoPath = string.concat(protocolsPath, ".", all[i]);
+            if (!vm.keyExistsJson(config, string.concat(protoPath, ".pool"))) continue;
+            if (!vm.keyExistsJson(config, string.concat(protoPath, ".reserves"))) continue;
+            protocolKeys.push(all[i]);
+        }
+
+        assertGt(protocolKeys.length, 0, "no reserve-shaped protocols in Monad config");
+    }
+
+    function _pool(string memory protocolKey) internal view returns (address) {
+        return vm.parseJsonAddress(config, string.concat(NET_PATH, ".protocols.", protocolKey, ".pool"));
+    }
+
+    function _reserves(string memory protocolKey) internal view returns (string[] memory) {
+        return config.readStringArray(string.concat(NET_PATH, ".protocols.", protocolKey, ".reserves"));
+    }
+
+    function _token(string memory symbol) internal view returns (address) {
+        string memory path = string.concat(NET_PATH, ".tokens.", symbol);
+        if (!vm.keyExistsJson(config, path)) return address(0);
+        return vm.parseJsonAddress(config, path);
+    }
+
+    /// @dev A route is bidirectional once registered, so matching either leg is enough.
+    function _configHasRouteFromUsdc(address token) internal view returns (bool) {
+        string memory poolsPath = string.concat(NET_PATH, ".swapPools");
+        if (!vm.keyExistsJson(config, poolsPath)) return false;
+
+        for (uint256 i = 0;; i++) {
+            string memory entry = string.concat(poolsPath, "[", vm.toString(i), "]");
+            if (!vm.keyExistsJson(config, string.concat(entry, ".tokenIn"))) return false;
+
+            address inAddr = _token(vm.parseJsonString(config, string.concat(entry, ".tokenIn")));
+            address outAddr = _token(vm.parseJsonString(config, string.concat(entry, ".tokenOut")));
+            if ((inAddr == NATIVE_USDC && outAddr == token) || (outAddr == NATIVE_USDC && inAddr == token)) {
+                return true;
+            }
+        }
+    }
+
+    // ============================================
+    // Config resolves against chain state
+    // ============================================
+
+    /// @notice Every symbol in a `reserves` list resolves in the same config's `tokens` map.
+    /// @dev `RegisterInstruments` skips an unresolvable symbol rather than aborting — one
+    ///      `reserves` array covers a protocol across chains that list different assets. That is
+    ///      right for the script and wrong as a silent outcome for *this* chain, where every
+    ///      symbol was written deliberately. A GHO listing lost to a missing token entry is a
+    ///      dry run that reads clean and a shelf with one fewer instrument on it.
+    function test_everyReserveSymbolResolvesInTheTokenMap() public view {
+        for (uint256 p = 0; p < protocolKeys.length; p++) {
+            string[] memory symbols = _reserves(protocolKeys[p]);
+            for (uint256 i = 0; i < symbols.length; i++) {
+                assertTrue(
+                    _token(symbols[i]) != address(0),
+                    string.concat("reserve symbol is in no `tokens` entry: ", protocolKeys[p], ".", symbols[i])
+                );
+            }
+        }
+    }
+
+    /// @notice **The one that matters.** Every configured reserve is a live reserve *on the pool
+    ///         config names*, proven by reading the aToken's own `POOL()` back.
+    /// @dev Monad carries two Aave-shaped pools sharing reserve symbols. A `pool` address that
+    ///      drifted to the other protocol's would still register, deposit and withdraw — against
+    ///      the wrong protocol, under the wrong risk budget. Nothing else in the pipeline notices.
+    function test_everyReserveBelongsToItsConfiguredPool() public view {
+        for (uint256 p = 0; p < protocolKeys.length; p++) {
+            address pool = _pool(protocolKeys[p]);
+            string[] memory symbols = _reserves(protocolKeys[p]);
+
+            for (uint256 i = 0; i < symbols.length; i++) {
+                string memory label = string.concat(protocolKeys[p], ".", symbols[i]);
+                address token = _token(symbols[i]);
+
+                address aToken = IAavePool(pool).getReserveData(token).aTokenAddress;
+                assertTrue(aToken != address(0), string.concat("not a reserve on the configured pool: ", label));
+                assertEq(
+                    IAToken(aToken).UNDERLYING_ASSET_ADDRESS(),
+                    token,
+                    string.concat("aToken is denominated in a different asset: ", label)
+                );
+                assertEq(IAToken(aToken).POOL(), pool, string.concat("reserve belongs to another pool: ", label));
+            }
+        }
+    }
+
+    /// @notice A reserve that is frozen or paused is a market where a deposit reverts. Listing one
+    ///         ships an instrument the shelf will route to and the chain will refuse.
+    function test_everyReserveIsOpenForSupply() public view {
+        for (uint256 p = 0; p < protocolKeys.length; p++) {
+            address pool = _pool(protocolKeys[p]);
+            string[] memory symbols = _reserves(protocolKeys[p]);
+
+            for (uint256 i = 0; i < symbols.length; i++) {
+                string memory label = string.concat(protocolKeys[p], ".", symbols[i]);
+                uint256 cfg = IAavePool(pool).getReserveData(_token(symbols[i])).configuration;
+
+                assertTrue((cfg >> 56) & 1 == 1, string.concat("reserve is not active: ", label));
+                assertTrue((cfg >> 57) & 1 == 0, string.concat("reserve is frozen: ", label));
+                assertTrue((cfg >> 60) & 1 == 0, string.concat("reserve is paused: ", label));
+            }
+        }
+    }
+
+    /// @notice A reserve holding no cash is an exit that reverts. This is a floor of one unit, not
+    ///         a sizing claim — sizing lives in each market's own fork test, which measures the
+    ///         ceiling against the $250k ticket.
+    function test_everyReserveHoldsCash() public {
+        for (uint256 p = 0; p < protocolKeys.length; p++) {
+            address pool = _pool(protocolKeys[p]);
+            string[] memory symbols = _reserves(protocolKeys[p]);
+
+            for (uint256 i = 0; i < symbols.length; i++) {
+                address token = _token(symbols[i]);
+                address aToken = IAavePool(pool).getReserveData(token).aTokenAddress;
+                uint256 cash = IERC20(token).balanceOf(aToken);
+
+                emit log_named_uint(
+                    string.concat(protocolKeys[p], ".", symbols[i], " cash (whole units)"),
+                    cash / (10 ** IVaultDecimals(token).decimals())
+                );
+                assertGt(cash, 0, string.concat("reserve holds no cash: ", protocolKeys[p], ".", symbols[i]));
+            }
+        }
+    }
+
+    /// @notice A non-USDC reserve needs a swap route, or deposits arriving in USDC cannot reach it.
+    /// @dev The reserve-side twin of {MonadInstrumentsForkTest-test_everyVaultAssetIsConfiguredAndRoutable}.
+    ///      GHO is the case this was written for: it is the shelf's first 18-decimal instrument and
+    ///      the chain's second route.
+    function test_everyNonUsdcReserveIsRoutable() public view {
+        for (uint256 p = 0; p < protocolKeys.length; p++) {
+            string[] memory symbols = _reserves(protocolKeys[p]);
+            for (uint256 i = 0; i < symbols.length; i++) {
+                address token = _token(symbols[i]);
+                if (token == NATIVE_USDC) continue;
+                assertTrue(
+                    _configHasRouteFromUsdc(token),
+                    string.concat("non-USDC reserve with no swap route: ", protocolKeys[p], ".", symbols[i])
+                );
+            }
+        }
+    }
+
+    // ============================================
+    // The two pools stay two protocols
+    // ============================================
+
+    /// @notice Distinct pools, distinct adapter keys, distinct protocol names.
+    /// @dev Any collision here is the whole failure `AaveAdapter.initializeNamed` exists to
+    ///      prevent: two protocols sharing one adapter proxy, and therefore one
+    ///      `max_weight_per_protocol` budget and one set of per-currency market slots.
+    function test_reserveProtocolsAreDistinct() public view {
+        for (uint256 a = 0; a < protocolKeys.length; a++) {
+            for (uint256 b = a + 1; b < protocolKeys.length; b++) {
+                assertNotEq(_pool(protocolKeys[a]), _pool(protocolKeys[b]), "two protocols share a pool address");
+                assertNotEq(
+                    _adapterKey(protocolKeys[a]), _adapterKey(protocolKeys[b]), "two protocols share an adapter key"
+                );
+            }
+        }
+    }
+
+    /// @dev Mirrors `RegisterInstruments._resolveReserveAdapter`: the protocol key is the default,
+    ///      which
+    ///      is how `aave` resolves — it predates the `adapter` block and has none.
+    function _adapterKey(string memory protocolKey) internal view returns (string memory) {
+        string memory path = string.concat(NET_PATH, ".protocols.", protocolKey, ".adapter.key");
+        return vm.keyExistsJson(config, path) ? vm.parseJsonString(config, path) : protocolKey;
+    }
+
+    /// @notice Registering the whole configured shelf, exactly as the script would, produces one
+    ///         instrument per reserve and no two alike.
+    /// @dev The end-to-end proof that config and chain agree. Two things it pins that no view
+    ///      function does: `registerMarket` resolves the right aToken through the repo's own
+    ///      `IAavePool` for every reserve on both pools, and `generateInstrumentId` separates
+    ///      Aave USDC from Neverland USDC — which share a `marketId` and differ only by pool.
+    function test_everyConfiguredReserveRegistersToADistinctInstrument() public {
+        bytes32[] memory ids = new bytes32[](32);
+        uint256 n;
+
+        for (uint256 p = 0; p < protocolKeys.length; p++) {
+            address pool = _pool(protocolKeys[p]);
+            AaveAdapter adapter = AdapterProxyLib.deployAaveNamed(pool, address(this), protocolKeys[p]);
+            string[] memory symbols = _reserves(protocolKeys[p]);
+
+            for (uint256 i = 0; i < symbols.length; i++) {
+                address token = _token(symbols[i]);
+                Currency currency = Currency.wrap(token);
+                bytes32 marketId = keccak256(abi.encode(currency));
+
+                adapter.registerMarket(currency);
+                assertEq(
+                    adapter.getYieldToken(marketId),
+                    IAavePool(pool).getReserveData(token).aTokenAddress,
+                    string.concat("adapter resolved a different aToken: ", protocolKeys[p], ".", symbols[i])
+                );
+
+                ids[n++] = InstrumentIdLib.generateInstrumentId(block.chainid, pool, marketId);
+            }
+        }
+
+        for (uint256 i = 0; i < n; i++) {
+            for (uint256 j = i + 1; j < n; j++) {
+                assertNotEq(ids[i], ids[j], "two configured reserves collide on one instrumentId");
+            }
+        }
+        emit log_named_uint("reserve instruments configured on Monad", n);
     }
 }

@@ -63,6 +63,79 @@ contract AaveAdapterTest is AdapterTestBase {
         new ERC1967Proxy(address(impl), abi.encodeCall(AaveAdapter.initialize, (address(0), owner)));
     }
 
+    // ============ Protocol Identity Tests ============
+
+    /// @notice A proxy initialized through {initialize} reports the historical literal.
+    /// @dev The fallback in `_adapterName()`. Base, Arbitrum and Monad all run proxies that took
+    ///      this path before the stored name existed, so their name slot is empty; without the
+    ///      fallback they would report `""` as their protocol identity after an implementation
+    ///      swap, and that string is what `max_weight_per_protocol` budgets against downstream.
+    function test_getAdapterMetadata_defaultsToAaveV3() public view {
+        assertEq(adapter.getAdapterMetadata().name, "Aave V3");
+        assertEq(adapter.getAdapterMetadata().chainId, block.chainid);
+    }
+
+    /// @notice The generic path: one contract, identity supplied at init. This is what makes an
+    ///         Aave *fork* — Neverland on Monad — listable as its own protocol rather than
+    ///         exposure silently booked against Aave's risk budget.
+    function test_initializeNamed_setsProtocolIdentity() public {
+        AaveAdapter named = AdapterProxyLib.deployAaveNamed(address(mockPool), owner, "Neverland");
+
+        assertEq(named.getAdapterMetadata().name, "Neverland");
+        // registerInstrument on the deployed registry requires this to match, so it is asserted
+        // rather than assumed on the new path.
+        assertEq(named.getAdapterMetadata().chainId, block.chainid);
+        assertEq(address(named.AAVE_POOL()), address(mockPool));
+        assertEq(named.owner(), owner);
+    }
+
+    /// @notice The name is set once. It is the protocol identity a weight cap budgets against, so
+    ///         there is no setter and re-initialization must not offer a way around that.
+    function test_initializeNamed_cannotBeReinitialized() public {
+        AaveAdapter named = AdapterProxyLib.deployAaveNamed(address(mockPool), owner, "Neverland");
+
+        vm.expectRevert();
+        named.initializeNamed(address(mockPool), owner, "Aave V3");
+
+        vm.expectRevert();
+        named.initialize(address(mockPool), owner);
+
+        assertEq(named.getAdapterMetadata().name, "Neverland", "identity was overwritten");
+    }
+
+    /// @notice The zero-pool guard is not skipped on the named path.
+    function test_initializeNamed_revertsOnZeroPoolAddress() public {
+        AaveAdapter impl = new AaveAdapter();
+        vm.expectRevert(AaveAdapter.InvalidPoolAddress.selector);
+        new ERC1967Proxy(address(impl), abi.encodeCall(AaveAdapter.initializeNamed, (address(0), owner, "Neverland")));
+    }
+
+    /// @notice Two proxies over one implementation carry different identities and different pools.
+    /// @dev This is the property that lets Aave and an Aave fork coexist on one chain.
+    ///      `marketId = keccak256(abi.encode(currency))` has no pool in its preimage, so the same
+    ///      asset keys to the same id on both — safe only because `markets` is per-proxy storage,
+    ///      and unsafe the moment a fork's reserves are registered on Aave's own adapter.
+    function test_twoNamedProxiesDoNotShareIdentityOrPool() public {
+        MockAavePool forkPool = new MockAavePool();
+        forkPool.setReserveData(address(usdc), address(aUsdc));
+
+        AaveAdapter aave = AdapterProxyLib.deployAaveNamed(address(mockPool), owner, "Aave V3");
+        AaveAdapter forkAdapter = AdapterProxyLib.deployAaveNamed(address(forkPool), owner, "Neverland");
+
+        assertEq(aave.getAdapterMetadata().name, "Aave V3");
+        assertEq(forkAdapter.getAdapterMetadata().name, "Neverland", "second proxy took the first's identity");
+        assertEq(address(aave.AAVE_POOL()), address(mockPool));
+        assertEq(address(forkAdapter.AAVE_POOL()), address(forkPool), "second proxy points at the wrong pool");
+
+        vm.startPrank(owner);
+        aave.registerMarket(usdcCurrency);
+        forkAdapter.registerMarket(usdcCurrency);
+        vm.stopPrank();
+
+        assertTrue(aave.hasMarket(usdcMarketId), "market missing on the Aave proxy");
+        assertTrue(forkAdapter.hasMarket(usdcMarketId), "market missing on the fork proxy");
+    }
+
     // ============ registerMarket Tests ============
 
     function test_registerMarket_success() public {
