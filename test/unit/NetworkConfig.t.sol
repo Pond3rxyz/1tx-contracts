@@ -183,23 +183,10 @@ contract NetworkConfigTest is Test, ConfigReader {
     }
 
     /// @notice Monad's two swap routes: AUSD/USDC and GHO/USDC.
-    ///
-    /// @dev The fee tier is the whole assertion, in both cases, and in both cases the measured
-    ///      tier is not the one a vendor label advertises.
-    ///
-    ///      AUSD/USDC: DeFiLlama lists this pair at "0.01%" and there is no such pool — four tiers
-    ///      are initialised on-chain and only **fee 50, tickSpacing 1** holds liquidity
-    ///      (643_682_090_469_433 at Monad block 96_460_000).
-    ///
-    ///      GHO/USDC: **fee 100, tickSpacing 1** is the only tier initialised at all — the other
-    ///      eight plausible tiers return `sqrtPriceX96 == 0` at block 103_060_000.
-    ///
-    ///      A `swapPools` entry written from a vendor label would point `SwapPoolRegistry` at an
-    ///      empty pool, and §5d confines routing to Uniswap V4 with no fallback, so every swap
-    ///      would fail or price catastrophically. Depth and the live tiers are measured in
-    ///      `test/fork/monad/AusdUsdcRoute.fork.t.sol` and
-    ///      `test/fork/monad/GhoUsdcRoute.fork.t.sol`; this pins that config still says what those
-    ///      tests measured.
+    /// @dev The fee tier is the whole assertion: a wrong one addresses an empty pool, and routing
+    ///      is Uniswap V4 only with no fallback. The live tiers are measured in
+    ///      `AusdUsdcRoute.fork.t.sol` and `GhoUsdcRoute.fork.t.sol`; this pins that config still
+    ///      says what those measured.
     function test_monadRoutesAreConfigured() public view {
         NetworkConfig memory config = getNetworkConfig("monadMainnet");
         assertEq(config.swapPools.length, 2, "Monad should carry the AUSD and GHO routes");
@@ -219,8 +206,7 @@ contract NetworkConfigTest is Test, ConfigReader {
         assertEq(gho.hooks, address(0), "an unexpected hook would change swap semantics");
     }
 
-    /// @dev The GHO route's twin of {test_monadAusdTokenResolves}. GHO is the shelf's first
-    ///      18-decimal instrument and was added to the token map for this listing.
+    /// @dev The GHO route's twin of {test_monadAusdTokenResolves}.
     function test_monadGhoTokenResolves() public view {
         assertEq(
             getTokenAddressBySymbol("monadMainnet", "GHO"),
