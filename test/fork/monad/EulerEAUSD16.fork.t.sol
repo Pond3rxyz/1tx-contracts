@@ -61,7 +61,7 @@ interface IERC20Metadata {
 contract EulerEAUSD16ForkTest is Test {
     using stdJson for string;
 
-    uint256 internal constant FORK_BLOCK = 96_460_000;
+    uint256 internal constant FORK_BLOCK = 103_280_000;
     string internal constant CONFIG_PATH = "script/config/NetworkConfig.json";
     string internal constant VAULT_PATH = ".networks.monadMainnet.protocols.eulerEarn.vaults.eAUSD16";
     string internal constant AUSD_PATH = ".networks.monadMainnet.tokens.AUSD";

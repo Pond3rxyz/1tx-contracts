@@ -89,6 +89,9 @@ baseSepolia = "${BASE_SEPOLIA_RPC_URL}"
 arbitrum = "${ARBITRUM_RPC_URL}"
 arbitrumSepolia = "${ARBITRUM_SEPOLIA_RPC_URL}"
 unichain = "${UNICHAIN_RPC_URL}"
+# ⚠️ forge 1.8+ instantiates the EVM per network family and defaults to `ethereum`, which refuses
+# a `monad` fork. Anything calling `vm.createSelectFork` here needs `--network monad` on the CLI;
+# a `network` key on this table is silently ignored.
 monad = "${MONAD_RPC_URL}"
 
 # Block explorer verification

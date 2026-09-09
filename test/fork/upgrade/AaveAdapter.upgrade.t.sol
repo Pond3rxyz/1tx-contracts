@@ -70,4 +70,22 @@ contract AaveAdapterUpgradeTest is Test {
         assertTrue(upgraded.authorizedCallers(caller), "authorizedCaller lost across upgrade");
         assertEq(upgraded.owner(), owner, "owner shifted");
     }
+
+    /// @notice A proxy that predates the stored adapter name keeps reporting a real name.
+    /// @dev The whole risk of moving the name into storage: Base, Arbitrum and Monad all run
+    ///      proxies initialized through {AaveAdapter-initialize}, so that slot is empty on every
+    ///      one of them. Without the fallback in `_adapterName()` they would start reporting `""`
+    ///      as their protocol identity the moment the implementation is swapped — and that string
+    ///      is what `max_weight_per_protocol` budgets against downstream.
+    function test_upgradeFromV1_nameFallsBackRatherThanEmptying() public {
+        AaveAdapter newImpl = new AaveAdapter();
+        vm.prank(owner);
+        proxy.upgradeToAndCall(address(newImpl), "");
+
+        assertEq(
+            AaveAdapter(address(proxy)).getAdapterMetadata().name,
+            "Aave V3",
+            "live Aave proxy lost its name across the upgrade"
+        );
+    }
 }

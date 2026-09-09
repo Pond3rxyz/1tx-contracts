@@ -356,13 +356,24 @@ exiting after others have drawn the destinations down.
 | AaveAdapter | `0x451b9EBdf001B900a51fa8282c62f49478Bf5a22` | `0x9a210AD228Ad008D3c7663DD5CEE0574fB64b3C4` | Aave V3 |
 | MorphoAdapter | `0xacC31BD7A13d1c835792A0F5a5024507B34636b7` | `0x2C3d6e475EA7Fd054a502700a5d54bBd3457eCEf` | Morpho Vaults V2 |
 | EulerAdapter | `0xb68f4332A60143067ee5135b9baCd59681f3f20f` | `0x4dee4c5847De5B037DBd3a9D1B75fc9D8a1d0116` | Euler Earn |
+| AaveAdapter (Neverland) | `0x3b7eF4223827491503E5c079053E13B498667875` | `0x5a6D39e83DDe93735a2a4E1D30F64e5Bd1Ea9f99` | Neverland |
 
-The Morpho and Euler adapters were deployed by `RegisterInstruments.s.sol`, not
-`Deploy.s.sol` — the latter's Morpho/Euler gates key off vault names that predate
-this chain, so it silently skips both. Both are the generic `ERC4626Adapter`
-carrying their protocol identity via `initializeNamed`; verified on-chain to
-report `("Morpho Vaults V2", 143)` and `("Euler Earn", 143)`, matching the other
-chains so `max_weight_per_protocol` budgets them in the same bucket.
+The Morpho, Euler and Neverland adapters were all deployed by
+`RegisterInstruments.s.sol`, not `Deploy.s.sol` — the latter's Morpho/Euler gates
+key off vault names that predate this chain, so it silently skips both. Morpho
+and Euler are the generic `ERC4626Adapter` carrying their protocol identity via
+`initializeNamed`; verified on-chain to report `("Morpho Vaults V2", 143)` and
+`("Euler Earn", 143)`, matching the other chains so `max_weight_per_protocol`
+budgets them in the same bucket.
+
+Neverland is the exception to that shape: it is an **`AaveAdapter`**, not an
+`ERC4626Adapter`, because Neverland is an Aave V3 fork with its own pool at
+`0x80F00661b13CC5F6ccd3885bE7b4C9c67545D585`. It carries its own protocol
+identity through `AaveAdapter.initializeNamed` and reports `("Neverland", 143)`
+on-chain — deliberately *not* `"Aave V3"`, so `max_weight_per_protocol` budgets
+it separately from the real Aave deployment rather than pooling the two into one
+protocol exposure. `AAVE_POOL` is set once at initialization and the name has no
+setter, so neither is repointable; a wrong value there means a new proxy.
 
 ### Instruments
 
@@ -375,6 +386,9 @@ chains so `max_weight_per_protocol` budgets them in the same bucket.
 | Euler `eUSDC-15` | `0xa3B64e2674463c98CbD21807055D8C1E008b6e79` | `0x0000008f2580724bcc8c57ba6c99ec93607f008765eccd9bdb393989e8565528` |
 | Euler `Clearstar Earn USDC` | `0xE1BcA19baA63894D374578320551633320436523` | `0x0000008f20acc156b5a77f0036614b47715953e03473bcd955ca726e00cb3176` |
 | Euler `eAUSD-16` (AUSD) | `0x9E3500649e16EBE295277EC030e42FAbacFa870E` | `0x0000008fe112a02a03f4a41b8843076a4a7700f0aa6bf9b654755ba73a42078b` |
+| Aave V3 GHO | `0x69a5F9AD4f96ebf0a0C792dD42a01cC5C0102fef` | `0x0000008fb4a7350a0ac2ef38919fa70f138ed3da494b3daf01c3da91bef52180` |
+| Neverland USDC | `0x80F00661b13CC5F6ccd3885bE7b4C9c67545D585` | `0x0000008f4ebefd380701541f3c3b8714bd828824fa2842de58ba96eea9758a3f` |
+| Neverland AUSD | `0x80F00661b13CC5F6ccd3885bE7b4C9c67545D585` | `0x0000008f8b183cc36cd7ab674e79e56a05bc89cd6a733a92f3ca89ac84bc0266` |
 
 `eAUSD-16` is the chain's first non-USDC instrument, registered 2026-08-16 in
 block 96,496,190. Its market currency is AUSD
@@ -384,16 +398,29 @@ below. 91.5% utilised at listing — `cash()` $1.017M against $10.45M of assets 
 which bounds a single exit near $1.0M. Nothing off-chain reads
 `maxRedeem`/`maxWithdraw`, so an oversized sell is an opaque revert.
 
+Aave GHO and the two Neverland reserves were listed 2026-09-09 in block
+103,276,887, by the same `RegisterInstruments.s.sol` — GHO onto the existing
+Aave adapter, USDC and AUSD onto the Neverland proxy the same run deployed.
+
+Two of the three are non-USDC and so reachable only through a swap route. GHO
+(`0xfc421aD3C883Bf9E7C4f42dE845C4e4405799e73`) needed a new one, registered in
+block 103,276,664 — deliberately *before* the instrument, since a GHO market
+that exists before its route is a deposit that succeeds and a swap that reverts.
+Neverland AUSD needed nothing new: it reuses the USDC/AUSD route already carrying
+`eAUSD-16`.
+
 ### Swap Pools
 
 | Route | Fee | tickSpacing | Hooks |
 |---|---|---|---|
 | USDC ↔ AUSD (bidirectional) | 50 (0.005%) | 1 | none |
+| USDC ↔ GHO (bidirectional) | 100 (0.01%) | 1 | none |
 
-Registered 2026-08-16 in block 96,495,955 by `RegisterSwapPools.s.sol` — the incremental script
-added for this listing, because swap-pool registration previously existed only
-inside `Deploy.s.sol`'s full eight-step `run()` and could not be applied to a
-live chain.
+USDC/AUSD was registered 2026-08-16 in block 96,495,955 by
+`RegisterSwapPools.s.sol` — the incremental script added for that listing,
+because swap-pool registration previously existed only inside `Deploy.s.sol`'s
+full eight-step `run()` and could not be applied to a live chain. USDC/GHO
+followed 2026-09-09 in block 103,276,664 through the same script.
 
 > ⚠️ **The fee tier is the whole assertion.** Four AUSD/USDC tiers are
 > initialised on Monad and only fee 50 / tickSpacing 1 holds liquidity.
@@ -410,11 +437,11 @@ at registration: 250,000 USDC → 249,924.709470 AUSD (3.0 bps), and
 ### Status
 
 **Complete.** Router ↔ bridge ↔ receiver wired, `tokenMessenger` set, router
-authorized on the bridge and on all three adapters, and the CCTP mesh closed in
+authorized on the bridge and on all four adapters, and the CCTP mesh closed in
 both directions — Monad ↔ Base, Arbitrum and Unichain each carry the correct
 domain, `mintRecipient` and `destinationCaller`, verified on-chain against the
-far side's own `CCTPReceiver`. Seven instruments registered, and the USDC/AUSD
-route registered in both directions.
+far side's own `CCTPReceiver`. Ten instruments registered, and the USDC/AUSD and
+USDC/GHO routes each registered in both directions.
 
 **Source verification is not done.** The Etherscan V2 API covers chain 143 and the key works,
 but forge 1.5.0 rejects the chain from its own registry before reading the configured url.

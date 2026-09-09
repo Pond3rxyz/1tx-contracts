@@ -330,12 +330,21 @@
             },
             "tokens": {
                 "USDC": "0x754704Bc059F8C67012fEd69BC8A327a5aafb603",
-                "AUSD": "0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a"
+                "AUSD": "0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a",
+                "GHO": "0xfc421aD3C883Bf9E7C4f42dE845C4e4405799e73"
             },
             "protocols": {
                 "aave": {
                     "pool": "0x69a5F9AD4f96ebf0a0C792dD42a01cC5C0102fef",
-                    "reserves": ["USDC"]
+                    "reserves": ["USDC", "GHO"]
+                },
+                "neverland": {
+                    "adapter": {
+                        "key": "neverland",
+                        "name": "Neverland"
+                    },
+                    "pool": "0x80F00661b13CC5F6ccd3885bE7b4C9c67545D585",
+                    "reserves": ["USDC", "AUSD"]
                 },
                 "morpho": {
                     "adapter": {
@@ -367,6 +376,13 @@
                     "fee": 50,
                     "tickSpacing": 1,
                     "hooks": "0x0000000000000000000000000000000000000000"
+                },
+                {
+                    "tokenIn": "USDC",
+                    "tokenOut": "GHO",
+                    "fee": 100,
+                    "tickSpacing": 1,
+                    "hooks": "0x0000000000000000000000000000000000000000"
                 }
             ],
             "deployed": {
@@ -380,7 +396,8 @@
                     "compound": "0x0000000000000000000000000000000000000000",
                     "morpho": "0xacC31BD7A13d1c835792A0F5a5024507B34636b7",
                     "fluid": "0x0000000000000000000000000000000000000000",
-                    "euler": "0xb68f4332A60143067ee5135b9baCd59681f3f20f"
+                    "euler": "0xb68f4332A60143067ee5135b9baCd59681f3f20f",
+                    "neverland": "0x3b7eF4223827491503E5c079053E13B498667875"
                 },
                 "cctpBridge": "0x1c3fedD58868d5df292145114d8939e01AC7a51e",
                 "cctpReceiver": "0x6F29586cAE2Eb38fE8b77f6FdaF15e2c532C44a5"

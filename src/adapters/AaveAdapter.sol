@@ -49,13 +49,39 @@ contract AaveAdapter is AdapterBaseUpgradeable {
     /// @notice Emitted when a withdrawal is made from Aave
     event WithdrawnFromAave(bytes32 indexed marketId, uint256 amount, address to);
 
-    /// @notice Initializes the adapter behind a proxy
+    /// @notice Initializes the adapter behind a proxy under the default name
     /// @param _aavePool The address of the Aave v3 Pool contract
     /// @param initialOwner The initial owner of the adapter (can register markets)
+    /// @dev Kept for the three already-deployed proxies — Base, Arbitrum and Monad — which were
+    ///      initialized through this path. New deployments should use {initializeNamed} so the
+    ///      protocol identity is set. Do not remove it and do not renumber around it.
     function initialize(address _aavePool, address initialOwner) external initializer {
         if (_aavePool == address(0)) revert InvalidPoolAddress();
         __AdapterBase_init(initialOwner);
         AAVE_POOL = IAavePool(_aavePool);
+    }
+
+    /// @notice Initializes the adapter behind a proxy with an explicit protocol name
+    /// @param _aavePool The address of the Aave-shaped Pool contract this proxy serves
+    /// @param initialOwner The initial owner of the adapter (can register markets)
+    /// @param adapterName_ Protocol identity surfaced by {getAdapterMetadata}, e.g. "Neverland"
+    /// @dev This is what makes a second Aave-shaped pool (an Aave *fork*, e.g. Neverland on
+    ///      Monad) a listable protocol rather than exposure silently booked against Aave's
+    ///      `max_weight_per_protocol` budget. There is deliberately no setter: renaming a live
+    ///      adapter would re-bucket every instrument under it.
+    ///
+    ///      A fork needs its own proxy regardless — `AAVE_POOL` is per-proxy storage, and
+    ///      `marketId = keccak256(abi.encode(currency))` carries no pool in its preimage, so two
+    ///      pools sharing one adapter would collide on every shared asset. Mirrors
+    ///      {ERC4626Adapter-initializeNamed}; the shape is deliberately identical.
+    function initializeNamed(address _aavePool, address initialOwner, string calldata adapterName_)
+        external
+        initializer
+    {
+        if (_aavePool == address(0)) revert InvalidPoolAddress();
+        __AdapterBase_init(initialOwner);
+        AAVE_POOL = IAavePool(_aavePool);
+        _storedAdapterName = adapterName_;
     }
 
     /// @notice Registers a new market in this adapter
@@ -165,8 +191,18 @@ contract AaveAdapter is AdapterBaseUpgradeable {
     /// @notice Returns adapter metadata (name + chainId)
     /// @dev Backward-compatibility shim for the deployed InstrumentRegistry, which reads this in
     ///      registerInstrument and requires `chainId == block.chainid`.
-    function getAdapterMetadata() external view returns (AdapterMetadata memory metadata) {
-        return AdapterMetadata({name: "Aave V3", chainId: block.chainid});
+    function getAdapterMetadata() external view virtual returns (AdapterMetadata memory metadata) {
+        return AdapterMetadata({name: _adapterName(), chainId: block.chainid});
+    }
+
+    /// @notice Human-readable adapter name surfaced in {getAdapterMetadata}
+    /// @dev Falls back to the historical literal so the three live proxies — Base, Arbitrum and
+    ///      Monad, all initialized through {initialize} before this field existed — keep reporting
+    ///      the name they always have after an implementation swap. The fallback is load-bearing,
+    ///      not defensive: without it those proxies would start reporting `""` as their protocol
+    ///      identity the moment they were upgraded.
+    function _adapterName() internal view virtual returns (string memory) {
+        return bytes(_storedAdapterName).length == 0 ? "Aave V3" : _storedAdapterName;
     }
 
     /// @notice aTokens are 1:1 redeemable for the underlying asset.
@@ -175,6 +211,12 @@ contract AaveAdapter is AdapterBaseUpgradeable {
         return yieldTokenAmount;
     }
 
+    /// @dev Protocol identity for adapters deployed via {initializeNamed}. Empty on every proxy
+    ///      initialized before this field existed, which is why {_adapterName} falls back.
+    ///      Appended here, ahead of the gap, so the V1 storage layout is preserved — the slot it
+    ///      consumes is a gap slot, provably zero on the live proxies.
+    string private _storedAdapterName;
+
     /// @dev Reserved storage for future fields. Adapter storage is append-only once live.
-    uint256[50] private __gap;
+    uint256[49] private __gap;
 }

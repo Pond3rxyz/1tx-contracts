@@ -21,6 +21,23 @@ library AdapterProxyLib {
         );
     }
 
+    /// @notice Deploys an Aave-shaped adapter carrying an explicit protocol name.
+    /// @dev The path an Aave *fork* takes — Neverland on Monad — so its exposure is budgeted
+    ///      against its own `max_weight_per_protocol` bucket rather than Aave's.
+    function deployAaveNamed(address aavePool, address owner, string memory adapterName)
+        internal
+        returns (AaveAdapter)
+    {
+        AaveAdapter impl = new AaveAdapter();
+        return AaveAdapter(
+            address(
+                new ERC1967Proxy(
+                    address(impl), abi.encodeCall(AaveAdapter.initializeNamed, (aavePool, owner, adapterName))
+                )
+            )
+        );
+    }
+
     function deployCompound(address owner) internal returns (CompoundAdapter) {
         CompoundAdapter impl = new CompoundAdapter();
         return

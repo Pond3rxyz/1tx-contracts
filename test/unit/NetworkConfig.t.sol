@@ -182,26 +182,37 @@ contract NetworkConfigTest is Test, ConfigReader {
         assertEq(config.swapPools.length, 0);
     }
 
-    /// @notice Monad's first swap route: AUSD/USDC, which the Euler `eAUSD16` listing depends on.
-    ///
-    /// @dev The fee tier is the whole assertion. DeFiLlama lists this pair at "0.01%" and there is
-    ///      no such pool — four tiers are initialised on-chain and only **fee 50, tickSpacing 1**
-    ///      holds liquidity (643_682_090_469_433 at Monad block 96_460_000). A `swapPools` entry
-    ///      written from the vendor label would point `SwapPoolRegistry` at an empty pool, and §5d
-    ///      confines routing to Uniswap V4 with no fallback, so every swap would fail or price
-    ///      catastrophically. Depth and the live tier are measured in
-    ///      `test/fork/monad/AusdUsdcRoute.fork.t.sol`; this pins that config still says what that
-    ///      test measured.
-    function test_monadAusdRouteIsConfigured() public view {
+    /// @notice Monad's two swap routes: AUSD/USDC and GHO/USDC.
+    /// @dev The fee tier is the whole assertion: a wrong one addresses an empty pool, and routing
+    ///      is Uniswap V4 only with no fallback. The live tiers are measured in
+    ///      `AusdUsdcRoute.fork.t.sol` and `GhoUsdcRoute.fork.t.sol`; this pins that config still
+    ///      says what those measured.
+    function test_monadRoutesAreConfigured() public view {
         NetworkConfig memory config = getNetworkConfig("monadMainnet");
-        assertEq(config.swapPools.length, 1, "Monad should carry exactly the AUSD route");
+        assertEq(config.swapPools.length, 2, "Monad should carry the AUSD and GHO routes");
 
-        SwapPoolConfig memory route = config.swapPools[0];
-        assertEq(route.tokenIn, "USDC");
-        assertEq(route.tokenOut, "AUSD");
-        assertEq(uint256(route.fee), 50, "wrong fee tier: the liquid AUSD/USDC pool is 0.005%, not 0.01%");
-        assertEq(int256(route.tickSpacing), 1);
-        assertEq(route.hooks, address(0), "an unexpected hook would change swap semantics");
+        SwapPoolConfig memory ausd = config.swapPools[0];
+        assertEq(ausd.tokenIn, "USDC");
+        assertEq(ausd.tokenOut, "AUSD");
+        assertEq(uint256(ausd.fee), 50, "wrong fee tier: the liquid AUSD/USDC pool is 0.005%, not 0.01%");
+        assertEq(int256(ausd.tickSpacing), 1);
+        assertEq(ausd.hooks, address(0), "an unexpected hook would change swap semantics");
+
+        SwapPoolConfig memory gho = config.swapPools[1];
+        assertEq(gho.tokenIn, "USDC");
+        assertEq(gho.tokenOut, "GHO");
+        assertEq(uint256(gho.fee), 100, "wrong fee tier: fee 100 / spacing 1 is the only GHO/USDC pool that exists");
+        assertEq(int256(gho.tickSpacing), 1);
+        assertEq(gho.hooks, address(0), "an unexpected hook would change swap semantics");
+    }
+
+    /// @dev The GHO route's twin of {test_monadAusdTokenResolves}.
+    function test_monadGhoTokenResolves() public view {
+        assertEq(
+            getTokenAddressBySymbol("monadMainnet", "GHO"),
+            0xfc421aD3C883Bf9E7C4f42dE845C4e4405799e73,
+            "GHO must resolve by symbol or the route is skipped and the reserve is never registered"
+        );
     }
 
     /// @dev `Deploy._registerSwapPools` resolves `tokenIn`/`tokenOut` through
@@ -253,10 +264,14 @@ contract NetworkConfigTest is Test, ConfigReader {
         assertEq(symbols[7], "cbBTC");
     }
 
+    /// @dev Monad names its reserves explicitly, so the eight-symbol fallback does not apply
+    ///      there. GHO joined the list with the Aave GHO listing; `RegisterInstruments.s.sol` is
+    ///      what turns a symbol added here into a registered market on a chain already live.
     function test_getAaveReserveSymbols_configOverrides() public view {
         string[] memory symbols = getAaveReserveSymbols("monadMainnet");
-        assertEq(symbols.length, 1);
+        assertEq(symbols.length, 2);
         assertEq(symbols[0], "USDC");
+        assertEq(symbols[1], "GHO");
     }
 
     /// @dev Every symbol named as an Aave reserve has to resolve in the `tokens` map, or

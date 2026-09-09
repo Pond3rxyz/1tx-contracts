@@ -59,7 +59,7 @@ interface IERC20Metadata {
 ///
 ///      Run: MONAD_RPC_URL=https://rpc.monad.xyz forge test --mc CurvanceCUSDCForkTest -vv
 contract CurvanceCUSDCForkTest is Test {
-    uint256 internal constant FORK_BLOCK = 96_450_000;
+    uint256 internal constant FORK_BLOCK = 103_280_000;
 
     /// @dev `Curvance USDC`. 6-decimal shares over 6-decimal native USDC, `maxDeposit` uncapped.
     address internal constant VAULT = 0x8EE9FC28B8Da872c38A496e9dDB9700bb7261774;
@@ -76,10 +76,9 @@ contract CurvanceCUSDCForkTest is Test {
     uint256 internal constant MAX_ROUND_TRIP_LOSS_BPS = 25;
 
     /// @dev The most a holder can redeem in one transaction at FORK_BLOCK, found by bisection:
-    ///      **$14,173**, equal to the vault's own USDC `balanceOf` to the dollar. Not equal to
-    ///      DeFiLlama's `available_usd` for this pool, which reports ~$151k. See
-    ///      {test_holderExitIsBoundedByTokenBalance}.
-    uint256 internal constant MAX_HOLDER_EXIT_USD = 14_173e6;
+    ///      **$133,608.80**, equal to the vault's own USDC `balanceOf` ($133,610.32) to within
+    ///      $1.52. See {test_holderExitIsBoundedByTokenBalance}.
+    uint256 internal constant MAX_HOLDER_EXIT_USD = 133_610e6;
 
     ERC4626Adapter internal adapter;
     address internal usdc;
@@ -229,20 +228,19 @@ contract CurvanceCUSDCForkTest is Test {
     /// @notice **The load-bearing test, and the finding.** A holder exit is bounded by the vault's
     ///         own USDC balance and nothing more.
     ///
-    /// @dev `screen/` could not say what bounds an exit here, because its two liquidity readings
-    ///      disagree by 10x: `idle_assets` (the vault's USDC `balanceOf`) is ~$14.2k while
-    ///      `available_usd` from DeFiLlama's `lendBorrow` reports ~$151k at 56% utilisation. This
-    ///      settles it by bisection through the real adapter — the ceiling is **$14,173**, equal
-    ///      to `balanceOf` to the dollar.
+    /// @dev Bisection through the real adapter puts the ceiling at **$133,608.80** against a
+    ///      `balanceOf` of $133,610.32 — the vault's own token balance and nothing more.
     ///
-    ///      So `idle_assets` is the exit bound for this market and `available_usd` **overstates it
-    ///      by an order of magnitude**. That is not a Curvance defect; it is a warning about the
-    ///      vendor field. Where the two disagree, believe the token balance until a fork test says
-    ///      otherwise.
+    ///      The rule this pins was established at block 96_450_000, where `screen/`'s two
+    ///      liquidity readings disagreed by 10x: `idle_assets` (the token balance) read ~$14.2k
+    ///      while `available_usd` from DeFiLlama's `lendBorrow` reported ~$151k at 56%
+    ///      utilisation, and bisection sided with the token balance. That is not a Curvance
+    ///      defect; it is a warning about the vendor field. Where the two disagree, believe the
+    ///      token balance until a fork test says otherwise.
     ///
-    ///      The consequence for listing is concrete: the intended $250k ticket cannot be exited.
-    ///      It would have to be unwound ~$14k at a time as borrowers repay, and nothing in
-    ///      `min_position_usd` or `cost_estimate` models that. Note that
+    ///      The consequence for listing is concrete: the intended $250k ticket cannot be exited in
+    ///      one transaction. It has to be unwound in ceiling-sized bites as borrowers repay, and
+    ///      nothing in `min_position_usd` or `cost_estimate` models that. Note that
     ///      {test_roundTripCostAcrossSizes} passes at $250k for 0bps — a self-funded round trip
     ///      brings the liquidity its own exit consumes, which is exactly the illusion
     ///      `_becomeHolder` exists to strip away.
@@ -276,9 +274,11 @@ contract CurvanceCUSDCForkTest is Test {
     }
 
     /// @notice The sizing consequence, stated as an assertion rather than left in a comment: the
-    ///         ticket this instrument is being screened for is far past what a holder can exit in
-    ///         one transaction. Listing it means accepting a position that unwinds in ~$14k
-    ///         increments as borrowers repay.
+    ///         ticket this instrument is being screened for is past what a holder can exit in one
+    ///         transaction — by ~1.9x at FORK_BLOCK, down from ~18x at block 96_450_000 as the
+    ///         vault's idle balance grew. Listing it still means accepting a position that unwinds
+    ///         in ceiling-sized increments as borrowers repay. The assertion is the tripwire: it
+    ///         fails the day the ceiling covers the ticket.
     function test_positionSizeIsFarPastTheExitCeiling() public {
         uint256 ceiling = IERC20(usdc).balanceOf(VAULT);
         assertLt(ceiling, POSITION_SIZE, "exit ceiling now covers the ticket: this instrument became listable");
