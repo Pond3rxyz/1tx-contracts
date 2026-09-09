@@ -130,8 +130,15 @@ jobs:
         with:
           version: stable
 
+      # `--network monad` is load-bearing. Foundry 1.8 instantiates the EVM per network family
+      # (`ethereum` | `optimism` | `tempo` | `monad`) and defaults to `ethereum`; attaching a
+      # Monad fork to an `ethereum` EVM is refused outright, so every test in this directory dies
+      # in `setUp()` with "cannot create a `monad` fork with an EVM instantiated for `ethereum`".
+      # This is the same shape as the `chainId`-not-`chain` note in `foundry.toml`: forge has to
+      # be told what chain 143 is, it will not infer it. Drop the flag only on a toolchain that
+      # resolves the network from the fork itself — re-test before you do.
       - name: Run Monad fork tests
-        run: forge test -vvv --match-path "test/fork/monad/*" --jobs 1 --compute-units-per-second 200
+        run: forge test -vvv --match-path "test/fork/monad/*" --jobs 1 --compute-units-per-second 200 --network monad
 
   test-fork-upgrade:
     name: Fork Tests (Upgrade)
