@@ -105,8 +105,11 @@ contract LiveAdapterUpgradeForkTest is Test {
         ERC4626Adapter adapter = ERC4626Adapter(MORPHO_PROXY);
         assertEq(adapter.getAdapterMetadata().name, "Morpho Vaults V2");
 
+        // Deploy before the prank: `vm.prank` applies to the next call *or create*, so a `new`
+        // in the argument list consumes it and the upgrade arrives from the default sender.
+        address newImpl = address(new ERC4626Adapter());
         vm.prank(OWNER);
-        adapter.upgradeToAndCall(address(new ERC4626Adapter()), "");
+        adapter.upgradeToAndCall(newImpl, "");
 
         assertEq(
             adapter.getAdapterMetadata().name,

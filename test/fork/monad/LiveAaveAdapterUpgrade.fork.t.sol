@@ -73,8 +73,11 @@ contract LiveAaveAdapterUpgradeForkTest is Test {
         address yieldTokenBefore = adapter.getYieldToken(marketId);
         address currencyBefore = Currency.unwrap(adapter.getMarketCurrency(marketId));
 
+        // Deploy before the prank: `vm.prank` applies to the next call *or create*, so a `new`
+        // in the argument list consumes it and the upgrade arrives from the default sender.
+        address newImpl = address(new AaveAdapter());
         vm.prank(OWNER);
-        adapter.upgradeToAndCall(address(new AaveAdapter()), "");
+        adapter.upgradeToAndCall(newImpl, "");
 
         assertEq(adapter.getAdapterMetadata().name, nameBefore, "adapter identity changed across the upgrade");
         assertEq(adapter.getAdapterMetadata().name, "Aave V3", "the fallback did not hold");
@@ -92,8 +95,11 @@ contract LiveAaveAdapterUpgradeForkTest is Test {
     ///      as the real router, which is the only thing that proves the storage layout survived in
     ///      the way that matters.
     function test_liveAaveAdapter_marketStillRoundTripsAfterUpgrade() public {
+        // Deploy before the prank: `vm.prank` applies to the next call *or create*, so a `new`
+        // in the argument list consumes it and the upgrade arrives from the default sender.
+        address newImpl = address(new AaveAdapter());
         vm.prank(OWNER);
-        adapter.upgradeToAndCall(address(new AaveAdapter()), "");
+        adapter.upgradeToAndCall(newImpl, "");
 
         address aUsdc = adapter.getYieldToken(marketId);
         address user = makeAddr("liveAaveUser");
@@ -126,8 +132,11 @@ contract LiveAaveAdapterUpgradeForkTest is Test {
     /// @dev The two halves of the change, asserted together against production state: the live
     ///      proxy is not re-bucketed, and a fork can still be listed as its own protocol.
     function test_upgradedLiveProxyAndANamedProxyCoexist() public {
+        // Deploy before the prank: `vm.prank` applies to the next call *or create*, so a `new`
+        // in the argument list consumes it and the upgrade arrives from the default sender.
+        address newImpl = address(new AaveAdapter());
         vm.prank(OWNER);
-        adapter.upgradeToAndCall(address(new AaveAdapter()), "");
+        adapter.upgradeToAndCall(newImpl, "");
 
         AaveAdapter named = new AaveAdapter();
         // The implementation itself has initializers disabled, so identity is checked through a
